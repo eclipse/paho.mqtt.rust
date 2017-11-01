@@ -1,6 +1,6 @@
 # Eclipse Paho MQTT Rust Client Library
 
-This repository will soon contain the source code for the [Eclipse Paho](http://eclipse.org/paho) MQTT C++ client library on memory-managed operating systems such as Linux/Posix and Windows.
+This repository will soon contain the source code for the [Eclipse Paho](http://eclipse.org/paho) MQTT Rust client library on memory-managed operating systems such as Linux/Posix and Windows.
 
 ## Coming Soon!
 
