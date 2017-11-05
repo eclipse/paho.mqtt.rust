@@ -1,0 +1,4 @@
+syntax: glob
+target/
+**/*.rs.bk
+Cargo.lock

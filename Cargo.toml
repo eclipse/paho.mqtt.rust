@@ -1,0 +1,15 @@
+[package]
+name = "paho-mqtt"
+version = "0.1.0"
+authors = ["Frank Pagliughi <fpagliughi@mindspring.com>"]
+description = """
+The Paho MQTT Rust Client Library
+This is currently a wrapper around the Paho C library.
+"""
+
+[dependencies]
+paho-mqtt3as-sys = { path = "paho-mqtt3as-sys" }
+
+[build-dependencies]
+bindgen = "0.30.0"
+
