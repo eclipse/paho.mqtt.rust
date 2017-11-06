@@ -61,30 +61,30 @@ Several small sample applications can be found in the _examples_ directory. Here
 extern crate paho_mqtt as mqtt;
 
 fn main() {
-	// Create a client & define connect options
-	let mut cli = mqtt::AsyncClient::new("tcp://localhost:1883", "");
+    // Create a client & define connect options
+    let mut cli = mqtt::AsyncClient::new("tcp://localhost:1883", "");
 
-	let conn_opts = mqtt::ConnectOptionsBuilder::new()
-		.keep_alive_interval(Duration::from_secs(20))
-		.clean_session(true)
-		.finalize();
+    let conn_opts = mqtt::ConnectOptionsBuilder::new()
+        .keep_alive_interval(Duration::from_secs(20))
+        .clean_session(true)
+        .finalize();
 
-	// Connect and wait for it to complete or fail
-	if let Err(e) = cli.connect(conn_opts).wait() {
-		println!("Unable to connect:\n\t{:?}", e);
-		::std::process::exit(1);
-	}
+    // Connect and wait for it to complete or fail
+    if let Err(e) = cli.connect(conn_opts).wait() {
+        println!("Unable to connect:\n\t{:?}", e);
+        ::std::process::exit(1);
+    }
 
-	// Create a message and publish it
-	let msg = mqtt::Message::new("test", "Hello world!");
-	let tok = cli.publish(msg);
+    // Create a message and publish it
+    let msg = mqtt::Message::new("test", "Hello world!");
+    let tok = cli.publish(msg);
 
-	if let Err(e) = tok.wait() {
-		println!("Error sending message: {:?}", e);
-	}
+    if let Err(e) = tok.wait() {
+        println!("Error sending message: {:?}", e);
+    }
 
-	// Disconnect from the broker
-	let tok = cli.disconnect();
-	tok.wait().unwrap();
+    // Disconnect from the broker
+    let tok = cli.disconnect();
+    tok.wait().unwrap();
 }
 ```
