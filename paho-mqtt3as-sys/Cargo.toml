@@ -10,5 +10,6 @@ Rust wrapper for the Paho MQTT C Client Library.
 [dependencies]
 
 [build-dependencies]
+#bindgen = "*"
 bindgen = "0.30.0"
 

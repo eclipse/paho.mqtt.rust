@@ -4,9 +4,11 @@ This repository contains the source code for the [Eclipse Paho](http://eclipse.o
 
 ## Incubator
 
-This is the initial incubator branch for development and testing out an API for the Rust language.
+This is the incubator branch for development and testing out an API for the Rust language.
 
 _The API is likely to change repeatedly and often while the code is being developed in this branch. Use it with caution._
+
+Initial development is being done on Linux. That is currently the only system known to work, although even that requires a few work-arounds as listed below.
 
 It is hoped that a full, stable, version 1.0 release should be ready by early 2018.
 
@@ -39,17 +41,26 @@ Builds and runs the unit tests.
 `$ cargo doc`
 Generates reference documentation.
 
+### Paho C Library
+
+The Paho Rust library is a wrapper around the Paho C library, and needs to locate both the pre-built library file and the C headers, particularly _MQTTAsync.h_.
+
+Currently the Rust library is only linking to the SSL version of the library, _libpaho-mqtt3as_.
+
+If the C library is not installed in a default system location, then the path to the headers and library must be specified as:
+
+`PAHO_MQTT_C_INC_PATH= ...path to headers...`
+
+`PAHO_MQTT_C_LIB_PATH= ...path to library...` 
+
 ### Bindgen linker issue
 
 The crate currently uses the Rust _bindgen_ library to create the bindings to the Paho C library.
 https://rust-lang-nursery.github.io/rust-bindgen/
 
-There are current two issues with this:
-
-1. The location of the Paho C library is hard-coded to a path that likely doesn't exist on your system. You can manually set this value to a location that is appropriate for your machine.
-
-1. There appears to be a bug in the _bindgen_ library in which it is outputting code that mangles the names of the C functions. This issue has been raised for the _bindgen_ project:
+There appears to be a bug in the _bindgen_ library in which it is outputting code that mangles the names of the C functions. This issue has been raised for the _bindgen_ project:
 https://github.com/rust-lang-nursery/rust-bindgen/issues/1046
+
 As a temporary solution, the _fixbindings.sh_ script can be run to fix the _bindings.rs_ file which is created by _bindgen. This works on Linux. On other systems, simply remove all of the lines in _bindings.rs_ which contain the text:
 `#[link_name = ...]`
 
