@@ -155,10 +155,11 @@ impl Token {
 
 		if !rsp.is_null() {
 			msgid = (*rsp).token as u16;
-			rc = (*rsp).code as i32;
-			rc = if rc == 0 { -1 } else { rc };
+			rc = if (*rsp).code == 0 { -1i32 } else { (*rsp).code as i32 };
+
 			if !(*rsp).message.is_null() {
 				if let Ok(cmsg) = CStr::from_ptr((*rsp).message).to_str() {
+					println!("Token failure message: {:?}", cmsg);
 					msg = cmsg.to_string();
 				}
 			}
@@ -407,6 +408,11 @@ impl AsyncClient {
 		(*lkopts).copts.onSuccess = Some(Token::on_success);
 		(*lkopts).copts.onFailure = Some(Token::on_failure);
 		(*lkopts).copts.context = Arc::into_raw(tokcb) as *mut c_void;
+
+		let ts = unsafe { CStr::from_ptr((*(*lkopts).copts.ssl).trustStore) };
+		unsafe {
+			println!("Connect Trust Store: [{:?}] {:?}", (*(*lkopts).copts.ssl).trustStore, ts);
+		}
 
 		let ret = unsafe {
 			ffi::MQTTAsync_connect(self.handle, &(*lkopts).copts)

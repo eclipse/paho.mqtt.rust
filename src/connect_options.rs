@@ -305,7 +305,7 @@ mod tests {
 		//assert_eq!(ptr::null(), opts.copts.password);
 		assert_eq!(ptr::null(), opts.copts.ssl);
 	}
-/*
+
 	#[test]
 	fn test_ssl() {
 		const TRUST_STORE: &str = "some_file.crt";
@@ -332,7 +332,6 @@ mod tests {
 		};
 
 	}
-*/
 
 }
 

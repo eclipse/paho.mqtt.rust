@@ -31,25 +31,33 @@
 extern crate paho_mqtt;
 extern crate paho_mqtt3as_sys as ffi;
 
-use std::{thread, time, env};
+use std::{thread, time, env, process};
+use std::path::Path;
 use std::ffi::CStr;
 use paho_mqtt as mqtt;
 
 fn main() {
+	const TRUST_STORE: &str = "/home/fmp/mqtt/paho-rust/test-root-ca.crt";
 
 	// We assume that we are in a valid directory.
-	let path = env::current_dir().unwrap();
-	println!("The current directory is {}", path.display());
+	let cwd = env::current_dir().unwrap();
+	println!("The current directory is {}", cwd.display());
 
+	let trust_store = Path::new(TRUST_STORE);
+	if !trust_store.exists() {
+		println!("The trust store file does not exist: {}", TRUST_STORE);
+		process::exit(1);
+	}
+	
 	let mut conn = mqtt::AsyncClient::new("ssl://localhost:18885", "ssl_publish_rs");
 
 	let ssl_opts = mqtt::SslOptionsBuilder::new()
-		.trust_store("test-root-ca.crt")
+		.trust_store(TRUST_STORE)
 		.finalize();
 
 	println!("SSL: {:?}", ssl_opts);
 	let mut ts = unsafe { CStr::from_ptr(ssl_opts.copts.trustStore) };
-	println!("Trust Store: {:?}", ts);
+	println!("Main SSL Opts Trust Store: {:?}", ts);
 
 	let conn_opts = mqtt::ConnectOptionsBuilder::new()
 		.ssl_options(ssl_opts)
@@ -58,8 +66,11 @@ fn main() {
 		.finalize();
 
 	println!("Connect options: {:?}", conn_opts);
-	ts = unsafe { CStr::from_ptr((*(conn_opts.copts.ssl as *mut ffi::MQTTAsync_SSLOptions)).trustStore) };
-	println!("Trust Store: {:?}", ts);
+
+	ts = unsafe { CStr::from_ptr((*conn_opts.copts.ssl).trustStore) };
+	unsafe {
+		println!("Main Conn Trust Store: [{:?}] {:?}", (*conn_opts.copts.ssl).trustStore, ts);
+	}
 
 	let tok = conn.connect(conn_opts);
 	if let Err(e) = tok.wait() {

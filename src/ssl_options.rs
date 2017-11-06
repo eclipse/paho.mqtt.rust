@@ -19,9 +19,10 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
+use std::ptr;
 use std::ffi::{CString};	//, IntoStringError};
 //use std::string::{FromUtf8Error};
-//use std::os::raw::{c_void};
+use std::os::raw::{c_char};
 
 use ffi;
 
@@ -35,7 +36,7 @@ use ffi;
 // 
 
 /// The options for SSL socket connections to the broker.
-#[derive(Debug,Clone)]
+#[derive(Debug)]
 pub struct SslOptions {
 	pub copts: ffi::MQTTAsync_SSLOptions,
 	trust_store: CString,
@@ -44,7 +45,6 @@ pub struct SslOptions {
 	private_key_password: CString,
 	enabled_cipher_suites: CString,
 }
-
 
 impl SslOptions {
 	pub fn new() -> SslOptions {
@@ -59,13 +59,58 @@ impl SslOptions {
 		SslOptions::fixup(opts)
 	}
 
-	pub fn fixup(mut opts: SslOptions) -> SslOptions {
-		opts.copts.trustStore = opts.trust_store.as_ptr();
-		opts.copts.keyStore = opts.key_store.as_ptr();
-		opts.copts.privateKey = opts.private_key.as_ptr();
-		opts.copts.privateKeyPassword = opts.private_key_password.as_ptr();
-		opts.copts.enabledCipherSuites = opts.enabled_cipher_suites.as_ptr();
+	// The C library expects unset values in the SSL options struct to be
+	// NULL rather than empty string.
+	fn c_str(str: &CString) -> *const c_char {
+		if str.to_bytes().len() == 0 { ptr::null() } else { str.as_ptr() }
+	}
+
+	// Updates the underlying C structure to match the cached strings.
+	fn fixup(mut opts: SslOptions) -> SslOptions {
+		opts.copts.trustStore = SslOptions::c_str(&opts.trust_store);
+		opts.copts.keyStore = SslOptions::c_str(&opts.key_store);
+		opts.copts.privateKey = SslOptions::c_str(&opts.private_key);
+		opts.copts.privateKeyPassword = SslOptions::c_str(&opts.private_key_password);
+		opts.copts.enabledCipherSuites = SslOptions::c_str(&opts.enabled_cipher_suites);
 		opts
+	}
+
+	pub fn get_trust_store(&self) -> String {
+		self.trust_store.to_str().unwrap().to_string()
+	}
+
+	pub fn get_key_store(&self) -> String {
+		self.key_store.to_str().unwrap().to_string()
+	}
+
+	pub fn get_private_key(&self) -> String {
+		self.private_key.to_str().unwrap().to_string()
+	}
+
+	pub fn get_private_key_password(&self) -> String {
+		self.private_key_password.to_str().unwrap().to_string()
+	}
+
+	pub fn get_enabled_cipher_suites(&self) -> String {
+		self.enabled_cipher_suites.to_str().unwrap().to_string()
+	}
+
+	pub fn get_enable_server_cert_auth(&self) -> bool {
+		self.copts.enableServerCertAuth != 0
+	}
+}
+
+impl Clone for SslOptions {
+	fn clone(&self) -> SslOptions {
+		let ssl = SslOptions {
+			copts: self.copts.clone(),
+			trust_store: self.trust_store.clone(),
+			key_store: self.key_store.clone(),
+			private_key: self.private_key.clone(),
+			private_key_password: self.private_key_password.clone(),
+			enabled_cipher_suites: self.enabled_cipher_suites.clone(),
+		};
+		SslOptions::fixup(ssl)
 	}
 }
 
@@ -77,6 +122,7 @@ pub struct SslOptionsBuilder {
 	private_key: String,
 	private_key_password: String,
 	enabled_cipher_suites: String,
+	enable_server_cert_auth: bool,
 }
 
 impl SslOptionsBuilder {
@@ -87,6 +133,7 @@ impl SslOptionsBuilder {
 			private_key: "".to_string(),
 			private_key_password: "".to_string(),
 			enabled_cipher_suites: "".to_string(),
+			enable_server_cert_auth: true,
 		}
 	}
 
@@ -116,7 +163,7 @@ impl SslOptionsBuilder {
 	}
 
 	pub fn finalize(&self) -> SslOptions {
-		let opts = SslOptions {
+		let mut opts = SslOptions {
 			copts: ffi::MQTTAsync_SSLOptions::default(),
 			trust_store: CString::new(self.trust_store.clone()).unwrap(),
 			key_store: CString::new(self.key_store.clone()).unwrap(),
@@ -124,6 +171,7 @@ impl SslOptionsBuilder {
 			private_key_password: CString::new(self.private_key_password.clone()).unwrap(),
 			enabled_cipher_suites: CString::new(self.enabled_cipher_suites.clone()).unwrap(),
 		};
+		opts.copts.enableServerCertAuth = if self.enable_server_cert_auth { 1 } else { 0 };
 		SslOptions::fixup(opts)
 	}
 }
@@ -144,7 +192,7 @@ mod tests {
 
 		assert_eq!([ 'M' as i8, 'Q' as i8, 'T' as i8, 'S' as i8 ], opts.copts.struct_id);
 		assert_eq!(0, opts.copts.struct_version);
-		assert_eq!(opts.trust_store.as_ptr(), opts.copts.trustStore);
+		assert_eq!(ptr::null(), opts.copts.trustStore);
 		// TODO: Check the other strings
 	}
 
@@ -155,7 +203,7 @@ mod tests {
 
 		assert_eq!([ 'M' as i8, 'Q' as i8, 'T' as i8, 'S' as i8 ], opts.copts.struct_id);
 		assert_eq!(0, opts.copts.struct_version);
-		assert_eq!(opts.trust_store.as_ptr(), opts.copts.trustStore);
+		assert_eq!(ptr::null(), opts.copts.trustStore);
 		// TODO: Check the other strings
 	}
 
@@ -181,6 +229,8 @@ mod tests {
 		assert_eq!(KEY_STORE, opts.key_store.to_str().unwrap());
 	}
 
+	// TODO: Test the other builder initializers
+
 	#[test]
 	fn test_copy() {
 		const TRUST_STORE: &str = "some_file.crt";
@@ -197,6 +247,8 @@ mod tests {
 	#[test]
 	fn test_clone() {
 		const TRUST_STORE: &str = "some_file.crt";
+		// Make sure the original goes out of scope 
+		// before testing the clone.
 		let opts = {
 			let org_opts = SslOptionsBuilder::new()
 				.trust_store(TRUST_STORE)
@@ -209,8 +261,6 @@ mod tests {
 		let ts = unsafe { CStr::from_ptr(opts.copts.trustStore) };
 		assert_eq!(TRUST_STORE, ts.to_str().unwrap());
 	}
-
-
 }
 
 
