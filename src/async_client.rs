@@ -28,6 +28,7 @@ use std::os::raw::{c_void, c_char, c_int};
 use ffi;
 
 use connect_options::{ConnectOptions};
+use disconnect_options::{DisconnectOptions,DisconnectOptionsBuilder};
 use message::{Message};
 use errors::{MqttResult, /*MqttError,*/ ErrorKind};
 
@@ -41,6 +42,8 @@ pub type SuccessCallback = FnMut(&AsyncClient, u16) + 'static;
 pub type FailureCallback = FnMut(&AsyncClient, u16, i32) + 'static;
 
 /// The result data for the token.
+/// This is the guarded elements in the token which are updated by the 
+/// C library callback when the operation completes.
 struct TokenData {
 	/// Whether the async action has completed
 	complete: bool,
@@ -55,7 +58,6 @@ struct TokenData {
 
 /// A `Token` is a mechanism for tracking the progress of an asynchronous
 /// operation.
-
 pub struct Token {
 	// Mutex guards: (done, ret, msgid)
 	lock: Mutex<TokenData>,
@@ -73,7 +75,7 @@ pub struct Token {
 }
 
 impl Token {
-	/// Creates a new, unsignalled Token.
+	/// Creates a new, unsignaled Token.
 	pub fn new() -> Token {
 		Token {
 			lock: Mutex::new(TokenData {
@@ -130,6 +132,25 @@ impl Token {
 		}
 	}
 
+	/// Creates a new Token signalled with an error.
+	pub fn from_error(rc: i32) -> Token {
+		Token {
+			lock: Mutex::new(TokenData {
+				complete: true,
+				msg_id: 0,
+				ret_code: rc,
+				err_msg: String::from(Token::error_msg(rc)),
+			}),
+			cv: Condvar::new(),
+			cli: ptr::null(),
+			on_success: None,
+			on_failure: None,
+			msg: None
+		}
+	}
+
+
+
 	// Callback from the C library for when an async operation succeeds.
 	unsafe extern "C" fn on_success(context: *mut c_void, rsp: *mut ffi::MQTTAsync_successData) {
 		println!("Token success! {:?}, {:?}", context, rsp);
@@ -166,28 +187,13 @@ impl Token {
 		}
 
 		if msg.is_empty() {
-			let emsg = match rc {
-				/*MQTTASYNC_FAILURE*/ -1 => "General failure",
-				/*MQTTASYNC_PERSISTENCE_ERROR*/ -2 => "Persistence error",
-				/*MQTTASYNC_DISCONNECTED*/ -3 => "Client disconnected",
-				/*MQTTASYNC_MAX_MESSAGES_INFLIGHT*/ -4 => "Maximum inflight messages",
-				/*MQTTASYNC_BAD_UTF8_STRING*/ -5 => "Bad UTF8 string",
-				/*MQTTASYNC_NULL_PARAMETER*/ -6 => "NULL Parameter",
-				/*MQTTASYNC_TOPICNAME_TRUNCATED*/ -7 => "Topic name truncated",
-				/*MQTTASYNC_BAD_STRUCTURE*/ -8 => "Bad structure",
-				/*MQTTASYNC_BAD_QOS*/ -9 => "Bad QoS",
-				/*MQTTASYNC_NO_MORE_MSGIDS*/ -10 => "No more message ID's",
-				/*MQTTASYNC_OPERATION_INCOMPLETE*/ -11 => "Operation incomplete",
-				/*MQTTASYNC_MAX_BUFFERED_MESSAGES*/ -12 => "Max buffered messages",
-				/*MQTTASYNC_SSL_NOT_SUPPORTED*/ -13 => "SSL not supported by Paho C library",
-				 _ => "",
-			};
+			let emsg = Token::error_msg(rc);
 			msg = emsg.to_string();
 		}
 
 		let tokptr = context as *mut Token;
 		let tok = &mut *tokptr;
-		// TODO: Check client null
+		// TODO: Check client null?
 		tok.on_complete(&*tok.cli, msgid, rc, msg);
 		let _ = Arc::from_raw(tokptr);
 	}
@@ -215,6 +221,27 @@ impl Token {
 		}
 		self.cv.notify_all();
 	}
+
+	// Gets the string associated with the error code from the C lib.
+	fn error_msg(rc: i32) -> &'static str {
+		match rc {
+			/*MQTTASYNC_FAILURE*/ -1 => "General failure",
+			/*MQTTASYNC_PERSISTENCE_ERROR*/ -2 => "Persistence error",
+			/*MQTTASYNC_DISCONNECTED*/ -3 => "Client disconnected",
+			/*MQTTASYNC_MAX_MESSAGES_INFLIGHT*/ -4 => "Maximum inflight messages",
+			/*MQTTASYNC_BAD_UTF8_STRING*/ -5 => "Bad UTF8 string",
+			/*MQTTASYNC_NULL_PARAMETER*/ -6 => "NULL Parameter",
+			/*MQTTASYNC_TOPICNAME_TRUNCATED*/ -7 => "Topic name truncated",
+			/*MQTTASYNC_BAD_STRUCTURE*/ -8 => "Bad structure",
+			/*MQTTASYNC_BAD_QOS*/ -9 => "Bad QoS",
+			/*MQTTASYNC_NO_MORE_MSGIDS*/ -10 => "No more message ID's",
+			/*MQTTASYNC_OPERATION_INCOMPLETE*/ -11 => "Operation incomplete",
+			/*MQTTASYNC_MAX_BUFFERED_MESSAGES*/ -12 => "Max buffered messages",
+			/*MQTTASYNC_SSL_NOT_SUPPORTED*/ -13 => "SSL not supported by Paho C library",
+			 _ => "",
+		}
+	}
+
 
 	/// Sets the message ID for the token
 	fn set_msgid(&self, msg_id: i16) {
@@ -409,18 +436,15 @@ impl AsyncClient {
 		(*lkopts).copts.onFailure = Some(Token::on_failure);
 		(*lkopts).copts.context = Arc::into_raw(tokcb) as *mut c_void;
 
-		let ts = unsafe { CStr::from_ptr((*(*lkopts).copts.ssl).trustStore) };
-		unsafe {
-			println!("Connect Trust Store: [{:?}] {:?}", (*(*lkopts).copts.ssl).trustStore, ts);
-		}
-
-		let ret = unsafe {
+		let rc = unsafe {
 			ffi::MQTTAsync_connect(self.handle, &(*lkopts).copts)
 		};
 
-		println!("Connection result: {}", ret);
-		//if ret == 0 { Ok(tok) } else { Err(From::from((ErrorKind::General, ret, "Connection error"))) }
-		tok
+		if rc != 0 {
+			let _ = unsafe { Arc::from_raw((*lkopts).copts.context as *mut Token) };
+			Arc::new(Token::from_error(rc))
+		}
+		else { tok }
 	}
 
 
@@ -458,12 +482,15 @@ impl AsyncClient {
 			*lkopts = opts.clone();
 		}
 
-		let ret = unsafe {
+		let rc = unsafe {
 			ffi::MQTTAsync_connect(self.handle, &opts.copts)
 		};
 
-		println!("Connection result: {}", ret);
-		tok
+		if rc != 0 {
+			let _ = unsafe { Arc::from_raw(opts.copts.context as *mut Token) };
+			Arc::new(Token::from_error(rc))
+		}
+		else { tok }
 	}
 
 	/// Attempts to reconnect to the broker.
@@ -501,22 +528,51 @@ impl AsyncClient {
 	}
 
 	/// Disconnects from the MQTT broker.
-	pub fn disconnect(&mut self) -> Arc<Token> {
-		println!("Disconnecting");
+	/// 
+	/// # Arguments
+	///
+	/// `opt_opts` Optional disconnect options. Specifying `None` will use
+	/// 		   default of immediate (zero timeout) disconnect. 
+	pub fn disconnect<T: Into<Option<DisconnectOptions>>>(&self, opt_opts: T) -> Arc<Token> {
+		if let Some(mut opts) = opt_opts.into() {
+			println!("Disconnecting");
 
-		let tok = Arc::new(Token::new());
-		let tokcb = tok.clone();
+			let tok = Arc::new(Token::new());
+			let tokcb = tok.clone();
 
-		let mut opts = ffi::MQTTAsync_disconnectOptions::default();
-		opts.onSuccess = Some(Token::on_success);
-		opts.context = Arc::into_raw(tokcb) as *mut c_void;
+			opts.copts.onSuccess = Some(Token::on_success);
+			opts.copts.onFailure = Some(Token::on_failure);
+			opts.copts.context = Arc::into_raw(tokcb) as *mut c_void;
 
-		let ret;
-		unsafe {
-			ret = ffi::MQTTAsync_disconnect(self.handle, &opts);
+			let rc = unsafe {
+				ffi::MQTTAsync_disconnect(self.handle, &opts.copts)
+			};
+
+			if rc != 0 {
+				let _ = unsafe { Arc::from_raw(opts.copts.context as *mut Token) };
+				Arc::new(Token::from_error(rc))
+			}
+			else { tok }
 		}
-		println!("Disconnection result: {}", ret);
-		tok
+		else {
+			self.disconnect(Some(DisconnectOptions::default()))
+		}
+	}
+
+	/// Disconnect from the MQTT broker with a timeout.
+	/// This will delay the disconnect for up to the specified timeout to
+	/// allow in-flight messages to complete.
+	/// This is the same as calling disconnect with options specifying a 
+	/// timeout.
+	///
+	/// # Arguments
+	///
+	/// `timeout` The amount of time to wait for the disconnect. This has 
+	/// 		  a resolution in milliseconds.
+	pub fn disconnect_after(&self, timeout: Duration) -> Arc<Token> {
+		let disconn_opts = DisconnectOptionsBuilder::new()
+								.timeout(timeout).finalize();
+		self.disconnect(disconn_opts)
 	}
 
 	/// Determines if this client is currently connected to an MQTT broker.
@@ -591,25 +647,23 @@ impl AsyncClient {
 		let tok = Arc::new(DeliveryToken::from_message(msg));
 		let tokcb = tok.clone();
 
-		let mut opts = ffi::MQTTAsync_responseOptions::default();
-		opts.onSuccess = Some(Token::on_success);
-		opts.context = Arc::into_raw(tokcb) as *mut c_void;
+		let mut copts = ffi::MQTTAsync_responseOptions::default();
+		copts.onSuccess = Some(Token::on_success);
+		copts.context = Arc::into_raw(tokcb) as *mut c_void;
 
-		let ret;
-
-		unsafe {
+		let rc = unsafe {
 			let msg = tok.msg.as_ref().unwrap();
-			ret = ffi::MQTTAsync_sendMessage(self.handle, msg.topic.as_ptr(), &msg.cmsg, &mut opts);
-			println!("Publish result: {}", ret);
-		}
+			ffi::MQTTAsync_sendMessage(self.handle, msg.topic.as_ptr(), &msg.cmsg, &mut copts)
+		};
 
-		if ret != 0 {
-			// TODO: Handle the error
-			println!("Send error: {}", ret);
+		if rc != 0 {
+			let _ = unsafe { Arc::from_raw(copts.context as *mut Token) };
+			Arc::new(Token::from_error(rc))
 		}
-
-		tok.set_msgid(opts.token as i16);
-		tok
+		else { 
+			tok.set_msgid(copts.token as i16);
+			tok
+		}
 	}
 
 	/// Subscribes to a single topic.
@@ -624,24 +678,51 @@ impl AsyncClient {
 		let tok = Arc::new(DeliveryToken::new());
 		let tokcb = tok.clone();
 
-		let mut opts = ffi::MQTTAsync_responseOptions::default();
-		opts.onSuccess = Some(Token::on_success);
-		opts.context = Arc::into_raw(tokcb) as *mut c_void;
+		let mut copts = ffi::MQTTAsync_responseOptions::default();
+		copts.onSuccess = Some(Token::on_success);
+		copts.context = Arc::into_raw(tokcb) as *mut c_void;
 
 		let topic = CString::new(topic).unwrap();
 
-		let ret = unsafe {
-			ffi::MQTTAsync_subscribe(self.handle, topic.as_ptr(), qos, &mut opts)
+		let rc = unsafe {
+			ffi::MQTTAsync_subscribe(self.handle, topic.as_ptr(), qos, &mut copts)
 		};
 
-		println!("Subscribe result: {}", ret);
-
-		if ret != 0 {
-			// TODO: Handle the error
-			println!("Subscribe error: {}", ret);
+		if rc != 0 {
+			let _ = unsafe { Arc::from_raw(copts.context as *mut Token) };
+			Arc::new(Token::from_error(rc))
 		}
+		else { tok }
+	}
 
-		tok
+	/// Unsubscribes from a single topic.
+	///
+	/// # Arguments
+	///
+	/// `topic` The topic to unsubscribe. It must match a topic from a 
+	/// 		previous subscribe.
+	pub fn unsubscribe(&self, topic: &str) -> Arc<Token> {
+		println!("Unsubscribe from '{}'", topic);
+
+		let tok = Arc::new(DeliveryToken::new());
+		let tokcb = tok.clone();
+
+		let mut copts = ffi::MQTTAsync_responseOptions::default();
+		copts.onSuccess = Some(Token::on_success);
+		copts.context = Arc::into_raw(tokcb) as *mut c_void;
+
+		let topic = CString::new(topic).unwrap();
+
+		let rc = unsafe {
+			ffi::MQTTAsync_unsubscribe(self.handle, topic.as_ptr(), &mut copts)
+		};
+
+		if rc != 0 {
+			let _ = unsafe { Arc::from_raw(copts.context as *mut Token) };
+			Arc::new(Token::from_error(rc))
+		}
+		else { tok }
 	}
 }
+
 

@@ -31,7 +31,7 @@
 extern crate paho_mqtt;
 extern crate paho_mqtt3as_sys as ffi;
 
-use std::{thread, time, env, process};
+use std::{time, env, process};
 use std::path::Path;
 use std::ffi::CStr;
 use paho_mqtt as mqtt;
@@ -90,10 +90,11 @@ fn main() {
 		println!("Error sending message: {:?}", e);
 	}
 
-	println!("");
-	thread::sleep(time::Duration::from_millis(1000));
+	let disconn_opts = mqtt::DisconnectOptionsBuilder::new()
+		.timeout(time::Duration::from_millis(1000))
+		.finalize();
 
-	let tok = conn.disconnect();
+	let tok = conn.disconnect(disconn_opts);
 	tok.wait().unwrap();
 }
 

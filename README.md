@@ -19,7 +19,7 @@ The initial version of the library is a wrapper for the Paho C library, similar 
 * Standard TCP support
 * SSL / TLS
 * Last Will and Testament (LWT)
-* Message Persistence
+* Message Persistence (coming soon)
 * Automatic Reconnect
 * Offline Buffering
 * High Availability (coming soon)

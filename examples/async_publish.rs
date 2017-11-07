@@ -42,6 +42,6 @@ fn main() {
 	}
 
 	// Disconnect from the broker
-	let tok = cli.disconnect();
+	let tok = cli.disconnect(None);
 	tok.wait().unwrap();
 }

@@ -33,6 +33,7 @@ pub use async_client::AsyncClient;
 pub use connect_options::{ConnectOptions, ConnectOptionsBuilder};
 pub use will_options::{WillOptions, WillOptionsBuilder};
 pub use ssl_options::{SslOptions, SslOptionsBuilder};
+pub use disconnect_options::{DisconnectOptions, DisconnectOptionsBuilder};
 pub use message::{Message, MessageBuilder};
 
 pub use errors::{MqttResult, MqttError};
@@ -44,6 +45,7 @@ pub mod async_client;
 pub mod connect_options;
 pub mod will_options;
 pub mod ssl_options;
+pub mod disconnect_options;
 pub mod message;
 pub mod errors;
 
