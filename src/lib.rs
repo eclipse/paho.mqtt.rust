@@ -28,8 +28,7 @@
 
 extern crate paho_mqtt3as_sys as ffi;
 
-pub use async_client::AsyncClient;
-
+pub use async_client::{AsyncClient, AsyncClientBuilder};
 pub use connect_options::{ConnectOptions, ConnectOptionsBuilder};
 pub use will_options::{WillOptions, WillOptionsBuilder};
 pub use ssl_options::{SslOptions, SslOptionsBuilder};

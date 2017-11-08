@@ -49,7 +49,12 @@ fn main() {
 		process::exit(1);
 	}
 	
-	let mut conn = mqtt::AsyncClient::new("ssl://localhost:18885", "ssl_publish_rs");
+	// Create a client & define connect options
+	let mut cli = mqtt::AsyncClientBuilder::new()
+			.server_uri("ssl://localhost:18885")
+			.client_id("ssl_publish_rs")
+			.offline_buffering(true)
+			.finalize();
 
 	let ssl_opts = mqtt::SslOptionsBuilder::new()
 		.trust_store(TRUST_STORE)
@@ -72,7 +77,7 @@ fn main() {
 		println!("Main Conn Trust Store: [{:?}] {:?}", (*conn_opts.copts.ssl).trustStore, ts);
 	}
 
-	let tok = conn.connect(conn_opts);
+	let tok = cli.connect(conn_opts);
 	if let Err(e) = tok.wait() {
 		println!("Error connecting: {:?}", e);
 		::std::process::exit(1);
@@ -86,7 +91,7 @@ fn main() {
 		.qos(1)
 		.finalize();
 
-	if let Err(e) = conn.publish(msg).wait() {
+	if let Err(e) = cli.publish(msg).wait() {
 		println!("Error sending message: {:?}", e);
 	}
 
@@ -94,7 +99,7 @@ fn main() {
 		.timeout(time::Duration::from_millis(1000))
 		.finalize();
 
-	let tok = conn.disconnect(disconn_opts);
+	let tok = cli.disconnect(disconn_opts);
 	tok.wait().unwrap();
 }
 

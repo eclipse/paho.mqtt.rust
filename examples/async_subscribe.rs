@@ -32,7 +32,7 @@
 
 extern crate paho_mqtt;
 
-use std::{thread, time};
+use std::{thread};
 use std::time::Duration;
 use paho_mqtt as mqtt;
 
@@ -56,7 +56,7 @@ fn on_connect_success(cli: &mqtt::AsyncClient, _msgid: u16) {
 // too much about stopping its callback thread.
 fn on_connect_failure(cli: &mqtt::AsyncClient, _msgid: u16, rc: i32) {
 	println!("Connection attempt failed with error code {}.\n", rc);
-	thread::sleep(time::Duration::from_millis(2500));
+	thread::sleep(Duration::from_millis(2500));
 	cli.reconnect_with_callbacks(on_connect_success, on_connect_failure);
 }
 
@@ -71,7 +71,7 @@ fn main() {
 	// retrying until the connection is re-established.
 	cli.set_connection_lost_callback(|cli: &mut mqtt::AsyncClient| {
 		println!("Connection lost. Attempting reconnect.");
-		thread::sleep(time::Duration::from_millis(2500));
+		thread::sleep(Duration::from_millis(2500));
 		cli.reconnect_with_callbacks(on_connect_success, on_connect_failure);
 	});
 
@@ -114,7 +114,7 @@ fn main() {
 
 	// Just wait for incoming messages.
 	loop {
-		thread::sleep(time::Duration::from_millis(1000));
+		thread::sleep(Duration::from_millis(1000));
 	}
 
 	/*

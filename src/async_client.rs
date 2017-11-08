@@ -405,17 +405,17 @@ impl AsyncClient {
 			client_id: CString::new(client_id).unwrap(),
 		};
 
-		let ret;
-		unsafe {
-			ret = ffi::MQTTAsync_create(&mut cli.handle as *mut *mut c_void,
-										cli.server_uri.as_ptr(),
-										cli.client_id.as_ptr(),
-										0, ptr::null_mut()) as i32;
-		}
+		let rc = unsafe {
+			ffi::MQTTAsync_create(&mut cli.handle as *mut *mut c_void,
+								  cli.server_uri.as_ptr(),
+								  cli.client_id.as_ptr(),
+								  0, ptr::null_mut()) as i32
+		};
 
-		println!("Create result: {}", ret);
-		println!("handle: {:?}", cli.handle);
+		if rc != 0 { println!("Create result: {}", rc); }
+		println!("AsyncClient handle: {:?}", cli.handle);
 
+		// TODO: This can fail. We should return a Result<AsyncClient>
 		cli
 	}
 
@@ -725,4 +725,141 @@ impl AsyncClient {
 	}
 }
 
+/////////////////////////////////////////////////////////////////////////////
+//								Builder
+/////////////////////////////////////////////////////////////////////////////
+
+/// Builder to collect the MQTT asynchronous client creation options.
+pub struct AsyncClientBuilder
+{
+	copts: ffi::MQTTAsync_createOptions,
+	server_uri: String,
+	client_id: String,
+	persistence_type: i32,	// TODO: Make this an enumeration
+}
+
+impl AsyncClientBuilder {
+	pub fn new() -> AsyncClientBuilder {
+		AsyncClientBuilder {
+			copts: ffi::MQTTAsync_createOptions::default(),
+			server_uri: "".to_string(),
+			client_id: "".to_string(),
+			persistence_type: 0,		// 0 = Default file persistence
+		}
+	}
+
+	/// Sets the address for the MQTT broker/server.
+	///
+	/// # Arguments
+	///
+	/// `server_uri` The address of the MQTT broker. It takes the form
+	/// 			 <i>protocol://host:port</i>, where <i>protocol</i> must
+	/// 			 be <i>tcp</i> or <i>ssl</i>. For <i>host</i>, you can 
+	/// 			 specify either an IP address or a host name. For instance,
+	/// 			 to connect to a server running on the local machines with
+	/// 			 the default MQTT port, specify <i>tcp://localhost:1883</i>.
+	pub fn server_uri(&mut self, server_uri: &str) -> &mut AsyncClientBuilder {
+		self.server_uri = server_uri.to_string();
+		self
+	}
+
+	/// Sets the client identifier for connection to the broker.
+	///
+	/// # Arguments
+	///
+	/// `client_id` A unique identifier string to be passed to the broker 
+	/// 			when the connection is made. This must be a UTF-8 encoded
+	///				string. If it is empty, the broker will create and assign
+	///				a unique name for the client.
+	pub fn client_id(&mut self, client_id: &str) -> &mut AsyncClientBuilder {
+		self.client_id = client_id.to_string();
+		self
+	}
+
+	/// Turns default file persistence on or off.
+	/// When turned on, the client will use the default, file-based, 
+	/// persistence mechanism. This stores information about in-flight 
+	/// messages in persistent storage on the file system, and provides
+	/// some protection against message loss in the case of unexpected
+	/// failure.
+	/// When turned off, the client uses in-memory persistence. If the
+	/// client crashes or system power fails, the client could lose 
+	/// messages.
+	///
+	/// # Arguments
+	///
+	/// `on` Whether to turn on file-based message persistence.
+	pub fn persistence(&mut self, on: bool) -> &mut AsyncClientBuilder {
+		// 0=file persistence, 1=persistence off
+		self.persistence_type = if on { 0 } else { 1 };
+		self
+	}
+
+	// TODO:
+	// This will allow the app to specify a user-defined persistence mechanism
+//	pub fn user_persistence<T: UserPersistence>(&mut self, persistence: T) 
+//				-> &mut AsyncClientBuilder {
+//		// Setup the user persistence
+//	}
+
+	/// Enables or disables off-line buffering of out-going messages when 
+	/// the client is disconnected.
+	///
+	/// # Arguments
+	///
+	/// `on` Whether or not the application is allowed to publish messages
+	///		 if the client is off-line.
+	pub fn offline_buffering(&mut self, on: bool) -> &mut AsyncClientBuilder {
+		self.copts.sendWhileDisconnected = if on { 1 } else { 0 };
+		self
+	}
+
+	/// Enables off-line buffering of out-going messages when the client is
+	/// disconnected and sets the maximum number of messages that can be
+	/// buffered.
+	///
+	/// # Arguments
+	///
+	/// `max_buffered_msgs` The maximum number of messages that the client 
+	///						will buffer while off-line.
+	pub fn max_buffered_messages(&mut self, max_buffered_messages: i32) -> &mut AsyncClientBuilder {
+		self.copts.sendWhileDisconnected = 1;	// Turn it on
+		self.copts.maxBufferedMessages = max_buffered_messages;
+		self
+	}
+
+	/// Finalize the builder and create an asynchronous client.
+	pub fn finalize(&self) -> AsyncClient {
+		let mut cli = AsyncClient {
+			handle: ptr::null_mut(),
+			opts: Mutex::new(ConnectOptions::new()),
+			callback_context: Mutex::new(CallbackContext {
+				on_connection_lost: None,
+				on_message_arrived: None,
+			}),
+			server_uri: CString::new(self.server_uri.clone()).unwrap(),
+			client_id: CString::new(self.client_id.clone()).unwrap(),
+		};
+
+		// TODO We wouldn't need this if C options were immutable in call
+		// to ffi:MQTTAsync:createWithOptions
+		let mut copts = self.copts.clone();
+
+		println!("Create opts: {:?}", copts);
+
+		let rc = unsafe {
+			ffi::MQTTAsync_createWithOptions(&mut cli.handle as *mut *mut c_void,
+											 cli.server_uri.as_ptr(),
+											 cli.client_id.as_ptr(),
+											 self.persistence_type, ptr::null_mut(),
+											 &mut copts)
+		};
+
+		if rc != 0 { println!("Create result: {}", rc); }
+		println!("AsyncClient handle: {:?}", cli.handle);
+
+		// TODO: This can fail. We should return a Result<AsyncClient>
+		cli
+	}
+}
 

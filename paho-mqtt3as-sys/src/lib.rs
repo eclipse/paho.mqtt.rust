@@ -11,9 +11,22 @@
 #![allow(dead_code)]
 
 use std::ptr;
-//use std::ffi::CString;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+
+/////////////////////////////////////////////////////////////////////////////
+// Client creation
+
+impl Default for MQTTAsync_createOptions {
+	fn default() -> MQTTAsync_createOptions {
+		MQTTAsync_createOptions {
+			struct_id: [ 'M' as i8, 'Q' as i8, 'C' as i8, 'O' as i8],
+			struct_version: 0,
+			sendWhileDisconnected: 0,
+			maxBufferedMessages: 100,
+		}
+	}
+}
 
 /////////////////////////////////////////////////////////////////////////////
 // Connecting
