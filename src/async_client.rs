@@ -31,6 +31,7 @@ use connect_options::{ConnectOptions};
 use disconnect_options::{DisconnectOptions,DisconnectOptionsBuilder};
 use message::{Message};
 use errors::{MqttResult, /*MqttError,*/ ErrorKind};
+use string_collection::{StringCollection};
 
 /////////////////////////////////////////////////////////////////////////////
 // Token
@@ -225,19 +226,19 @@ impl Token {
 	// Gets the string associated with the error code from the C lib.
 	fn error_msg(rc: i32) -> &'static str {
 		match rc {
-			/*MQTTASYNC_FAILURE*/ -1 => "General failure",
-			/*MQTTASYNC_PERSISTENCE_ERROR*/ -2 => "Persistence error",
-			/*MQTTASYNC_DISCONNECTED*/ -3 => "Client disconnected",
-			/*MQTTASYNC_MAX_MESSAGES_INFLIGHT*/ -4 => "Maximum inflight messages",
-			/*MQTTASYNC_BAD_UTF8_STRING*/ -5 => "Bad UTF8 string",
-			/*MQTTASYNC_NULL_PARAMETER*/ -6 => "NULL Parameter",
-			/*MQTTASYNC_TOPICNAME_TRUNCATED*/ -7 => "Topic name truncated",
-			/*MQTTASYNC_BAD_STRUCTURE*/ -8 => "Bad structure",
-			/*MQTTASYNC_BAD_QOS*/ -9 => "Bad QoS",
-			/*MQTTASYNC_NO_MORE_MSGIDS*/ -10 => "No more message ID's",
-			/*MQTTASYNC_OPERATION_INCOMPLETE*/ -11 => "Operation incomplete",
-			/*MQTTASYNC_MAX_BUFFERED_MESSAGES*/ -12 => "Max buffered messages",
-			/*MQTTASYNC_SSL_NOT_SUPPORTED*/ -13 => "SSL not supported by Paho C library",
+			ffi::MQTTASYNC_FAILURE => "General failure",
+			ffi::MQTTASYNC_PERSISTENCE_ERROR /* -2 */ => "Persistence error",
+			ffi::MQTTASYNC_DISCONNECTED => "Client disconnected",
+			ffi::MQTTASYNC_MAX_MESSAGES_INFLIGHT => "Maximum inflight messages",
+			ffi::MQTTASYNC_BAD_UTF8_STRING => "Bad UTF8 string",
+			ffi::MQTTASYNC_NULL_PARAMETER => "NULL Parameter",
+			ffi::MQTTASYNC_TOPICNAME_TRUNCATED => "Topic name truncated",
+			ffi::MQTTASYNC_BAD_STRUCTURE => "Bad structure",
+			ffi::MQTTASYNC_BAD_QOS => "Bad QoS",
+			ffi::MQTTASYNC_NO_MORE_MSGIDS => "No more message ID's",
+			ffi::MQTTASYNC_OPERATION_INCOMPLETE => "Operation incomplete",
+			ffi::MQTTASYNC_MAX_BUFFERED_MESSAGES => "Max buffered messages",
+			ffi::MQTTASYNC_SSL_NOT_SUPPORTED => "SSL not supported by Paho C library",
 			 _ => "",
 		}
 	}
@@ -686,6 +687,37 @@ impl AsyncClient {
 
 		let rc = unsafe {
 			ffi::MQTTAsync_subscribe(self.handle, topic.as_ptr(), qos, &mut copts)
+		};
+
+		if rc != 0 {
+			let _ = unsafe { Arc::from_raw(copts.context as *mut Token) };
+			Arc::new(Token::from_error(rc))
+		}
+		else { tok }
+	}
+
+	/// Subscribes to multiple topics simultaneously.
+	///
+	/// # Arguments
+	///
+	/// `topic` The topic name
+	/// `qos` The quality of service requested for messages
+	pub fn subscribe_many(&self, topic: Vec<String>, mut qos: Vec<i32>) -> Arc<Token> {
+		println!("Subscribe to '{:?}' @ QOS {:?}", topic, qos);
+
+		// TOOD: Make sure topic & qos are same length (or use min)
+		let tok = Arc::new(DeliveryToken::new());
+		let tokcb = tok.clone();
+
+		let mut copts = ffi::MQTTAsync_responseOptions::default();
+		copts.onSuccess = Some(Token::on_success);
+		copts.context = Arc::into_raw(tokcb) as *mut c_void;
+
+		let topic = StringCollection::new(&topic);
+
+		let rc = unsafe {
+			ffi::MQTTAsync_subscribeMany(self.handle, topic.len() as c_int,
+										 topic.as_c_arr_ptr(), qos.as_mut_ptr(), &mut copts)
 		};
 
 		if rc != 0 {

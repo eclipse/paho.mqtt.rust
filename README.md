@@ -19,11 +19,14 @@ The initial version of the library is a wrapper for the Paho C library, similar 
 * Standard TCP support
 * SSL / TLS
 * Last Will and Testament (LWT)
-* Message Persistence (coming soon)
+* Message Persistence 
+  * File or memory persistence
+  * User-defined (coming soon)
 * Automatic Reconnect
 * Offline Buffering
 * High Availability (coming soon)
-* Blocking and Non-blocking API's (Blocking coming soon)
+* Asynchronous (Non-blocking) API
+* Synchronous (Blocking)  API's (coming soon)
 
 ## Building the Crate
 

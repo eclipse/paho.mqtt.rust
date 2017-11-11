@@ -42,7 +42,8 @@ use paho_mqtt as mqtt;
 fn on_connect_success(cli: &mqtt::AsyncClient, _msgid: u16) {
 	println!("Connection succeeded\n");
 	// Subscribe to the desired topic(s).
-	cli.subscribe("test", 1);
+	//cli.subscribe("test", 1);
+	cli.subscribe_many(vec!("test".to_string(), "hello".to_string()), vec!(1, 1));
 	println!("Subscribing to topics.");
 	// TODO: This doesn't yet handle a failed subscription.
 }

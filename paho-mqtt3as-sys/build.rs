@@ -67,7 +67,7 @@ fn main() {
 
 	let paho_c_inc_path = match env::var("PAHO_MQTT_C_INC_PATH") {
 		Ok(path) => path,
-		_ => match env::var("PAHO_C_PATH") {
+		_ => match env::var("PAHO_MQTT_C_PATH") {
 				Ok(path) => path + "/src",
 				_ => dflt_inc_path,
 		},
@@ -75,7 +75,7 @@ fn main() {
 
 	let paho_c_lib_path = match env::var("PAHO_MQTT_C_LIB_PATH") {
 		Ok(path) => path,
-		_ => match env::var("PAHO_C_PATH") {
+		_ => match env::var("PAHO_MQTT_C_PATH") {
 				Ok(path) => path + "/build/output",
 				_ => dflt_lib_path,
 		},

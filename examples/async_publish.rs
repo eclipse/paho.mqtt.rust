@@ -25,7 +25,6 @@ fn main() {
 	let mut cli = mqtt::AsyncClient::new("tcp://localhost:1883", "");
 
 	let conn_opts = mqtt::ConnectOptions::new();
-	println!("Connect options: {:?}", conn_opts);
 
 	// Connect and wait for it to complete or fail
 	if let Err(e) = cli.connect(conn_opts).wait() {

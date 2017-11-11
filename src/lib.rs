@@ -47,6 +47,7 @@ pub mod ssl_options;
 pub mod disconnect_options;
 pub mod message;
 pub mod errors;
+pub mod string_collection;
 
 #[cfg(test)]
 mod tests {
