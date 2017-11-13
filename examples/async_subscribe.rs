@@ -119,8 +119,9 @@ fn main() {
 	}
 
 	/*
-	let tok = cli.disconnect();
-	println!("Token: {:?}", tok);
+	cli.unsubscribe_many(vec!("test".to_string(), "hello".to_string())).wait();
+
+	let tok = cli.disconnect(None);
 	tok.wait();
 	*/
 }

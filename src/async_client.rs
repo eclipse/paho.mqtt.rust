@@ -755,6 +755,36 @@ impl AsyncClient {
 		}
 		else { tok }
 	}
+
+	/// Unsubscribes from multiple topics simultaneously.
+	///
+	/// # Arguments
+	///
+	/// `topic` The topics to unsubscribe. Each must match a topic from a 
+	/// 		previous subscribe.
+	pub fn unsubscribe_many(&self, topic: Vec<String>) -> Arc<Token> {
+		println!("Unsubscribe from '{:?}'", topic);
+
+		let tok = Arc::new(DeliveryToken::new());
+		let tokcb = tok.clone();
+
+		let mut copts = ffi::MQTTAsync_responseOptions::default();
+		copts.onSuccess = Some(Token::on_success);
+		copts.context = Arc::into_raw(tokcb) as *mut c_void;
+
+		let topic = StringCollection::new(&topic);
+
+		let rc = unsafe {
+			ffi::MQTTAsync_unsubscribeMany(self.handle, topic.len() as c_int, 
+										   topic.as_c_arr_ptr(), &mut copts)
+		};
+
+		if rc != 0 {
+			let _ = unsafe { Arc::from_raw(copts.context as *mut Token) };
+			Arc::new(Token::from_error(rc))
+		}
+		else { tok }
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////
