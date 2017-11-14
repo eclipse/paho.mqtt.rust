@@ -30,11 +30,10 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-extern crate paho_mqtt;
+extern crate paho_mqtt as mqtt;
 
 use std::{thread};
 use std::time::Duration;
-use paho_mqtt as mqtt;
 
 
 // Callback for a successful connection to the broker.
@@ -93,6 +92,7 @@ fn main() {
 	println!("Starting conn_opts builder");
 	let conn_opts = mqtt::ConnectOptionsBuilder::new()
 		.keep_alive_interval(Duration::from_secs(20))
+		.mqtt_version(mqtt::MQTT_VERSION_3_1_1)
 		.clean_session(true)
 		.will_options(will_opts)
 		.finalize();

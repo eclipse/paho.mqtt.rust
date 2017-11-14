@@ -22,8 +22,14 @@ use ffi;
 use std::ptr;
 use std::time::Duration;
 use std::ffi::{CString};
+use std::os::raw::{/*c_void, c_char,*/ c_int};
 use will_options::WillOptions;
 use ssl_options::SslOptions;
+use string_collection::StringCollection;
+
+pub const MQTT_VERSION_DEFAULT: u32	= ffi::MQTTVERSION_DEFAULT;
+pub const MQTT_VERSION_3_1: u32		= ffi::MQTTVERSION_3_1;
+pub const MQTT_VERSION_3_1_1: u32	= ffi::MQTTVERSION_3_1_1;
 
 /////////////////////////////////////////////////////////////////////////////
 // Connections
@@ -35,7 +41,8 @@ pub struct ConnectOptions {
 	will: Option<Box<WillOptions>>,
 	ssl: Option<Box<SslOptions>>,
 	user_name: CString,
-	password: CString
+	password: CString,
+	server_uris: StringCollection,
 }
 
 impl ConnectOptions {
@@ -60,7 +67,7 @@ impl ConnectOptions {
 			ptr::null_mut()
 		};
 
-		opts.copts.username = if opts.user_name.as_bytes().len() == 0 {
+		opts.copts.username = if opts.user_name.as_bytes().len() != 0 {
 			opts.user_name.as_ptr()
 		}
 		else {
@@ -68,6 +75,16 @@ impl ConnectOptions {
 		};
 
 		opts.copts.password = opts.password.as_ptr();
+
+		let n = opts.server_uris.len();
+		if n != 0 {
+			opts.copts.serverURIs = opts.server_uris.as_c_arr_ptr();
+			opts.copts.serverURIcount = n as c_int;
+		}
+		else {
+			opts.copts.serverURIs = ptr::null();
+			opts.copts.serverURIcount = 0;
+		}
 
 		opts
 	}
@@ -103,6 +120,7 @@ impl Default for ConnectOptions {
 			ssl: None,
 			user_name: CString::new("").unwrap(),
 			password: CString::new("").unwrap(),
+			server_uris: StringCollection::default(),
 		};
 		ConnectOptions::fixup(opts)
 	}
@@ -116,6 +134,7 @@ impl Clone for ConnectOptions {
 			ssl: self.ssl.clone(),
 			user_name: self.user_name.clone(),
 			password: self.password.clone(),
+			server_uris: self.server_uris.clone(),
 		};
 		ConnectOptions::fixup(opts)
 	}
@@ -131,6 +150,7 @@ pub struct ConnectOptionsBuilder {
 	ssl: Option<SslOptions>,
 	user_name: String,
 	password: String,
+	server_uris: StringCollection,
 }
 
 impl ConnectOptionsBuilder {
@@ -141,6 +161,7 @@ impl ConnectOptionsBuilder {
 			ssl: None,
 			user_name: "".to_string(),
 			password: "".to_string(),
+			server_uris: StringCollection::default(),
 		}
 	}
 
@@ -206,6 +227,7 @@ impl ConnectOptionsBuilder {
 	/// # Arguments
 	///
 	/// `user_name` The user name to send to the broker.
+	///
 	pub fn user_name(&mut self, user_name: &str) -> &mut ConnectOptionsBuilder {
 		self.user_name = user_name.to_string();
 		self
@@ -217,6 +239,7 @@ impl ConnectOptionsBuilder {
 	/// # Arguments
 	///
 	/// `password` The password to send to the broker.
+	///
 	pub fn password(&mut self, password: &str) -> &mut ConnectOptionsBuilder {
 		self.password = password.to_string();
 		self
@@ -228,6 +251,7 @@ impl ConnectOptionsBuilder {
 	///
 	/// `timeout` The time interval to allow the connect to 
 	/// 		  complete. This has a resolution of seconds.
+	///
 	pub fn connect_timeout(&mut self, timeout: Duration) -> &mut ConnectOptionsBuilder {
 		let secs = timeout.as_secs();
 		self.copts.connectTimeout = if secs == 0 { 1 } else { secs as i32 };
@@ -242,6 +266,32 @@ impl ConnectOptionsBuilder {
 	pub fn retry_interval(&mut self, interval: Duration) -> &mut ConnectOptionsBuilder {
 		let secs = interval.as_secs();
 		self.copts.connectTimeout = if secs == 0 { 1 } else { secs as i32 };
+		self
+	}
+
+	/// Specify the servers to which the client will connect.
+	///
+	/// # Arguments
+	///
+	/// `server_uris` The addresses of the brokers to which this client 
+	/// 			  should connect.
+	//
+	pub fn server_uris(&mut self, server_uris: Vec<String>) -> &mut ConnectOptionsBuilder {
+		self.server_uris = StringCollection::new(&server_uris);
+		self
+	}
+
+	/// Sets the version of MQTT to use on the connect.
+	///
+	/// # Arguments
+	///
+	/// `ver` The version of MQTT to use when connecting to the broker.
+	///		  * (0) try the latest version (3.1.1) and work backwards
+	///		  * (3) only try v3.1 
+	///		  * (4) only try v3.1.1
+	///
+	pub fn mqtt_version(&mut self, ver: u32) -> &mut ConnectOptionsBuilder {
+		self.copts.MQTTVersion = ver as i32;
 		self
 	}
 
@@ -283,6 +333,7 @@ impl ConnectOptionsBuilder {
 				else { None },
 			user_name: CString::new(self.user_name.clone()).unwrap(),
 			password: CString::new(self.password.clone()).unwrap(),
+			server_uris: self.server_uris.clone(),
 		};
 		ConnectOptions::fixup(opts)
 	}
@@ -309,6 +360,13 @@ mod tests {
 		//assert_eq!(ptr::null(), opts.copts.username);
 		//assert_eq!(ptr::null(), opts.copts.password);
 		assert_eq!(ptr::null(), opts.copts.ssl);
+
+		assert_eq!(ptr::null_mut(), opts.copts.context);
+
+		assert_eq!(0, opts.copts.serverURIcount);
+		assert_eq!(ptr::null(), opts.copts.serverURIs);
+
+		assert_eq!(0, opts.copts.MQTTVersion);
 	}
 
 	#[test]
@@ -335,7 +393,41 @@ mod tests {
 			// The SSL option should be set
 			assert!(false);
 		};
+	}
 
+	#[test]
+	fn test_user_name() {
+		const NAME: &'static str = "some-random-name";
+
+		let opts = ConnectOptionsBuilder::new()
+						.user_name(NAME).finalize();
+
+		let s = unsafe { CStr::from_ptr(opts.copts.username) };
+		assert_eq!(NAME, s.to_str().unwrap());
+	}
+
+	#[test] 
+	fn test_server_uris() {
+		let servers = vec!("tcp://server1:1883".to_string(), "ssl://server2:1885".to_string());
+
+		let opts = ConnectOptionsBuilder::new()
+						.server_uris(servers.clone()).finalize();
+
+		assert_eq!(servers.len() as i32, opts.copts.serverURIcount);
+
+		// Compare the strings to the C-arrays in copts
+		for (i, ref svr) in servers.iter().enumerate() {
+			let s = unsafe { CStr::from_ptr(*opts.copts.serverURIs.offset(i as isize)) };
+			assert_eq!(&svr[..], s.to_str().unwrap());
+		}
+	}
+
+	#[test]
+	fn test_mqtt_version() {
+		const VER: u32 = MQTT_VERSION_3_1_1;
+
+		let opts = ConnectOptionsBuilder::new().mqtt_version(VER).finalize();
+		assert_eq!(VER as i32, opts.copts.MQTTVersion);
 	}
 
 }

@@ -84,7 +84,7 @@ impl DisconnectOptionsBuilder {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use std::ffi::{CStr};
+	//use std::ffi::{CStr};
 
 	#[test]
 	fn test_new() {
