@@ -1,5 +1,5 @@
-// async_publish.rs
-// 
+// sync_publish.rs
+//
 // Example/test for Paho MQTT Rust library.
 //
 
@@ -23,25 +23,21 @@ extern crate paho_mqtt as mqtt;
 
 fn main() {
 	// Create a client & define connect options
-	let cli = mqtt::AsyncClient::new("tcp://localhost:1883", "");
-
-	let conn_opts = mqtt::ConnectOptions::new();
+	let cli = mqtt::Client::new("tcp://localhost:1883", "");
 
 	// Connect and wait for it to complete or fail
-	if let Err(e) = cli.connect(conn_opts).wait() {
+	if let Err(e) = cli.connect(None) {
 		println!("Unable to connect:\n\t{:?}", e);
 		::std::process::exit(1);
 	}
 
 	// Create a message and publish it
-	let msg = mqtt::Message::new("test", "Hello world!");
-	let tok = cli.publish(msg);
+	let msg = mqtt::Message::new("test", "Hello synchronous world!");
 
-	if let Err(e) = tok.wait() {
+	if let Err(e) = cli.publish(msg) {
 		println!("Error sending message: {:?}", e);
 	}
 
 	// Disconnect from the broker
-	let tok = cli.disconnect(None);
-	tok.wait().unwrap();
+	cli.disconnect(None).unwrap();
 }

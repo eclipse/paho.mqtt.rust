@@ -24,9 +24,9 @@ The initial version of the library is a wrapper for the Paho C library, similar 
   * User-defined (coming soon)
 * Automatic Reconnect
 * Offline Buffering
-* High Availability (coming soon)
+* High Availability
 * Asynchronous (Non-blocking) API
-* Synchronous (Blocking)  API's (coming soon)
+* Synchronous (Blocking)  API's
 
 ## Building the Crate
 

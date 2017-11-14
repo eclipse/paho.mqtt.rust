@@ -50,11 +50,11 @@ fn main() {
 	}
 	
 	// Create a client & define connect options
-	let mut cli = mqtt::AsyncClientBuilder::new()
-			.server_uri("ssl://localhost:18885")
-			.client_id("ssl_publish_rs")
-			.offline_buffering(true)
-			.finalize();
+	let cli = mqtt::AsyncClientBuilder::new()
+					.server_uri("ssl://localhost:18885")
+					.client_id("ssl_publish_rs")
+					.offline_buffering(true)
+					.finalize();
 
 	let ssl_opts = mqtt::SslOptionsBuilder::new()
 		.trust_store(TRUST_STORE)

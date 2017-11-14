@@ -272,7 +272,7 @@ impl Token {
 
 	/// Blocks the caller a limited amount of time waiting for the
 	/// asynchronous operation to complete.
-	pub fn wait_timeout(&self, dur: Duration) -> MqttResult<()> {
+	pub fn wait_for(&self, dur: Duration) -> MqttResult<()> {
 		let mut retv = self.lock.lock().unwrap();
 
 		while !(*retv).complete {
@@ -425,27 +425,34 @@ impl AsyncClient {
 	/// # Arguments
 	///
 	/// * `opts` The connect options
-	pub fn connect(&self, opts: ConnectOptions) -> Arc<Token> {
-		println!("Connecting handle: {:?}", self.handle);
+	///
+	pub fn connect<T: Into<Option<ConnectOptions>>>(&self, opt_opts: T) -> Arc<Token> {
+		if let Some(opts) = opt_opts.into() {
+			println!("Connecting handle: {:?}", self.handle);
+			println!("Connect options: {:?}", opts);
 
-		let tok = Arc::new(Token::new());
-		let tokcb = tok.clone();
+			let tok = Arc::new(Token::new());
+			let tokcb = tok.clone();
 
-		let mut lkopts = self.opts.lock().unwrap();
-		*lkopts = opts;
-		(*lkopts).copts.onSuccess = Some(Token::on_success);
-		(*lkopts).copts.onFailure = Some(Token::on_failure);
-		(*lkopts).copts.context = Arc::into_raw(tokcb) as *mut c_void;
+			let mut lkopts = self.opts.lock().unwrap();
+			*lkopts = opts;
+			(*lkopts).copts.onSuccess = Some(Token::on_success);
+			(*lkopts).copts.onFailure = Some(Token::on_failure);
+			(*lkopts).copts.context = Arc::into_raw(tokcb) as *mut c_void;
 
-		let rc = unsafe {
-			ffi::MQTTAsync_connect(self.handle, &(*lkopts).copts)
-		};
+			let rc = unsafe {
+				ffi::MQTTAsync_connect(self.handle, &(*lkopts).copts)
+			};
 
-		if rc != 0 {
-			let _ = unsafe { Arc::from_raw((*lkopts).copts.context as *mut Token) };
-			Arc::new(Token::from_error(rc))
+			if rc != 0 {
+				let _ = unsafe { Arc::from_raw((*lkopts).copts.context as *mut Token) };
+				Arc::new(Token::from_error(rc))
+			}
+			else { tok }
 		}
-		else { tok }
+		else {
+			self.connect(Some(ConnectOptions::default()))
+		}
 	}
 
 
@@ -642,7 +649,7 @@ impl AsyncClient {
 	/// # Arguments
 	///
 	/// * `msg` The message to publish.
-	pub fn publish(&mut self, msg: Message) -> Arc<DeliveryToken> {
+	pub fn publish(&self, msg: Message) -> Arc<DeliveryToken> {
 		println!("Publish: {:?}", msg);
 
 		let tok = Arc::new(DeliveryToken::from_message(msg));

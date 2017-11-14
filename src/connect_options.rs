@@ -74,7 +74,13 @@ impl ConnectOptions {
 			ptr::null()
 		};
 
-		opts.copts.password = opts.password.as_ptr();
+		opts.copts.password = if opts.password.as_bytes().len() != 0 {
+			opts.password.as_ptr()
+		}
+		else {
+			ptr::null()
+		};
+		//opts.copts.password = opts.password.as_ptr();
 
 		let n = opts.server_uris.len();
 		if n != 0 {
