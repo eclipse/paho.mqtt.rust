@@ -24,6 +24,8 @@ use std::time::Duration;
 use std::sync::{Arc, Mutex, Condvar};
 use std::ffi::{CString, CStr};
 use std::os::raw::{c_void, c_char, c_int};
+use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc;
 
 use ffi;
 
@@ -316,6 +318,7 @@ struct CallbackContext
 {
 	on_connection_lost: Option<Box<ConnectionLostCallback>>,
 	on_message_arrived: Option<Box<MessageArrivedCallback>>,
+	chan_tx: Option<mpsc::Sender<Message>>,
 }
 
 /// An asynchronous MQTT connection client.
@@ -330,8 +333,7 @@ pub struct AsyncClient {
 	server_uri: CString,
 	// The MQTT client ID name
 	client_id: CString,
-	//username: CString,
-	//pasword: CString,
+
 }
 
 impl AsyncClient {
@@ -364,18 +366,29 @@ impl AsyncClient {
 
 		if !context.is_null() {
 			let cli = context as *mut AsyncClient;
-			let mut cbctx = (*cli).callback_context.lock().unwrap();
+			let mut cbctxp = (*cli).callback_context.lock().unwrap();
+			let cbctx = &mut *cbctxp;
 
-			if let Some(ref mut cb) = (*cbctx).on_message_arrived {
+			// Get the message
 
-				let len = topic_len as usize;
-				let tp = str::from_utf8(slice::from_raw_parts(topic_name as *mut u8, len)).unwrap();
-				println!("Topic Slice: {}", tp);
-				let topic = CString::new(tp).unwrap();
-				println!("Topic: {:?}", topic);
+			let len = topic_len as usize;
+			let tp = str::from_utf8(slice::from_raw_parts(topic_name as *mut u8, len)).unwrap();
+			println!("Topic Slice: {}", tp);
+			let topic = CString::new(tp).unwrap();
+			println!("Topic: {:?}", topic);
 
-				let msg = Message::from_c_parts(topic, &*cmsg);
+			let msg = Message::from_c_parts(topic, &*cmsg);
 
+			// Put the message in the channel or invoke the callback, as requested
+
+			// TODO: This is kinda silly. Maybe the client should just 
+			// register a callback to take the message and queue it?
+
+			if let Some(ref mut tx) = cbctx.chan_tx {
+				println!("Queuing message");
+				tx.send(msg).expect("Error sending message");
+			}
+			else if let Some(ref mut cb) = cbctx.on_message_arrived {
 				println!("Invoking message callback");
 				cb(&*cli, msg);
 			}
@@ -401,6 +414,7 @@ impl AsyncClient {
 			callback_context: Mutex::new(CallbackContext {
 				on_connection_lost: None,
 				on_message_arrived: None,
+				chan_tx: None,
 			}),
 			server_uri: CString::new(server_uri).unwrap(),
 			client_id: CString::new(client_id).unwrap(),
@@ -792,6 +806,21 @@ impl AsyncClient {
 		}
 		else { tok }
 	}
+
+	/// Start consuming incoming messages.
+	/// This initializes the client to receive messages into an internal
+	/// queue which can be read synchronously.
+	pub fn start_consuming(&self) -> Receiver<Message> {
+		let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
+		let mut cbctx = self.callback_context.lock().unwrap();
+		(*cbctx).chan_tx = Some(tx);
+		rx
+	}
+
+	pub fn stop_consuming(&self) {
+		unimplemented!();
+	}
+
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -905,6 +934,7 @@ impl AsyncClientBuilder {
 			callback_context: Mutex::new(CallbackContext {
 				on_connection_lost: None,
 				on_message_arrived: None,
+				chan_tx: None,
 			}),
 			server_uri: CString::new(self.server_uri.clone()).unwrap(),
 			client_id: CString::new(self.client_id.clone()).unwrap(),

@@ -30,6 +30,8 @@ use ffi;
 */
 
 use std::time::Duration;
+use std::sync::mpsc::{/*Sender,*/ Receiver};
+//use std::sync::mpsc;
 
 use async_client::{AsyncClient};
 use connect_options::{ConnectOptions};
@@ -41,16 +43,18 @@ use errors::{MqttResult, /*MqttError, ErrorKind*/};
 // Client
 
 pub struct Client {
-	cli: AsyncClient,
+	cli: Box<AsyncClient>,
 	timeout: Duration,
 }
 
 impl Client {
 	pub fn new(server_uri: &str, client_id: &str) -> Client {
-		Client {
-			cli: AsyncClient::new(server_uri, client_id),
+		let mut cli = Client {
+			cli: Box::new(AsyncClient::new(server_uri, client_id)),
 			timeout: Duration::from_secs(5*60),
-		}
+		};
+		cli.cli.set_message_callback(|_,_| {});
+		cli
 	}
 
 	pub fn connect<T: Into<Option<ConnectOptions>>>(&self, opt_opts:T) -> MqttResult<()> {
@@ -93,6 +97,8 @@ impl Client {
 		self.cli.unsubscribe_many(topics).wait_for(self.timeout)
 	}
 
-
+	pub fn start_consuming(&self) -> Receiver<Message> {
+		self.cli.start_consuming()
+	}
 }
 
