@@ -18,19 +18,8 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-/*
-use std::str;
-use std::{ptr, slice};	// mem
 use std::time::Duration;
-use std::sync::{Arc, Mutex, Condvar};
-use std::ffi::{CString, CStr};
-use std::os::raw::{c_void, c_char, c_int};
-
-use ffi;
-*/
-
-use std::time::Duration;
-use std::sync::mpsc::{/*Sender,*/ Receiver};
+use std::sync::mpsc::{Receiver};
 //use std::sync::mpsc;
 
 use async_client::{AsyncClient};
@@ -49,11 +38,11 @@ pub struct Client {
 
 impl Client {
 	pub fn new(server_uri: &str, client_id: &str) -> Client {
-		let mut cli = Client {
+		let cli = Client {
 			cli: Box::new(AsyncClient::new(server_uri, client_id)),
 			timeout: Duration::from_secs(5*60),
 		};
-		cli.cli.set_message_callback(|_,_| {});
+		//cli.start_consuming();
 		cli
 	}
 
@@ -97,7 +86,7 @@ impl Client {
 		self.cli.unsubscribe_many(topics).wait_for(self.timeout)
 	}
 
-	pub fn start_consuming(&self) -> Receiver<Message> {
+	pub fn start_consuming(&mut self) -> Receiver<Message> {
 		self.cli.start_consuming()
 	}
 }

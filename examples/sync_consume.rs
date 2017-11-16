@@ -2,7 +2,7 @@
 //
 // This is a Paho MQTT Rust client, sample application.
 //
-// This application is an MQTT consumer/subscriber using the Rust 
+// This application is an MQTT consumer/subscriber using the Rust
 // synchronous client interface, which uses the queuing API to
 // receive messages.
 //
@@ -33,14 +33,13 @@
 
 extern crate paho_mqtt as mqtt;
 
-use std::{thread};
 use std::time::Duration;
 
 /////////////////////////////////////////////////////////////////////////////
 
 fn main() {
 	// Create the client connection
-	let cli = mqtt::Client::new("tcp://localhost:1883", "");
+	let mut cli = mqtt::Client::new("tcp://localhost:1883", "");
 
 	// Define the set of options for the connection
 	let will_opts = mqtt::WillOptionsBuilder::new()
@@ -61,10 +60,15 @@ fn main() {
 		::std::process::exit(1);
 	};
 
-	// Initialize the consumer
+	// Initialize the consumer & subscribe to topics
 	let rx = cli.start_consuming();
-	cli.subscribe_many(vec!("test".to_string(), "hello".to_string()), vec!(1, 1));
+	let subscriptions = vec!("test".to_string(), "hello".to_string());
 
+	if let Err(e) = cli.subscribe_many(subscriptions, vec!(1, 1)) {
+		println!("Error subscribing to topics: {:?}", e);
+		cli.disconnect(None).unwrap();
+		::std::process::exit(1);
+	}
 
 	// Just wait for incoming messages.
 	loop {

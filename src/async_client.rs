@@ -45,7 +45,7 @@ pub type SuccessCallback = FnMut(&AsyncClient, u16) + 'static;
 pub type FailureCallback = FnMut(&AsyncClient, u16, i32) + 'static;
 
 /// The result data for the token.
-/// This is the guarded elements in the token which are updated by the 
+/// This is the guarded elements in the token which are updated by the
 /// C library callback when the operation completes.
 struct TokenData {
 	/// Whether the async action has completed
@@ -265,9 +265,9 @@ impl Token {
 		let rc = (*retv).ret_code;
 		println!("Token completed: {}", rc);
 		// TODO: Get real error result & message
-		if rc != 0 { 
+		if rc != 0 {
 			let msg = (*retv).err_msg.clone();
-			fail!((ErrorKind::General, rc, "Error", msg)); 
+			fail!((ErrorKind::General, rc, "Error", msg));
 		}
 		Ok(())
 	}
@@ -289,9 +289,9 @@ impl Token {
 		let rc = (*retv).ret_code;
 		println!("Timed token completed: {}", rc);
 		// TODO: Get real error result & message
-		if rc != 0 { 
+		if rc != 0 {
 			let msg = (*retv).err_msg.clone();
-			fail!((ErrorKind::General, rc, "Error", msg)); 
+			fail!((ErrorKind::General, rc, "Error", msg));
 		}
 
 		Ok(())
@@ -318,7 +318,6 @@ struct CallbackContext
 {
 	on_connection_lost: Option<Box<ConnectionLostCallback>>,
 	on_message_arrived: Option<Box<MessageArrivedCallback>>,
-	chan_tx: Option<mpsc::Sender<Message>>,
 }
 
 /// An asynchronous MQTT connection client.
@@ -366,29 +365,14 @@ impl AsyncClient {
 
 		if !context.is_null() {
 			let cli = context as *mut AsyncClient;
-			let mut cbctxp = (*cli).callback_context.lock().unwrap();
-			let cbctx = &mut *cbctxp;
+			let mut cbctx = (*cli).callback_context.lock().unwrap();
 
-			// Get the message
+			if let Some(ref mut cb) = (*cbctx).on_message_arrived {
+				let len = topic_len as usize;
+				let tp = str::from_utf8(slice::from_raw_parts(topic_name as *mut u8, len)).unwrap();
+				let topic = CString::new(tp).unwrap();
+				let msg = Message::from_c_parts(topic, &*cmsg);
 
-			let len = topic_len as usize;
-			let tp = str::from_utf8(slice::from_raw_parts(topic_name as *mut u8, len)).unwrap();
-			println!("Topic Slice: {}", tp);
-			let topic = CString::new(tp).unwrap();
-			println!("Topic: {:?}", topic);
-
-			let msg = Message::from_c_parts(topic, &*cmsg);
-
-			// Put the message in the channel or invoke the callback, as requested
-
-			// TODO: This is kinda silly. Maybe the client should just 
-			// register a callback to take the message and queue it?
-
-			if let Some(ref mut tx) = cbctx.chan_tx {
-				println!("Queuing message");
-				tx.send(msg).expect("Error sending message");
-			}
-			else if let Some(ref mut cb) = cbctx.on_message_arrived {
 				println!("Invoking message callback");
 				cb(&*cli, msg);
 			}
@@ -414,7 +398,6 @@ impl AsyncClient {
 			callback_context: Mutex::new(CallbackContext {
 				on_connection_lost: None,
 				on_message_arrived: None,
-				chan_tx: None,
 			}),
 			server_uri: CString::new(server_uri).unwrap(),
 			client_id: CString::new(client_id).unwrap(),
@@ -516,7 +499,7 @@ impl AsyncClient {
 	}
 
 	/// Attempts to reconnect to the broker.
-	/// This can only be called after a connection was initially made or 
+	/// This can only be called after a connection was initially made or
 	/// attempted. It will retry with the same connect options.
 	pub fn reconnect(&self) -> Arc<Token> {
 		let connopts = {
@@ -526,9 +509,9 @@ impl AsyncClient {
 		self.connect(connopts)
 	}
 
-	/// Attempts to reconnect to the broker, using callbacks to signal 
+	/// Attempts to reconnect to the broker, using callbacks to signal
 	/// completion.
-	/// This can only be called after a connection was initially made or 
+	/// This can only be called after a connection was initially made or
 	/// attempted. It will retry with the same connect options.
 	///
 	/// # Arguments
@@ -550,11 +533,11 @@ impl AsyncClient {
 	}
 
 	/// Disconnects from the MQTT broker.
-	/// 
+	///
 	/// # Arguments
 	///
 	/// `opt_opts` Optional disconnect options. Specifying `None` will use
-	/// 		   default of immediate (zero timeout) disconnect. 
+	/// 		   default of immediate (zero timeout) disconnect.
 	pub fn disconnect<T: Into<Option<DisconnectOptions>>>(&self, opt_opts: T) -> Arc<Token> {
 		if let Some(mut opts) = opt_opts.into() {
 			println!("Disconnecting");
@@ -584,12 +567,12 @@ impl AsyncClient {
 	/// Disconnect from the MQTT broker with a timeout.
 	/// This will delay the disconnect for up to the specified timeout to
 	/// allow in-flight messages to complete.
-	/// This is the same as calling disconnect with options specifying a 
+	/// This is the same as calling disconnect with options specifying a
 	/// timeout.
 	///
 	/// # Arguments
 	///
-	/// `timeout` The amount of time to wait for the disconnect. This has 
+	/// `timeout` The amount of time to wait for the disconnect. This has
 	/// 		  a resolution in milliseconds.
 	pub fn disconnect_after(&self, timeout: Duration) -> Arc<Token> {
 		let disconn_opts = DisconnectOptionsBuilder::new()
@@ -682,7 +665,7 @@ impl AsyncClient {
 			let _ = unsafe { Arc::from_raw(copts.context as *mut Token) };
 			Arc::new(Token::from_error(rc))
 		}
-		else { 
+		else {
 			tok.set_msgid(copts.token as i16);
 			tok
 		}
@@ -752,7 +735,7 @@ impl AsyncClient {
 	///
 	/// # Arguments
 	///
-	/// `topic` The topic to unsubscribe. It must match a topic from a 
+	/// `topic` The topic to unsubscribe. It must match a topic from a
 	/// 		previous subscribe.
 	pub fn unsubscribe(&self, topic: &str) -> Arc<Token> {
 		println!("Unsubscribe from '{}'", topic);
@@ -781,7 +764,7 @@ impl AsyncClient {
 	///
 	/// # Arguments
 	///
-	/// `topic` The topics to unsubscribe. Each must match a topic from a 
+	/// `topic` The topics to unsubscribe. Each must match a topic from a
 	/// 		previous subscribe.
 	pub fn unsubscribe_many(&self, topic: Vec<String>) -> Arc<Token> {
 		println!("Unsubscribe from '{:?}'", topic);
@@ -796,7 +779,7 @@ impl AsyncClient {
 		let topic = StringCollection::new(&topic);
 
 		let rc = unsafe {
-			ffi::MQTTAsync_unsubscribeMany(self.handle, topic.len() as c_int, 
+			ffi::MQTTAsync_unsubscribeMany(self.handle, topic.len() as c_int,
 										   topic.as_c_arr_ptr(), &mut copts)
 		};
 
@@ -810,10 +793,13 @@ impl AsyncClient {
 	/// Start consuming incoming messages.
 	/// This initializes the client to receive messages into an internal
 	/// queue which can be read synchronously.
-	pub fn start_consuming(&self) -> Receiver<Message> {
+	pub fn start_consuming(&mut self) -> Receiver<Message> {
 		let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
-		let mut cbctx = self.callback_context.lock().unwrap();
-		(*cbctx).chan_tx = Some(tx);
+
+		self.set_message_callback(move |_,msg| {
+			tx.send(msg).unwrap();
+		});
+
 		rx
 	}
 
@@ -852,7 +838,7 @@ impl AsyncClientBuilder {
 	///
 	/// `server_uri` The address of the MQTT broker. It takes the form
 	/// 			 <i>protocol://host:port</i>, where <i>protocol</i> must
-	/// 			 be <i>tcp</i> or <i>ssl</i>. For <i>host</i>, you can 
+	/// 			 be <i>tcp</i> or <i>ssl</i>. For <i>host</i>, you can
 	/// 			 specify either an IP address or a host name. For instance,
 	/// 			 to connect to a server running on the local machines with
 	/// 			 the default MQTT port, specify <i>tcp://localhost:1883</i>.
@@ -865,7 +851,7 @@ impl AsyncClientBuilder {
 	///
 	/// # Arguments
 	///
-	/// `client_id` A unique identifier string to be passed to the broker 
+	/// `client_id` A unique identifier string to be passed to the broker
 	/// 			when the connection is made. This must be a UTF-8 encoded
 	///				string. If it is empty, the broker will create and assign
 	///				a unique name for the client.
@@ -875,13 +861,13 @@ impl AsyncClientBuilder {
 	}
 
 	/// Turns default file persistence on or off.
-	/// When turned on, the client will use the default, file-based, 
-	/// persistence mechanism. This stores information about in-flight 
+	/// When turned on, the client will use the default, file-based,
+	/// persistence mechanism. This stores information about in-flight
 	/// messages in persistent storage on the file system, and provides
 	/// some protection against message loss in the case of unexpected
 	/// failure.
 	/// When turned off, the client uses in-memory persistence. If the
-	/// client crashes or system power fails, the client could lose 
+	/// client crashes or system power fails, the client could lose
 	/// messages.
 	///
 	/// # Arguments
@@ -895,12 +881,12 @@ impl AsyncClientBuilder {
 
 	// TODO:
 	// This will allow the app to specify a user-defined persistence mechanism
-//	pub fn user_persistence<T: UserPersistence>(&mut self, persistence: T) 
+//	pub fn user_persistence<T: UserPersistence>(&mut self, persistence: T)
 //				-> &mut AsyncClientBuilder {
 //		// Setup the user persistence
 //	}
 
-	/// Enables or disables off-line buffering of out-going messages when 
+	/// Enables or disables off-line buffering of out-going messages when
 	/// the client is disconnected.
 	///
 	/// # Arguments
@@ -918,7 +904,7 @@ impl AsyncClientBuilder {
 	///
 	/// # Arguments
 	///
-	/// `max_buffered_msgs` The maximum number of messages that the client 
+	/// `max_buffered_msgs` The maximum number of messages that the client
 	///						will buffer while off-line.
 	pub fn max_buffered_messages(&mut self, max_buffered_messages: i32) -> &mut AsyncClientBuilder {
 		self.copts.sendWhileDisconnected = 1;	// Turn it on
@@ -934,7 +920,6 @@ impl AsyncClientBuilder {
 			callback_context: Mutex::new(CallbackContext {
 				on_connection_lost: None,
 				on_message_arrived: None,
-				chan_tx: None,
 			}),
 			server_uri: CString::new(self.server_uri.clone()).unwrap(),
 			client_id: CString::new(self.client_id.clone()).unwrap(),
