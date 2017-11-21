@@ -39,6 +39,12 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
+
+	// Run 'cargo build -vv' to see debug output to console.
+	// This is helpful to figure out what the build is doing.
+	let cver = bindgen::clang_version();
+	println!("debug:clang version: {}", cver.full);
+
 	let target = env::var("TARGET").expect("TARGET was not set");
 
 	//let paho_c_path_env = env::var("PAHO_C_PATH").unwrap_or("<unknown>".to_string());
@@ -144,6 +150,9 @@ fn main() {
 	// to bindgen, and lets you build up options for
 	// the resulting bindings.
 	let bindings = bindgen::Builder::default()
+		// Older clang versions (~v3.6) improperly mangle the functions.
+		// We shouldn't require mangling for straight C library. I think.
+		.trust_clang_mangling(false)
 		// The input header we would like to generate
 		// bindings for.
 		.header("wrapper.h").clang_arg(inc_path)

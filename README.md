@@ -61,11 +61,12 @@ If the C library is not installed in a default system location, then the path to
 The crate currently uses the Rust _bindgen_ library to create the bindings to the Paho C library.
 https://rust-lang-nursery.github.io/rust-bindgen/
 
-There appears to be a bug in the _bindgen_ library in which it is outputting code that mangles the names of the C functions. This issue has been raised for the _bindgen_ project:
-https://github.com/rust-lang-nursery/rust-bindgen/issues/1046
+Bindgen requires a recent version of the Clang library installed on the system - recommended v3.9 or 4.0. The bindgen dependencies seem, however, to seek out the oldest Clang version if multiple ones are installed on the system. On Ubuntu 14.04 or 16.04, the Clang v3.6 default might give some problems, although as the Paho builder is currently configured, it might work.
 
-As a temporary solution, the _fixbindings.sh_ script can be run to fix the _bindings.rs_ file which is created by _bindgen. This works on Linux. On other systems, simply remove all of the lines in _bindings.rs_ which contain the text:
-`#[link_name = ...]`
+But the safest thing would be to set the `LIBCLANG_PATH` environment variable to point to a supported version, like:
+```
+export LIBCLANG_PATH=/usr/lib/llvm-3.9/lib
+```
 
 ## Example
 
