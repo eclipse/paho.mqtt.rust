@@ -1,4 +1,6 @@
 // connect_options.rs
+// 
+// The set of options for creating an MQTT client.
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 //
 
@@ -21,8 +23,8 @@
 use ffi;
 use std::ptr;
 use std::time::Duration;
-use std::ffi::{CString};
-use std::os::raw::{/*c_void, c_char,*/ c_int};
+use std::ffi::CString;
+use std::os::raw::c_int;
 use will_options::WillOptions;
 use ssl_options::SslOptions;
 use string_collection::StringCollection;
@@ -328,12 +330,10 @@ impl ConnectOptionsBuilder {
 		let opts = ConnectOptions {
 			copts: self.copts.clone(),
 			will: if let Some(ref will_opts) = self.will {
-					println!("Transferring will");
 					Some(Box::new(will_opts.clone()))
 				}
 				else { None },
 			ssl: if let Some(ref ssl_opts) = self.ssl {
-					println!("Transferring SSL");
 					Some(Box::new(ssl_opts.clone()))
 				}
 				else { None },

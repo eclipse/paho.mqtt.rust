@@ -31,6 +31,8 @@ pub enum ErrorKind {
 	QosError,
 	/// Operation failed because of a type mismatch.
 	TypeError,
+	/// Persistence Error
+	PersistenceError,
 	/// General Failure (TODO: Something better than this)
 	General,
 	/// I/O Error
@@ -122,6 +124,9 @@ impl fmt::Debug for MqttError {
     }
 }
 
+pub const PERSISTENCE_ERROR: MqttError = MqttError { 
+	repr: ErrorRepr::WithDescription(ErrorKind::PersistenceError, -2, "Persistence Error"),
+};
 
 /// Generic result for the entire public API
 pub type MqttResult<T> = Result<T, MqttError>;

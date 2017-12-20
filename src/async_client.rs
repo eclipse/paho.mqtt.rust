@@ -29,9 +29,11 @@ use std::sync::mpsc;
 
 use ffi;
 
-use connect_options::{ConnectOptions};
+use create_options::{CreateOptions,PersistenceType};
+use connect_options::ConnectOptions;
 use disconnect_options::{DisconnectOptions,DisconnectOptionsBuilder};
-use message::{Message};
+use message::Message;
+use client_persistence::{/*ClientPersistence,*/ ClientPersistenceBridge};
 use errors::{MqttResult, /*MqttError,*/ ErrorKind};
 use string_collection::{StringCollection};
 
@@ -156,7 +158,7 @@ impl Token {
 
 	// Callback from the C library for when an async operation succeeds.
 	unsafe extern "C" fn on_success(context: *mut c_void, rsp: *mut ffi::MQTTAsync_successData) {
-		println!("Token success! {:?}, {:?}", context, rsp);
+		debug!("Token success! {:?}, {:?}", context, rsp);
 		if context.is_null() {
 			return
 		}
@@ -169,7 +171,7 @@ impl Token {
 
 	// Callback from the C library when an async operation fails.
 	unsafe extern "C" fn on_failure(context: *mut c_void, rsp: *mut ffi::MQTTAsync_failureData) {
-		println!("Token failure! {:?}, {:?}", context, rsp);
+		warn!("Token failure! {:?}, {:?}", context, rsp);
 		if context.is_null() {
 			return
 		}
@@ -183,7 +185,7 @@ impl Token {
 
 			if !(*rsp).message.is_null() {
 				if let Ok(cmsg) = CStr::from_ptr((*rsp).message).to_str() {
-					println!("Token failure message: {:?}", cmsg);
+					debug!("Token failure message: {:?}", cmsg);
 					msg = cmsg.to_string();
 				}
 			}
@@ -203,7 +205,7 @@ impl Token {
 
 	// Callback function to update the token when the action completes.
 	fn on_complete(&mut self, cli: &AsyncClient, msgid: u16, rc: i32, msg: String) {
-		println!("Token completed with code: {}", rc);
+		debug!("Token completed with code: {}", rc);
 		{
 			let mut retv = self.lock.lock().unwrap();
 			(*retv).complete = true;
@@ -212,13 +214,13 @@ impl Token {
 		}
 		if rc == 0 {
 			if let Some(ref mut cb) = self.on_success {
-				println!("Invoking Token::on_success callback");
+				trace!("Invoking Token::on_success callback");
 				cb(cli, msgid);
 			}
 		}
 		else {
 			if let Some(ref mut cb) = self.on_failure {
-				println!("Invoking Token::on_failure callback");
+				trace!("Invoking Token::on_failure callback");
 				cb(cli, msgid, rc);
 			}
 		}
@@ -263,7 +265,7 @@ impl Token {
 		}
 
 		let rc = (*retv).ret_code;
-		println!("Token completed: {}", rc);
+		debug!("Token completed: {}", rc);
 		// TODO: Get real error result & message
 		if rc != 0 {
 			let msg = (*retv).err_msg.clone();
@@ -287,7 +289,7 @@ impl Token {
 		}
 
 		let rc = (*retv).ret_code;
-		println!("Timed token completed: {}", rc);
+		debug!("Timed token completed: {}", rc);
 		// TODO: Get real error result & message
 		if rc != 0 {
 			let msg = (*retv).err_msg.clone();
@@ -332,24 +334,26 @@ pub struct AsyncClient {
 	server_uri: CString,
 	// The MQTT client ID name
 	client_id: CString,
-
+	// Raw pointer to the user persistence (if any)
+	// This is a consumed box, and should be dropped manually  
+	persistence_ptr: *mut ffi::MQTTClient_persistence,
 }
 
 impl AsyncClient {
 	unsafe extern "C" fn on_connected(context: *mut c_void, rsp: *mut ffi::MQTTAsync_successData) {
-		println!("Connected! {:?}, {:?}", context, rsp);
+		debug!("Connected! {:?}, {:?}", context, rsp);
 	}
 
 	// Low-level callback for when the connection is lost.
 	unsafe extern "C" fn on_connection_lost(context: *mut c_void,
 											_cause: *mut c_char) {
-		println!("\nConnection lost. Context: {:?}", context);
+		warn!("\nConnection lost. Context: {:?}", context);
 		if !context.is_null() {
 			let cli = context as *mut AsyncClient;
 			let mut cbctx = (*cli).callback_context.lock().unwrap();
 
 			if let Some(ref mut cb) = (*cbctx).on_connection_lost {
-				println!("Invoking connection lost callback");
+				debug!("Invoking connection lost callback");
 				cb(&mut *cli);
 			}
 		}
@@ -360,7 +364,7 @@ impl AsyncClient {
 											topic_name: *mut c_char,
 											topic_len: c_int,
 											mut cmsg: *mut ffi::MQTTAsync_message) -> c_int {
-		println!("\nMessage arrived. Context: {:?}, topic: {:?} len {:?} cmsg: {:?}: {:?}",
+		debug!("\nMessage arrived. Context: {:?}, topic: {:?} len {:?} cmsg: {:?}: {:?}",
 				 context, topic_name, topic_len, cmsg, *cmsg);
 
 		if !context.is_null() {
@@ -373,7 +377,7 @@ impl AsyncClient {
 				let topic = CString::new(tp).unwrap();
 				let msg = Message::from_c_parts(topic, &*cmsg);
 
-				println!("Invoking message callback");
+				debug!("Invoking message callback");
 				cb(&*cli, msg);
 			}
 		}
@@ -401,6 +405,7 @@ impl AsyncClient {
 			}),
 			server_uri: CString::new(server_uri).unwrap(),
 			client_id: CString::new(client_id).unwrap(),
+			persistence_ptr: ptr::null_mut(),
 		};
 
 		let rc = unsafe {
@@ -410,8 +415,73 @@ impl AsyncClient {
 								  0, ptr::null_mut()) as i32
 		};
 
-		if rc != 0 { println!("Create result: {}", rc); }
-		println!("AsyncClient handle: {:?}", cli.handle);
+		if rc != 0 { warn!("Create failure: {}", rc); }
+		debug!("AsyncClient handle: {:?}", cli.handle);
+
+		// TODO: This can fail. We should return a Result<AsyncClient>
+		cli
+	}
+
+	/// Creates a new MQTT client which can connect to an MQTT broker.
+	///
+	/// # Arguments
+	///
+	/// * `server_uri` The address of the MQTT broker.
+	/// * `client_id` The unique name of the client. if this is empty, the
+	///		the broker will assign a unique name.
+	///
+	pub fn with_options(mut opts: CreateOptions) -> AsyncClient {
+		let mut cli = AsyncClient {
+			handle: ptr::null_mut(),
+			opts: Mutex::new(ConnectOptions::new()),
+			callback_context: Mutex::new(CallbackContext {
+				on_connection_lost: None,
+				on_message_arrived: None,
+			}),
+			server_uri: CString::new(opts.server_uri).unwrap(),
+			client_id: CString::new(opts.client_id).unwrap(),
+			persistence_ptr: ptr::null_mut(),
+		};
+
+		let (ptype, usrptr) = match opts.persistence {
+			PersistenceType::User(persist) => (ffi::MQTTCLIENT_PERSISTENCE_USER, Box::into_raw(persist) as *mut _),
+			PersistenceType::File => (ffi::MQTTCLIENT_PERSISTENCE_DEFAULT, ptr::null_mut()),
+			PersistenceType::None => (ffi::MQTTCLIENT_PERSISTENCE_NONE, ptr::null_mut()),
+		};
+
+		debug!("Creating client with persistence: {:?}, {:?}", ptype, usrptr);
+
+		// Note that the C library does NOT keep a copy of this persistence 
+		// store structure. We must keep a copy alive for as long as the 
+		// client remains alive.
+
+		// TODO: Save the raw pointer in the client to remove it when the 
+		//			client is destroyed.
+		let persistence = Box::new(ffi::MQTTClient_persistence {
+			context: usrptr,
+			popen: Some(ClientPersistenceBridge::on_open),
+			pclose: Some(ClientPersistenceBridge::on_close),
+			pput: Some(ClientPersistenceBridge::on_put),
+			pget: Some(ClientPersistenceBridge::on_get),
+			premove: Some(ClientPersistenceBridge::on_remove),
+			pkeys: Some(ClientPersistenceBridge::on_keys),
+			pclear: Some(ClientPersistenceBridge::on_clear),
+			pcontainskey: Some(ClientPersistenceBridge::on_contains_key),
+		});
+		cli.persistence_ptr = Box::into_raw(persistence);
+
+		let rc = unsafe {
+			ffi::MQTTAsync_createWithOptions(&mut cli.handle as *mut *mut c_void,
+											 cli.server_uri.as_ptr(),
+											 cli.client_id.as_ptr(),
+											 ptype as c_int, 
+											 //&mut persistence as *mut _ as *mut c_void,
+											 cli.persistence_ptr as *mut c_void,
+											 &mut opts.copts) as i32
+		};
+
+		if rc != 0 { warn!("Create result: {}", rc); }
+		debug!("AsyncClient handle: {:?}", cli.handle);
 
 		// TODO: This can fail. We should return a Result<AsyncClient>
 		cli
@@ -423,10 +493,12 @@ impl AsyncClient {
 	///
 	/// * `opts` The connect options
 	///
-	pub fn connect<T: Into<Option<ConnectOptions>>>(&self, opt_opts: T) -> Arc<Token> {
+	pub fn connect<T>(&self, opt_opts: T) -> Arc<Token> 
+		where T: Into<Option<ConnectOptions>>
+	{
 		if let Some(opts) = opt_opts.into() {
-			println!("Connecting handle: {:?}", self.handle);
-			println!("Connect options: {:?}", opts);
+			debug!("Connecting handle: {:?}", self.handle);
+			debug!("Connect options: {:?}", opts);
 
 			let tok = Arc::new(Token::new());
 			let tokcb = tok.clone();
@@ -466,11 +538,11 @@ impl AsyncClient {
 		where FS: FnMut(&AsyncClient,u16) + 'static,
 			  FF: FnMut(&AsyncClient,u16,i32) + 'static
 	{
-		println!("Connecting handle: {:?}", self.handle);
-		println!("\nConnect opts: {:?}", opts);
+		debug!("Connecting handle: {:?}", self.handle);
+		debug!("\nConnect opts: {:?}", opts);
 		unsafe {
 			if !opts.copts.will.is_null() {
-				println!("\nWill: {:?}", *(opts.copts.will));
+				debug!("\nWill: {:?}", *(opts.copts.will));
 			}
 		}
 
@@ -481,7 +553,7 @@ impl AsyncClient {
 		opts.copts.onSuccess = Some(Token::on_success);
 		opts.copts.onFailure = Some(Token::on_failure);
 		opts.copts.context = Arc::into_raw(tokcb) as *mut c_void;;
-		println!("\nConnect opts: {:?}", opts);
+		debug!("\nConnect opts: {:?}", opts);
 		{
 			let mut lkopts = self.opts.lock().unwrap();
 			*lkopts = opts.clone();
@@ -538,9 +610,11 @@ impl AsyncClient {
 	///
 	/// `opt_opts` Optional disconnect options. Specifying `None` will use
 	/// 		   default of immediate (zero timeout) disconnect.
-	pub fn disconnect<T: Into<Option<DisconnectOptions>>>(&self, opt_opts: T) -> Arc<Token> {
+	pub fn disconnect<T>(&self, opt_opts: T) -> Arc<Token>
+			where T: Into<Option<DisconnectOptions>>
+	{
 		if let Some(mut opts) = opt_opts.into() {
-			println!("Disconnecting");
+			debug!("Disconnecting");
 
 			let tok = Arc::new(Token::new());
 			let tokcb = tok.clone();
@@ -647,7 +721,7 @@ impl AsyncClient {
 	///
 	/// * `msg` The message to publish.
 	pub fn publish(&self, msg: Message) -> Arc<DeliveryToken> {
-		println!("Publish: {:?}", msg);
+		debug!("Publish: {:?}", msg);
 
 		let tok = Arc::new(DeliveryToken::from_message(msg));
 		let tokcb = tok.clone();
@@ -678,7 +752,7 @@ impl AsyncClient {
 	/// `topic` The topic name
 	/// `qos` The quality of service requested for messages
 	pub fn subscribe(&self, topic: &str, qos: i32) -> Arc<Token> {
-		println!("Subscribe to '{}' @ QOS {}", topic, qos);
+		debug!("Subscribe to '{}' @ QOS {}", topic, qos);
 
 		let tok = Arc::new(DeliveryToken::new());
 		let tokcb = tok.clone();
@@ -707,7 +781,7 @@ impl AsyncClient {
 	/// `topic` The topic name
 	/// `qos` The quality of service requested for messages
 	pub fn subscribe_many(&self, topic: Vec<String>, mut qos: Vec<i32>) -> Arc<Token> {
-		println!("Subscribe to '{:?}' @ QOS {:?}", topic, qos);
+		debug!("Subscribe to '{:?}' @ QOS {:?}", topic, qos);
 
 		// TOOD: Make sure topic & qos are same length (or use min)
 		let tok = Arc::new(DeliveryToken::new());
@@ -738,7 +812,7 @@ impl AsyncClient {
 	/// `topic` The topic to unsubscribe. It must match a topic from a
 	/// 		previous subscribe.
 	pub fn unsubscribe(&self, topic: &str) -> Arc<Token> {
-		println!("Unsubscribe from '{}'", topic);
+		debug!("Unsubscribe from '{}'", topic);
 
 		let tok = Arc::new(DeliveryToken::new());
 		let tokcb = tok.clone();
@@ -767,7 +841,7 @@ impl AsyncClient {
 	/// `topic` The topics to unsubscribe. Each must match a topic from a
 	/// 		previous subscribe.
 	pub fn unsubscribe_many(&self, topic: Vec<String>) -> Arc<Token> {
-		println!("Unsubscribe from '{:?}'", topic);
+		debug!("Unsubscribe from '{:?}'", topic);
 
 		let tok = Arc::new(DeliveryToken::new());
 		let tokcb = tok.clone();
@@ -806,7 +880,16 @@ impl AsyncClient {
 	pub fn stop_consuming(&self) {
 		unimplemented!();
 	}
+}
 
+impl Drop for AsyncClient {
+	fn drop(&mut self) {
+		if !self.persistence_ptr.is_null() {
+			unsafe {
+				drop(Box::from_raw(self.persistence_ptr));
+			}
+		}
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -923,13 +1006,14 @@ impl AsyncClientBuilder {
 			}),
 			server_uri: CString::new(self.server_uri.clone()).unwrap(),
 			client_id: CString::new(self.client_id.clone()).unwrap(),
+			persistence_ptr: ptr::null_mut(),
 		};
 
 		// TODO We wouldn't need this if C options were immutable in call
 		// to ffi:MQTTAsync:createWithOptions
 		let mut copts = self.copts.clone();
 
-		println!("Create opts: {:?}", copts);
+		debug!("Create opts: {:?}", copts);
 
 		let rc = unsafe {
 			ffi::MQTTAsync_createWithOptions(&mut cli.handle as *mut *mut c_void,
@@ -939,8 +1023,8 @@ impl AsyncClientBuilder {
 											 &mut copts)
 		};
 
-		if rc != 0 { println!("Create result: {}", rc); }
-		println!("AsyncClient handle: {:?}", cli.handle);
+		if rc != 0 { warn!("Create failure: {}", rc); }
+		debug!("AsyncClient handle: {:?}", cli.handle);
 
 		// TODO: This can fail. We should return a Result<AsyncClient>
 		cli
