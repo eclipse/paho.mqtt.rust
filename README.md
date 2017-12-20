@@ -21,7 +21,7 @@ The initial version of the library is a wrapper for the Paho C library, similar 
 * Last Will and Testament (LWT)
 * Message Persistence 
   * File or memory persistence
-  * User-defined (coming soon)
+  * User-defined
 * Automatic Reconnect
 * Offline Buffering
 * High Availability
