@@ -281,6 +281,7 @@ impl ClientPersistenceBridge
 
 #[cfg(test)]
 mod tests {
+	/*
 	use super::*;
 	//use std::ffi::{CStr};
 
@@ -328,5 +329,6 @@ mod tests {
 
 		let _ = unsafe { Box::from_raw(context) };
 	}
+	*/
 }
 
