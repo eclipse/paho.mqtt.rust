@@ -395,7 +395,7 @@ impl AsyncClient {
 	/// * `client_id` The unique name of the client. if this is empty, the
 	///		the broker will assign a unique name.
 	///
-	pub fn new(server_uri: &str, client_id: &str) -> AsyncClient {
+	pub fn new(server_uri: &str, client_id: &str) -> MqttResult<AsyncClient> {
 		let mut cli = AsyncClient {
 			handle: ptr::null_mut(),
 			opts: Mutex::new(ConnectOptions::new()),
@@ -415,11 +415,12 @@ impl AsyncClient {
 								  0, ptr::null_mut()) as i32
 		};
 
-		if rc != 0 { warn!("Create failure: {}", rc); }
+		if rc != 0 { 
+			warn!("Create failure: {}", rc);
+			fail!((ErrorKind::General, rc, "Error"));
+		}
 		debug!("AsyncClient handle: {:?}", cli.handle);
-
-		// TODO: This can fail. We should return a Result<AsyncClient>
-		cli
+		Ok(cli)
 	}
 
 	/// Creates a new MQTT client which can connect to an MQTT broker.
@@ -430,7 +431,7 @@ impl AsyncClient {
 	/// * `client_id` The unique name of the client. if this is empty, the
 	///		the broker will assign a unique name.
 	///
-	pub fn with_options(mut opts: CreateOptions) -> AsyncClient {
+	pub fn with_options(mut opts: CreateOptions) -> MqttResult<AsyncClient> {
 		let mut cli = AsyncClient {
 			handle: ptr::null_mut(),
 			opts: Mutex::new(ConnectOptions::new()),
@@ -480,11 +481,12 @@ impl AsyncClient {
 											 &mut opts.copts) as i32
 		};
 
-		if rc != 0 { warn!("Create result: {}", rc); }
+		if rc != 0 {
+			warn!("Create result: {}", rc); 
+			fail!((ErrorKind::General, rc, Token::error_msg(rc)));
+		}
 		debug!("AsyncClient handle: {:?}", cli.handle);
-
-		// TODO: This can fail. We should return a Result<AsyncClient>
-		cli
+		Ok(cli)
 	}
 
 	/// Connects to an MQTT broker using the specified connect options.

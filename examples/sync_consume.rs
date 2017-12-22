@@ -31,15 +31,25 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
+extern crate log;
+extern crate env_logger;
+
 extern crate paho_mqtt as mqtt;
 
+use std::process;
 use std::time::Duration;
 
 /////////////////////////////////////////////////////////////////////////////
 
 fn main() {
+	// Initialize the logger from the environment
+	env_logger::init().unwrap();
+
 	// Create the client connection
-	let mut cli = mqtt::Client::new("tcp://localhost:1883", "");
+	let mut cli = mqtt::Client::new("tcp://localhost:1883", "").unwrap_or_else(|e| {
+		println!("Error creating the client: {:?}", e);
+		process::exit(1);
+	});
 
 	// Define the set of options for the connection
 	let will_opts = mqtt::WillOptionsBuilder::new()
@@ -57,7 +67,7 @@ fn main() {
 	println!("Connecting to the MQTT broker...");
 	if let Err(e) = cli.connect(conn_opts) {
 		println!("Error connecting to the broker: {:?}", e);
-		::std::process::exit(1);
+		process::exit(1);
 	};
 
 	// Initialize the consumer & subscribe to topics

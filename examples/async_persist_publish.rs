@@ -25,6 +25,7 @@ extern crate env_logger;
 
 extern crate paho_mqtt as mqtt;
 
+use std::process;
 use std::collections::HashMap;
 
 // --------------------------------------------------------------------------
@@ -54,6 +55,7 @@ impl mqtt::ClientPersistence for MemPersistence
 
 		//self.map.insert("bubba".to_string(), vec![ 0u8, 1u8 ]);
 		//self.map.insert("wally".to_string(), vec![ 2u8, 3u8 ]);
+
 		Ok(())
 	}
 
@@ -111,24 +113,28 @@ impl mqtt::ClientPersistence for MemPersistence
 // --------------------------------------------------------------------------
 
 fn main() {
+	// Initialize the logger from the environment
 	env_logger::init().unwrap();
 
-	println!("Connecting to MQTT broker.");
 	// Create a client & define connect options
-	let persistence = MemPersistence::new();
-
+	println!("Creating the MQTT client.");
 	let create_opts = mqtt::CreateOptionsBuilder::new()
 			.server_uri("tcp://localhost:1883")
-			.user_persistence(persistence)
+			.user_persistence(MemPersistence::new())
 			.finalize();
 
-	let cli = mqtt::AsyncClient::with_options(create_opts);
+	let cli = mqtt::AsyncClient::with_options(create_opts).unwrap_or_else(|e| {
+		println!("Error creating the client: {:?}", e);
+		process::exit(1);
+	});
+
 	let conn_opts = mqtt::ConnectOptions::new();
 
 	// Connect and wait for it to complete or fail
+	println!("Connecting to MQTT broker.");
 	if let Err(e) = cli.connect(conn_opts).wait() {
-		println!("Unable to connect:\n\t{:?}", e);
-		::std::process::exit(1);
+		println!("Unable to connect: {:?}", e);
+		process::exit(1);
 	}
 
 	// Create a message and publish it

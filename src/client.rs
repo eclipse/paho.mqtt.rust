@@ -37,13 +37,14 @@ pub struct Client {
 }
 
 impl Client {
-	pub fn new(server_uri: &str, client_id: &str) -> Client {
+	pub fn new(server_uri: &str, client_id: &str) -> MqttResult<Client> {
+		let async_cli = AsyncClient::new(server_uri, client_id)?;
 		let cli = Client {
-			cli: Box::new(AsyncClient::new(server_uri, client_id)),
+			cli: Box::new(async_cli),
 			timeout: Duration::from_secs(5*60),
 		};
 		//cli.start_consuming();
-		cli
+		Ok(cli)
 	}
 
 	pub fn connect<T: Into<Option<ConnectOptions>>>(&self, opt_opts:T) -> MqttResult<()> {

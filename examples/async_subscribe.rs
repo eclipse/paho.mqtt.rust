@@ -30,9 +30,12 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
+extern crate log;
+extern crate env_logger;
+
 extern crate paho_mqtt as mqtt;
 
-use std::{thread};
+use std::{process, thread};
 use std::time::Duration;
 
 
@@ -63,8 +66,14 @@ fn on_connect_failure(cli: &mqtt::AsyncClient, _msgid: u16, rc: i32) {
 /////////////////////////////////////////////////////////////////////////////
 
 fn main() {
+	// Initialize the logger from the environment
+	env_logger::init().unwrap();
+
 	// Create the client connection
-	let mut cli = mqtt::AsyncClient::new("tcp://localhost:1883", "");
+	let mut cli = mqtt::AsyncClient::new("tcp://localhost:1883", "").unwrap_or_else(|e| {
+		println!("Error creating the client: {:?}", e);
+		process::exit(1);
+	});
 
 	// Set a closure to be called whenever the client loses the connection.
 	// It will attempt to reconnect, and set up function callbacks to keep
@@ -99,16 +108,6 @@ fn main() {
 
 	println!("\nFinished conn_opts builder");
 
-	//let copts = conn_opts.to_c_struct();
-	//println!("copts: {:?}", copts);
-
-	//conn_opts = mqtt::ConnectOptions::fixup(conn_opts);
-	let co = conn_opts.clone();
-	println!("****");
-	println!("\nConn: {:?}", conn_opts);
-	println!("\nConn: {:?}", co);
-	println!("****");
-
 	// Make the connection to the broker
 	println!("Connecting to the MQTT server...");
 	cli.connect_with_callbacks(conn_opts, on_connect_success, on_connect_failure);
@@ -119,6 +118,7 @@ fn main() {
 	}
 
 	/*
+	unreachable!();
 	cli.unsubscribe_many(vec!("test".to_string(), "hello".to_string())).wait();
 
 	let tok = cli.disconnect(None);

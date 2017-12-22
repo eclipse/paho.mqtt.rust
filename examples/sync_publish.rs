@@ -19,16 +19,27 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
+extern crate log;
+extern crate env_logger;
+
 extern crate paho_mqtt as mqtt;
 
+use std::process;
+
 fn main() {
+	// Initialize the logger from the environment
+	env_logger::init().unwrap();
+
 	// Create a client & define connect options
-	let cli = mqtt::Client::new("tcp://localhost:1883", "");
+	let cli = mqtt::Client::new("tcp://localhost:1883", "").unwrap_or_else(|e| {
+		println!("Error creating the client: {:?}", e);
+		process::exit(1);
+	});
 
 	// Connect and wait for it to complete or fail
 	if let Err(e) = cli.connect(None) {
-		println!("Unable to connect:\n\t{:?}", e);
-		::std::process::exit(1);
+		println!("Unable to connect: {:?}", e);
+		process::exit(1);
 	}
 
 	// Create a message and publish it
