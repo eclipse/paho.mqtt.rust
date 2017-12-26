@@ -2,8 +2,9 @@
 //
 // This is a Paho MQTT Rust client, sample application.
 //
-// This application is an MQTT subscriber using the C++ asynchronous client
+// This application is an MQTT subscriber using the asynchronous client
 // interface, employing callbacks to receive messages and status updates.
+// It also monitors for disconnects and performs manual re-connections.
 //
 // The sample demonstrates:
 //  - Connecting to an MQTT server/broker.

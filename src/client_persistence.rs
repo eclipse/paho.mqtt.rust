@@ -59,7 +59,7 @@ pub trait ClientPersistence {
 	 * Gets data from the persistence store.
 	 * @param key They key for the desired data.
 	 */
-	fn get(&self, key: &str) -> MqttResult<&[u8]>;
+	fn get(&self, key: &str) -> MqttResult<Vec<u8>>;
 	/**
 	 * Removes data for the specified key.
 	 * @param key The key for the data to remove.
@@ -68,7 +68,7 @@ pub trait ClientPersistence {
 	/**
 	 * Gets the keys that are currently in the persistence store
 	 */
-	fn keys(&self) -> MqttResult<Vec<&str>>;
+	fn keys(&self) -> MqttResult<Vec<String>>;
 	/**
 	 * Clear the persistence store so that it no longer contains any data.
 	 */
@@ -178,7 +178,7 @@ impl ClientPersistenceBridge
 		let key = CStr::from_ptr(key).to_str().unwrap();
 
 		match persist.get(key) {
-			Ok(buf) => {
+			Ok(buf) => {	// buf: Vec<u8>
 				let n = buf.len();
 				let cbuf = libc::malloc(n) as *mut u8;
 				ptr::copy(buf.as_ptr(), cbuf, n);
@@ -193,7 +193,7 @@ impl ClientPersistenceBridge
 	// Callback from the C library to delete specific data from the 
 	// persistence store.
 	pub unsafe extern "C" fn on_remove(handle: *mut c_void,
-										 key: *mut c_char) -> c_int {
+									   key: *mut c_char) -> c_int {
 		trace!("ClientPersistenceBridge::on_remove");
 		if handle.is_null() || key.is_null() {
 			return PERSISTENCE_ERROR;
@@ -210,8 +210,8 @@ impl ClientPersistenceBridge
 	// Callback from the C library to retrieve the set of keys from the
 	// persistence store.
 	pub unsafe extern "C" fn on_keys(handle: *mut c_void,
-								 keys: *mut *mut *mut c_char,
-								 nkeys: *mut c_int) -> c_int {
+									 keys: *mut *mut *mut c_char,
+									 nkeys: *mut c_int) -> c_int {
 		trace!("ClientPersistenceBridge::on_keys");
 		if handle.is_null() || keys.is_null() || nkeys.is_null() {
 			return PERSISTENCE_ERROR;
@@ -223,12 +223,13 @@ impl ClientPersistenceBridge
 		*nkeys = 0;
 
 		match persist.keys() {
-			Ok(k) => {
+			Ok(k) => {		// k: Vec<String>
 				let n = k.len();
 				if n != 0 {
+					// TODO OPTIMIZE: This does a lot of copying
 					let ckeys = libc::malloc(n * mem::size_of::<usize>()) as *mut *mut c_char;
 					for i in 0..n {
-						let s = CString::new(k[i]).unwrap();
+						let s = CString::new(k[i].clone()).unwrap();
 						let sb = s.as_bytes_with_nul();
 						let sn = sb.len();
 						let cbuf = libc::malloc(sn) as *mut c_char;

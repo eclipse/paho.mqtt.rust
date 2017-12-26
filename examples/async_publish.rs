@@ -1,6 +1,11 @@
 // async_publish.rs
 // 
-// Example/test for Paho MQTT Rust library.
+// Example application for Paho MQTT Rust library.
+// This is a simple asynchronous publisher.
+//
+// This sample demonstrates:
+//	- Connecting to an MQTT broker
+//	- Publishing a message asynchronously
 //
 
 /*******************************************************************************
@@ -27,11 +32,12 @@ extern crate paho_mqtt as mqtt;
 use std::process;
 
 fn main() {
+	// Initialize the logger from the environment
 	env_logger::init().unwrap();
 
 	// Create a client & define connect options
-	let cli = mqtt::AsyncClient::new("tcp://localhost:1883").unwrap_or_else(|e| {
-		println!("Error creating the client: {}", e);
+	let cli = mqtt::AsyncClient::new("tcp://localhost:1883").unwrap_or_else(|err| {
+		println!("Error creating the client: {}", err);
 		process::exit(1);
 	});
 
@@ -39,11 +45,12 @@ fn main() {
 
 	// Connect and wait for it to complete or fail
 	if let Err(e) = cli.connect(conn_opts).wait() {
-		println!("Unable to connect:\n\t{:?}", e);
+		println!("Unable to connect: {:?}", e);
 		process::exit(1);
 	}
 
 	// Create a message and publish it
+	println!("Publishing a message on the 'test' topic");
 	let msg = mqtt::Message::new("test", "Hello world!");
 	let tok = cli.publish(msg);
 

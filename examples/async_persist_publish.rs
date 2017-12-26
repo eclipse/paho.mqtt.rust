@@ -1,7 +1,14 @@
-// async_publish.rs
+// async_persist_publish.rs
 // 
-// Example/test for Paho MQTT Rust library.
-//
+// Example application for Paho MQTT Rust library.
+// This is an asynchronous publisher with user-defined, in-memory, persistence.
+// 
+// This sample demonstrates:
+//	- Creating a client using CreateOptionsBuilder
+//	- User-defined persistence, in-memory, with a Rust HashMap
+//	- Connecting to an MQTT broker
+//	- Publishing messages asynchronously
+//	- Using the Rust logger to trace the persistence callbacks.
 
 /*******************************************************************************
  * Copyright (c) 2017 Frank Pagliughi <fpagliughi@mindspring.com>
@@ -32,7 +39,7 @@ use std::collections::HashMap;
 
 // The ClientPersistence maps pretty closely to a key/val store. We can use
 // a Rust HashMap to implement an in-memory persistence pretty easily.
-
+// The keys are strings, and the values are arbitrarily-sized byte buffers.
 struct MemPersistence {
 	name: String,
 	map: HashMap<String, Vec<u8>>,
@@ -49,21 +56,23 @@ impl MemPersistence {
 
 impl mqtt::ClientPersistence for MemPersistence
 {
+	// Open the persistence store.
+	// We don't need to do anything here since the store is in memory.
+	// We just capture the name for logging/debugging purposes.
 	fn open(&mut self, client_id: &str, server_uri: &str) -> mqtt::MqttResult<()> {
 		self.name = format!("{}-{}", client_id, server_uri);
 		trace!("Client persistence [{}]: open", self.name);
-
-		//self.map.insert("bubba".to_string(), vec![ 0u8, 1u8 ]);
-		//self.map.insert("wally".to_string(), vec![ 2u8, 3u8 ]);
-
 		Ok(())
 	}
 
+	// Close the persistence store.
+	// We don't need to do anything.
 	fn close(&mut self) -> mqtt::MqttResult<()> {
 		trace!("Client persistence [{}]: close", self.name);
 		Ok(())
 	}
 
+	// Put data into the persistence store.
 	// We get a vector of buffer references for the data to store, which we 
 	// can concatenate into a single byte buffer to place in the map.
 	fn put(&mut self, key: &str, buffers: Vec<&[u8]>) -> mqtt::MqttResult<()> {
@@ -73,14 +82,17 @@ impl mqtt::ClientPersistence for MemPersistence
 		Ok(())
 	}
 
-	fn get(&self, key: &str) -> mqtt::MqttResult<&[u8]> {
+	// Get (retrieve) data from the persistence store.
+	// We look up and return any data corresponding to the specified key.
+	fn get(&self, key: &str) -> mqtt::MqttResult<Vec<u8>> {
 		trace!("Client persistence [{}]: get key '{}'", self.name, key);
 		match self.map.get(key) {
-			Some(v) => Ok(&v),
+			Some(v) => Ok(v.to_vec()),
 			None => Err(mqtt::PERSISTENCE_ERROR)
 		}
 	}
 
+	// Remove the key entry from the persistence store, if any.
 	fn remove(&mut self, key: &str) -> mqtt::MqttResult<()> {
 		trace!("Client persistence [{}]: remove key '{}'", self.name, key);
 		match self.map.remove(key) {
@@ -89,21 +101,24 @@ impl mqtt::ClientPersistence for MemPersistence
 		}
 	}
 
-	fn keys(&self) -> mqtt::MqttResult<Vec<&str>> {
+	// Retrieve the complete set of keys in the persistence store.
+	fn keys(&self) -> mqtt::MqttResult<Vec<String>> {
 		trace!("Client persistence [{}]: keys", self.name);
-		let mut kv: Vec<&str> = Vec::new();
+		let mut kv: Vec<String> = Vec::new();
 		for key in self.map.keys() {
-			kv.push(key);
+			kv.push(key.to_string());
 		}
 		Ok(kv)
 	}
 
+	// Clears all the data from the persistence store.
 	fn clear(&mut self) -> mqtt::MqttResult<()> {
 		trace!("Client persistence [{}]: clear", self.name);
 		self.map.clear();
 		Ok(())
 	}
 
+	// Determine if the persistence store contains the specified key.
 	fn contains_key(&self, key: &str) -> bool {
 		trace!("Client persistence [{}]: contains key '{}'", self.name, key);
 		self.map.contains_key(key)

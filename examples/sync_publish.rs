@@ -1,6 +1,14 @@
 // sync_publish.rs
 //
-// Example/test for Paho MQTT Rust library.
+// This is a Paho MQTT Rust client sample application.
+//
+// This application is a simple MQTT publisher using the
+// synchronous/blocking client interface.
+//
+// The sample demonstrates:
+//	- Use of the synchronous/blocking API
+//	- Connecting to an MQTT broker
+//	- Publishing messages
 //
 
 /*******************************************************************************

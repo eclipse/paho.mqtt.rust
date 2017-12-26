@@ -1,6 +1,22 @@
 // ssl_publish.rs
 // 
-// This is a Paho MQTT Rust client, sample application.
+// Example application for Paho MQTT Rust library.
+// This is a simple asynchronous publisher using SSL/TSL secured connection.
+//
+// The sample demonstrates:
+//  - Connecting to an MQTT server/broker securely
+//  - Setting SSL/TLS options
+//  - Publishing messages asynchronously
+//  - Using asynchronous tokens
+//
+// We can test this using mosquitto configured with certificates in the
+// Paho C library. The C library has an SSL/TSL test suite, and we can use
+// that to test:
+//     $ cd paho.mqtt.c
+//     $ mosquitto -c test/tls-testing/mosquitto.conf
+//
+// Then use the file "test-root-ca.crt" from that directory
+// (paho.mqtt.c/test/tls-testing) for the trust store for this program.
 //
 
 /*******************************************************************************
@@ -28,24 +44,29 @@
 // (paho.mqtt.c/test/tls-testing) for the trust store for this program.
 //
 
+extern crate log;
+extern crate env_logger;
+
 extern crate paho_mqtt;
-extern crate paho_mqtt3as_sys as ffi;
 
 use std::{time, env, process};
-use std::path::Path;
-use std::ffi::CStr;
 use paho_mqtt as mqtt;
 
 fn main() {
-	const TRUST_STORE: &str = "/home/fmp/mqtt/paho-rust/test-root-ca.crt";
+	// Initialize the logger from the environment
+	env_logger::init().unwrap();
+
+	// We use the trust store from the Paho C tls-testing/keys directory,
+	// but we assume there's a copy in the current directory.
+	const TRUST_STORE: &str = "test-root-ca.crt";
 
 	// We assume that we are in a valid directory.
-	let cwd = env::current_dir().unwrap();
-	println!("The current directory is {}", cwd.display());
+	let mut trust_store = env::current_dir().unwrap();
+	trust_store.push(TRUST_STORE);
 
-	let trust_store = Path::new(TRUST_STORE);
 	if !trust_store.exists() {
-		println!("The trust store file does not exist: {}", TRUST_STORE);
+		println!("The trust store file does not exist: {:?}", trust_store);
+		println!("  Get a copy from \"paho.mqtt.c/test/tls-testing/keys/test-root-ca.crt\"");
 		process::exit(1);
 	}
 	
@@ -57,12 +78,8 @@ fn main() {
 					.finalize();
 
 	let ssl_opts = mqtt::SslOptionsBuilder::new()
-		.trust_store(TRUST_STORE)
+		.trust_store(trust_store.to_str().unwrap())
 		.finalize();
-
-	println!("SSL: {:?}", ssl_opts);
-	let mut ts = unsafe { CStr::from_ptr(ssl_opts.copts.trustStore) };
-	println!("Main SSL Opts Trust Store: {:?}", ts);
 
 	let conn_opts = mqtt::ConnectOptionsBuilder::new()
 		.ssl_options(ssl_opts)
@@ -70,24 +87,17 @@ fn main() {
 		.password("testpassword")
 		.finalize();
 
-	println!("Connect options: {:?}", conn_opts);
-
-	ts = unsafe { CStr::from_ptr((*conn_opts.copts.ssl).trustStore) };
-	unsafe {
-		println!("Main Conn Trust Store: [{:?}] {:?}", (*conn_opts.copts.ssl).trustStore, ts);
-	}
-
 	let tok = cli.connect(conn_opts);
 	if let Err(e) = tok.wait() {
 		println!("Error connecting: {:?}", e);
-		::std::process::exit(1);
+		process::exit(1);
 	}
-
-	println!("");
 
 	let msg = mqtt::MessageBuilder::new()
 		.topic("test")
 		.payload("Hello secure world!".as_bytes())
+		// TODO: We should be allowed to do this:
+		//.payload(b"Hello secure world!")
 		.qos(1)
 		.finalize();
 
