@@ -123,7 +123,7 @@ fn main() {
 			.user_persistence(MemPersistence::new())
 			.finalize();
 
-	let cli = mqtt::AsyncClient::with_options(create_opts).unwrap_or_else(|e| {
+	let cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|e| {
 		println!("Error creating the client: {:?}", e);
 		process::exit(1);
 	});

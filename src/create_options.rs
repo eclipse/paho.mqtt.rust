@@ -56,6 +56,23 @@ impl CreateOptions {
 	}
 }
 
+impl<'a> From<&'a str> for CreateOptions {
+	fn from(server_uri: &'a str) -> Self {
+		let mut opts = CreateOptions::default();
+		opts.server_uri = server_uri.to_string();
+		opts
+	}
+}
+
+impl<'a, 'b> From<(&'a str, &'b str)> for CreateOptions {
+	fn from((server_uri, client_id): (&'a str, &'b str)) -> Self {
+		let mut opts = CreateOptions::default();
+		opts.server_uri = server_uri.to_string();
+		opts.client_id = client_id.to_string();
+		opts
+	}
+}
+
 impl Default for CreateOptions {
 	fn default() -> CreateOptions {
 		CreateOptions {

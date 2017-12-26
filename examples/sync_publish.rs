@@ -31,7 +31,7 @@ fn main() {
 	env_logger::init().unwrap();
 
 	// Create a client & define connect options
-	let cli = mqtt::Client::new("tcp://localhost:1883", "").unwrap_or_else(|e| {
+	let cli = mqtt::Client::new("tcp://localhost:1883").unwrap_or_else(|e| {
 		println!("Error creating the client: {:?}", e);
 		process::exit(1);
 	});
