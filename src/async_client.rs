@@ -419,25 +419,27 @@ impl AsyncClient {
 			PersistenceType::None => (ffi::MQTTCLIENT_PERSISTENCE_NONE, ptr::null_mut()),
 		};
 
-		debug!("Creating client with persistence: {:?}, {:?}", ptype, usrptr);
+		debug!("Creating client with persistence: {}, {:?}", ptype, usrptr);
 
-		// TODO: The bridge should return boxed persistence given uptr
-		let persistence = Box::new(ffi::MQTTClient_persistence {
-			context: usrptr,
-			popen: Some(ClientPersistenceBridge::on_open),
-			pclose: Some(ClientPersistenceBridge::on_close),
-			pput: Some(ClientPersistenceBridge::on_put),
-			pget: Some(ClientPersistenceBridge::on_get),
-			premove: Some(ClientPersistenceBridge::on_remove),
-			pkeys: Some(ClientPersistenceBridge::on_keys),
-			pclear: Some(ClientPersistenceBridge::on_clear),
-			pcontainskey: Some(ClientPersistenceBridge::on_contains_key),
-		});
+		if !usrptr.is_null() {
+			// TODO: The bridge should return boxed persistence given uptr
+			let persistence = Box::new(ffi::MQTTClient_persistence {
+				context: usrptr,
+				popen: Some(ClientPersistenceBridge::on_open),
+				pclose: Some(ClientPersistenceBridge::on_close),
+				pput: Some(ClientPersistenceBridge::on_put),
+				pget: Some(ClientPersistenceBridge::on_get),
+				premove: Some(ClientPersistenceBridge::on_remove),
+				pkeys: Some(ClientPersistenceBridge::on_keys),
+				pclear: Some(ClientPersistenceBridge::on_clear),
+				pcontainskey: Some(ClientPersistenceBridge::on_contains_key),
+			});
 
-		// Note that the C library does NOT keep a copy of this persistence 
-		// store structure. We must keep a copy alive for as long as the 
-		// client remains active.
-		cli.persistence_ptr = Box::into_raw(persistence);
+			// Note that the C library does NOT keep a copy of this persistence 
+			// store structure. We must keep a copy alive for as long as the 
+			// client remains active.
+			cli.persistence_ptr = Box::into_raw(persistence);
+		}
 
 		let rc = unsafe {
 			ffi::MQTTAsync_createWithOptions(&mut cli.handle as *mut *mut c_void,
