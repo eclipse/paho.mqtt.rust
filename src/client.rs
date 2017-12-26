@@ -23,6 +23,7 @@ use std::sync::mpsc::{Receiver};
 //use std::sync::mpsc;
 
 use async_client::{AsyncClient};
+use create_options::{CreateOptions};
 use connect_options::{ConnectOptions};
 use disconnect_options::{DisconnectOptions};
 use message::{Message};
@@ -37,8 +38,10 @@ pub struct Client {
 }
 
 impl Client {
-	pub fn new(server_uri: &str, client_id: &str) -> MqttResult<Client> {
-		let async_cli = AsyncClient::new(server_uri, client_id)?;
+	pub fn new<T>(opts: T) -> MqttResult<Client>
+		where T: Into<CreateOptions> 
+	{
+		let async_cli = AsyncClient::new(opts)?;
 		let cli = Client {
 			cli: Box::new(async_cli),
 			timeout: Duration::from_secs(5*60),

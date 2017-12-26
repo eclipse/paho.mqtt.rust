@@ -362,9 +362,8 @@ mod tests {
 		assert_eq!([ 'M' as i8, 'Q' as i8, 'T' as i8, 'C' as i8 ], opts.copts.struct_id);
 		assert_eq!(5, opts.copts.struct_version);
 		assert_eq!(ptr::null(), opts.copts.will);
-		// TODO: Should username and password be NULL or empty string
-		//assert_eq!(ptr::null(), opts.copts.username);
-		//assert_eq!(ptr::null(), opts.copts.password);
+		assert_eq!(ptr::null(), opts.copts.username);
+		assert_eq!(ptr::null(), opts.copts.password);
 		assert_eq!(ptr::null(), opts.copts.ssl);
 
 		assert_eq!(ptr::null_mut(), opts.copts.context);

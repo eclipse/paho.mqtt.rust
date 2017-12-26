@@ -386,7 +386,6 @@ impl AsyncClient {
 		ffi::MQTTAsync_free(topic_name as *mut c_void);
 		1
 	}
-
 	/// Creates a new MQTT client which can connect to an MQTT broker.
 	///
 	/// # Arguments
@@ -395,43 +394,13 @@ impl AsyncClient {
 	/// * `client_id` The unique name of the client. if this is empty, the
 	///		the broker will assign a unique name.
 	///
-	pub fn new(server_uri: &str, client_id: &str) -> MqttResult<AsyncClient> {
-		let mut cli = AsyncClient {
-			handle: ptr::null_mut(),
-			opts: Mutex::new(ConnectOptions::new()),
-			callback_context: Mutex::new(CallbackContext {
-				on_connection_lost: None,
-				on_message_arrived: None,
-			}),
-			server_uri: CString::new(server_uri).unwrap(),
-			client_id: CString::new(client_id).unwrap(),
-			persistence_ptr: ptr::null_mut(),
-		};
+	pub fn new<T>(opts: T) -> MqttResult<AsyncClient> 
+		where T: Into<CreateOptions>
+	{
+		let mut opts = opts.into();
 
-		let rc = unsafe {
-			ffi::MQTTAsync_create(&mut cli.handle as *mut *mut c_void,
-								  cli.server_uri.as_ptr(),
-								  cli.client_id.as_ptr(),
-								  0, ptr::null_mut()) as i32
-		};
+		// TODO: Don't unwrap() CStrings. Return error instead.
 
-		if rc != 0 { 
-			warn!("Create failure: {}", rc);
-			fail!((ErrorKind::General, rc, "Error"));
-		}
-		debug!("AsyncClient handle: {:?}", cli.handle);
-		Ok(cli)
-	}
-
-	/// Creates a new MQTT client which can connect to an MQTT broker.
-	///
-	/// # Arguments
-	///
-	/// * `server_uri` The address of the MQTT broker.
-	/// * `client_id` The unique name of the client. if this is empty, the
-	///		the broker will assign a unique name.
-	///
-	pub fn with_options(mut opts: CreateOptions) -> MqttResult<AsyncClient> {
 		let mut cli = AsyncClient {
 			handle: ptr::null_mut(),
 			opts: Mutex::new(ConnectOptions::new()),
@@ -452,12 +421,7 @@ impl AsyncClient {
 
 		debug!("Creating client with persistence: {:?}, {:?}", ptype, usrptr);
 
-		// Note that the C library does NOT keep a copy of this persistence 
-		// store structure. We must keep a copy alive for as long as the 
-		// client remains alive.
-
-		// TODO: Save the raw pointer in the client to remove it when the 
-		//			client is destroyed.
+		// TODO: The bridge should return boxed persistence given uptr
 		let persistence = Box::new(ffi::MQTTClient_persistence {
 			context: usrptr,
 			popen: Some(ClientPersistenceBridge::on_open),
@@ -469,6 +433,10 @@ impl AsyncClient {
 			pclear: Some(ClientPersistenceBridge::on_clear),
 			pcontainskey: Some(ClientPersistenceBridge::on_contains_key),
 		});
+
+		// Note that the C library does NOT keep a copy of this persistence 
+		// store structure. We must keep a copy alive for as long as the 
+		// client remains active.
 		cli.persistence_ptr = Box::into_raw(persistence);
 
 		let rc = unsafe {
@@ -476,7 +444,6 @@ impl AsyncClient {
 											 cli.server_uri.as_ptr(),
 											 cli.client_id.as_ptr(),
 											 ptype as c_int, 
-											 //&mut persistence as *mut _ as *mut c_void,
 											 cli.persistence_ptr as *mut c_void,
 											 &mut opts.copts) as i32
 		};
