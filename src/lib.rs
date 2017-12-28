@@ -39,6 +39,7 @@ pub use will_options::*;		//{WillOptions, WillOptionsBuilder};
 pub use ssl_options::*;			//{SslOptions, SslOptionsBuilder};
 pub use disconnect_options::*;	//{DisconnectOptions, DisconnectOptionsBuilder};
 pub use message::*;				//{Message, MessageBuilder};
+pub use topic::*;				//{Topic}
 pub use client_persistence::*;
 pub use errors::*;				//{MqttResult, MqttError, ErrorKind};
 
@@ -53,6 +54,7 @@ pub mod will_options;
 pub mod ssl_options;
 pub mod disconnect_options;
 pub mod message;
+pub mod topic;
 pub mod client_persistence;
 pub mod errors;
 pub mod string_collection;

@@ -300,7 +300,7 @@ impl Token {
 	}
 }
 
-type DeliveryToken = Token;
+pub type DeliveryToken = Token;
 
 /////////////////////////////////////////////////////////////////////////////
 // AsynClient
