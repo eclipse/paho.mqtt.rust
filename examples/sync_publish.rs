@@ -51,7 +51,7 @@ fn main() {
 	}
 
 	// Create a message and publish it
-	let msg = mqtt::Message::new("test", "Hello synchronous world!");
+	let msg = mqtt::Message::new("test", "Hello synchronous world!", 0);
 
 	if let Err(e) = cli.publish(msg) {
 		println!("Error sending message: {:?}", e);

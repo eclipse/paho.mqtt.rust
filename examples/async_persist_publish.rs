@@ -35,6 +35,9 @@ extern crate paho_mqtt as mqtt;
 use std::process;
 use std::collections::HashMap;
 
+// Use a non-zero QOS to exercise the persistence store
+const QOS: i32 = 1;
+
 // --------------------------------------------------------------------------
 
 // The ClientPersistence maps pretty closely to a key/val store. We can use
@@ -154,7 +157,7 @@ fn main() {
 
 	// Create a message and publish it
 	println!("Publishing a message to 'test' topic");
-	let msg = mqtt::Message::new("test", "Hello world!");
+	let msg = mqtt::Message::new("test", "Hello world!", QOS);
 	let tok = cli.publish(msg);
 
 	if let Err(e) = tok.wait() {

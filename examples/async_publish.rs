@@ -51,7 +51,7 @@ fn main() {
 
 	// Create a message and publish it
 	println!("Publishing a message on the 'test' topic");
-	let msg = mqtt::Message::new("test", "Hello world!");
+	let msg = mqtt::Message::new("test", "Hello world!", 0);
 	let tok = cli.publish(msg);
 
 	if let Err(e) = tok.wait() {

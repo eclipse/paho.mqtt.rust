@@ -22,6 +22,7 @@ use std::slice;
 use std::ffi::{CString, IntoStringError};
 use std::string::{FromUtf8Error};
 use std::os::raw::{c_void};
+use std::convert::From;
 
 use ffi;
 
@@ -32,7 +33,7 @@ use ffi;
 pub struct Message {
 	pub cmsg: ffi::MQTTAsync_message,
 	pub topic: CString,
-	pub payload: Vec<u8>
+	payload: Vec<u8>
 }
 
 impl Message {
@@ -42,14 +43,37 @@ impl Message {
 	/// 
 	/// * `topic` The topic on which the message is published.
 	/// * `payload` The binary payload of the message
-	pub fn new<V>(topic: &str, payload: V) -> Message
+	/// * `qos` The quality of service for message delivery (0, 1, or 2)
+	pub fn new<V>(topic: &str, payload: V, qos: i32) -> Message
 		where V: Into<Vec<u8>>
 	{
-		let msg = Message {
+		let mut msg = Message {
 			cmsg: ffi::MQTTAsync_message::default(),
 			topic: CString::new(topic).unwrap(),
 			payload: payload.into(),
 		};
+		msg.cmsg.qos = qos;
+		Message::fixup(msg)
+	}
+
+	/// Creates a new message that will be retained by the broker.
+	/// This creates a message with the 'retained' flag set.
+	/// 
+	/// # Arguments
+	/// 
+	/// * `topic` The topic on which the message is published.
+	/// * `payload` The binary payload of the message
+	/// * `qos` The quality of service for message delivery (0, 1, or 2)
+	pub fn new_retained<V>(topic: &str, payload: V, qos: i32) -> Message
+		where V: Into<Vec<u8>>
+	{
+		let mut msg = Message {
+			cmsg: ffi::MQTTAsync_message::default(),
+			topic: CString::new(topic).unwrap(),
+			payload: payload.into(),
+		};
+		msg.cmsg.qos = qos;
+		msg.cmsg.retained = 1;	// true
 		Message::fixup(msg)
 	}
 
@@ -71,6 +95,7 @@ impl Message {
 		Message::fixup(msg)
 	}
 
+	// Ensures that the underlying C struct points to cached values
 	fn fixup(mut msg: Message) -> Message {
 		msg.cmsg.payload = msg.payload.as_mut_ptr() as *mut c_void;
 		msg.cmsg.payloadlen = msg.payload.len() as i32;
@@ -117,12 +142,46 @@ impl Default for Message {
 	}
 }
 
+impl Clone for Message {
+	fn clone(&self) -> Message {
+		let msg = Message {
+			cmsg: self.cmsg.clone(),
+			topic: self.topic.clone(),
+			payload: self.payload.clone(),
+		};
+		Message::fixup(msg)
+	}
+}
+
+impl<'a, 'b> From<(&'a str, &'b [u8])> for Message {
+	fn from((topic, payload): (&'a str, &'b [u8])) -> Self {
+		let msg = Message {
+			cmsg: ffi::MQTTAsync_message::default(),
+			topic: CString::new(topic).unwrap(),
+			payload: payload.to_vec(),
+		};
+		Message::fixup(msg)
+	}
+}
+
+impl<'a, 'b> From<(&'a str, &'b [u8], i32, bool)> for Message {
+	fn from((topic, payload, qos, retained): (&'a str, &'b [u8], i32, bool)) -> Self {
+		let mut msg = Message {
+			cmsg: ffi::MQTTAsync_message::default(),
+			topic: CString::new(topic).unwrap(),
+			payload: payload.to_vec(),
+		};
+		msg.cmsg.qos = qos;
+		msg.cmsg.retained = if retained { 1 } else { 0 };
+		Message::fixup(msg)
+	}
+}
+
 /////////////////////////////////////////////////////////////////////////////
 
 /// Builder to create a new Message
 #[derive(Debug)]
-pub struct MessageBuilder
-{
+pub struct MessageBuilder {
 	topic: String,
 	payload: Vec<u8>,
 	qos: i32,
@@ -146,7 +205,7 @@ impl MessageBuilder
 	/// # Arguments
 	/// 
 	/// `topic` The topic on which the message should be published.
-	pub fn topic(&mut self, topic: &str) -> &mut MessageBuilder {
+	pub fn topic(mut self, topic: &str) -> MessageBuilder {
 		self.topic = topic.to_string();
 		self
 	}
@@ -156,7 +215,7 @@ impl MessageBuilder
 	/// # Arguments
 	///
 	/// `payload` The binary payload of the message
-	pub fn payload<V>(&mut self, payload: V) -> &mut MessageBuilder
+	pub fn payload<V>(mut self, payload: V) -> MessageBuilder
 		where V: Into<Vec<u8>>
 	{
 		self.payload = payload.into();
@@ -168,7 +227,7 @@ impl MessageBuilder
 	/// # Arguments
 	///
 	/// `qos` The quality of service for the message.
-	pub fn qos(&mut self, qos: i32) -> &mut MessageBuilder {
+	pub fn qos(mut self, qos: i32) -> MessageBuilder {
 		self.qos = qos;
 		self
 	}
@@ -180,17 +239,17 @@ impl MessageBuilder
 	/// 
 	/// `retained` Set true if the message should be retained by the broker,
 	///			   false if not.
-	pub fn retained(&mut self, retained: bool) -> &mut MessageBuilder {
+	pub fn retained(mut self, retained: bool) -> MessageBuilder {
 		self.retained = retained;
 		self
 	}
 
 	/// Finalize the builder to create the message.
-	pub fn finalize(&self) -> Message {
+	pub fn finalize(self) -> Message {
 		let mut msg = Message {
 			cmsg: ffi::MQTTAsync_message::default(),
-			topic: CString::new(self.topic.clone()).unwrap(),
-			payload: self.payload.clone(),
+			topic: CString::new(self.topic).unwrap(),
+			payload: self.payload,
 		};
 		msg.cmsg.qos = self.qos;
 		msg.cmsg.retained = if self.retained { 1 } else { 0 };
@@ -212,10 +271,40 @@ mod tests {
 	fn test_new() {
 		const TOPIC: &'static str = "test";
 		const PAYLOAD: &'static [u8] = b"Hello world";
+		const QOS: i32 = 2;
 
-		let msg = Message::new(TOPIC, PAYLOAD);
+		let msg = Message::new(TOPIC, PAYLOAD, QOS);
 		assert_eq!([ 'M' as c_char, 'Q' as i8, 'T' as i8, 'M' as i8 ], msg.cmsg.struct_id);
 		assert_eq!(0, msg.cmsg.struct_version);
+
+		assert_eq!(TOPIC, msg.topic.to_str().unwrap());
+		assert_eq!(PAYLOAD, msg.payload.as_slice());
+
+		assert_eq!(msg.payload.len() as i32, msg.cmsg.payloadlen);
+		assert_eq!(msg.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
+
+		assert_eq!(QOS, msg.cmsg.qos);
+		assert!(msg.cmsg.retained == 0);
+	}
+
+	#[test]
+	fn test_from_tuple() {
+		const TOPIC: &'static str = "test";
+		const PAYLOAD: &'static [u8] = b"Hello world";
+		const QOS: i32 = 2;
+		const RETAINED: bool = true;
+
+		let msg = Message::from((TOPIC, PAYLOAD, QOS, RETAINED));
+
+		// The topic is only kept in the Rust struct as a CString
+		assert_eq!(TOPIC, msg.topic.to_str().unwrap());
+		assert_eq!(PAYLOAD, msg.payload.as_slice());
+
+		assert_eq!(msg.payload.len() as i32, msg.cmsg.payloadlen);
+		assert_eq!(msg.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
+
+		assert_eq!(QOS, msg.cmsg.qos);
+		assert!(msg.cmsg.retained != 0);
 	}
 
 	#[test]
@@ -278,5 +367,61 @@ mod tests {
 					.retained(true).finalize();
 		assert!(msg.cmsg.retained != 0);
 	}
+
+	#[test]
+	fn test_copy() {
+		const TOPIC: &'static str = "test";
+		const PAYLOAD: &'static [u8] = b"Hello world";
+		const QOS: i32 = 2;
+		const RETAINED: bool = true;
+
+		let org_msg = MessageBuilder::new()
+						.topic(TOPIC)
+						.payload(PAYLOAD)
+						.qos(QOS)
+						.retained(RETAINED)
+						.finalize();
+
+		let msg = org_msg;
+
+		// The topic is only kept in the Rust struct as a CString
+		assert_eq!(TOPIC, msg.topic.to_str().unwrap());
+		assert_eq!(PAYLOAD, msg.payload.as_slice());
+
+		assert_eq!(msg.payload.len() as i32, msg.cmsg.payloadlen);
+		assert_eq!(msg.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
+
+		assert_eq!(QOS, msg.cmsg.qos);
+		assert!(msg.cmsg.retained != 0);
+	}
+
+	#[test]
+	fn test_clone() {
+		const TOPIC: &'static str = "test";
+		const PAYLOAD: &'static [u8] = b"Hello world";
+		const QOS: i32 = 2;
+		const RETAINED: bool = true;
+
+		let msg = {
+			// Make sure the original goes out of scope before testing
+			let org_msg = MessageBuilder::new()
+							.topic(TOPIC)
+							.payload(PAYLOAD)
+							.qos(QOS)
+							.retained(RETAINED)
+							.finalize();
+			org_msg.clone()
+		};
+
+		assert_eq!(TOPIC, msg.topic.to_str().unwrap());
+		assert_eq!(PAYLOAD, msg.payload.as_slice());
+
+		assert_eq!(msg.payload.len() as i32, msg.cmsg.payloadlen);
+		assert_eq!(msg.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
+
+		assert_eq!(QOS, msg.cmsg.qos);
+		assert!(msg.cmsg.retained != 0);
+	}
+
 }
 
