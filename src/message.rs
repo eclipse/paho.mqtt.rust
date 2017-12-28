@@ -198,5 +198,85 @@ impl MessageBuilder
 	}
 }
 
+/////////////////////////////////////////////////////////////////////////////
+//								Unit Tests
+/////////////////////////////////////////////////////////////////////////////
 
+#[cfg(test)]
+mod tests {
+	use super::*;
+	//use std::ffi::{CStr};
+	use std::os::raw::{c_char};
+
+	#[test]
+	fn test_new() {
+		const TOPIC: &'static str = "test";
+		const PAYLOAD: &'static [u8] = b"Hello world";
+
+		let msg = Message::new(TOPIC, PAYLOAD);
+		assert_eq!([ 'M' as c_char, 'Q' as i8, 'T' as i8, 'M' as i8 ], msg.cmsg.struct_id);
+		assert_eq!(0, msg.cmsg.struct_version);
+	}
+
+	#[test]
+	fn test_builder_default() {
+		let msg = MessageBuilder::new().finalize();
+		let cmsg = ffi::MQTTAsync_message::default();
+
+		assert_eq!([ 'M' as c_char, 'Q' as i8, 'T' as i8, 'M' as i8 ], cmsg.struct_id);
+		assert_eq!(0, cmsg.struct_version);
+
+		assert_eq!(cmsg.struct_id, msg.cmsg.struct_id);
+		assert_eq!(cmsg.struct_version, msg.cmsg.struct_version);
+
+		assert_eq!(0, msg.topic.as_bytes().len());
+		assert_eq!(&[] as &[u8], msg.topic.as_bytes());
+		assert_eq!(vec![] as Vec<u8>, msg.payload);
+	}
+
+	#[test]
+	fn test_builder_topic() {
+		const TOPIC: &'static str = "test";
+
+		let msg = MessageBuilder::new()
+					.topic(TOPIC).finalize();
+
+		// The topic is only kept in the Rust struct as a CString
+		assert_eq!(TOPIC, msg.topic.to_str().unwrap());
+	}
+
+	#[test]
+	fn test_builder_payload() {
+		const PAYLOAD: &'static [u8] = b"Hello world";
+
+		let msg = MessageBuilder::new()
+					.payload(PAYLOAD).finalize();
+
+		assert_eq!(PAYLOAD, msg.payload.as_slice());
+
+		assert_eq!(msg.payload.len() as i32, msg.cmsg.payloadlen);
+		assert_eq!(msg.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
+	}
+
+	#[test]
+	fn test_builder_qos() {
+		const QOS: i32 = 2;
+
+		let msg = MessageBuilder::new()
+					.qos(QOS).finalize();
+
+		assert_eq!(QOS, msg.cmsg.qos);
+	}
+
+	#[test]
+	fn test_builder_retained() {
+		let msg = MessageBuilder::new()
+					.retained(false).finalize();
+		assert!(msg.cmsg.retained == 0);
+
+		let msg = MessageBuilder::new()
+					.retained(true).finalize();
+		assert!(msg.cmsg.retained != 0);
+	}
+}
 
