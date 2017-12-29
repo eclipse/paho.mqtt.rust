@@ -107,11 +107,12 @@ impl mqtt::ClientPersistence for MemPersistence
 	// Retrieve the complete set of keys in the persistence store.
 	fn keys(&self) -> mqtt::MqttResult<Vec<String>> {
 		trace!("Client persistence [{}]: keys", self.name);
-		let mut kv: Vec<String> = Vec::new();
+		let mut keys: Vec<String> = Vec::new();
 		for key in self.map.keys() {
-			kv.push(key.to_string());
+			keys.push(key.to_string());
 		}
-		Ok(kv)
+		debug!("Found keys: {:?}", keys);
+		Ok(keys)
 	}
 
 	// Clears all the data from the persistence store.

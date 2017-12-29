@@ -2,13 +2,13 @@
 
 This repository contains the source code for the [Eclipse Paho](http://eclipse.org/paho) MQTT Rust client library on memory-managed operating systems such as Linux/Posix and Windows.
 
-## Incubator
+## Pre-release notes
 
-This is the incubator branch for development and testing out an API for the Rust language.
+This is a pre-release version of the library for the development and testing of an MQTT API for the Rust language.
 
-_The API is likely to change repeatedly and often while the code is being developed in this branch. Use it with caution._
+_The API is guaranteed to change repeatedly and often while the code is being developed prior to a formal release. Use it with caution._
 
-Initial development is being done on Linux. That is currently the only system known to work, although even that requires a few work-arounds as listed below.
+Initial development is being done on Linux. That is currently the only system known to work.
 
 It is hoped that a full, stable, version 1.0 release should be ready by early 2018.
 
@@ -61,23 +61,47 @@ If the C library is not installed in a default system location, then the path to
 The crate currently uses the Rust _bindgen_ library to create the bindings to the Paho C library.
 https://rust-lang-nursery.github.io/rust-bindgen/
 
-Bindgen requires a recent version of the Clang library installed on the system - recommended v3.9 or 4.0. The bindgen dependencies seem, however, to seek out the oldest Clang version if multiple ones are installed on the system. On Ubuntu 14.04 or 16.04, the Clang v3.6 default might give some problems, although as the Paho builder is currently configured, it might work.
+Bindgen requires a recent version of the Clang library installed on the system - recommended v3.9 or 4.0. The bindgen dependencies seem, however, to seek out the oldest Clang version if multiple ones are installed on the system. On Ubuntu 14.04 or 16.04, the Clang v3.6 default might give some problems, although as the Paho builder is currently configured, it should work.
 
 But the safest thing would be to set the `LIBCLANG_PATH` environment variable to point to a supported version, like:
 ```
 export LIBCLANG_PATH=/usr/lib/llvm-3.9/lib
 ```
 
+## Logging
+
+The Rust library uses the `log` crate to output debug and trace information. An application can use the enviroment log crate, `env_logger` to configure output via the `RUST_LOG` environment variable. To use this in an application, the following call should be specified before using any of the Rust MQTT API:
+
+```
+env_logger::init().unwrap();
+```
+
+And then the library will output information as defined by the environment. Use like:
+
+```
+$ RUST_LOG=trace ./async_publish
+DEBUG:paho_mqtt::async_client: Creating client with persistence: 0, 0x0
+DEBUG:paho_mqtt::async_client: AsyncClient handle: 0x7f9ae2eab004
+DEBUG:paho_mqtt::async_client: Connecting handle: 0x7f9ae2eab004
+...
+```
+
+
 ## Example
 
 Several small sample applications can be found in the _examples_ directory. Here is an example of a small MQTT publisher:
 
 ```
+use std::process;
+
 extern crate paho_mqtt as mqtt;
 
 fn main() {
     // Create a client & define connect options
-    let mut cli = mqtt::AsyncClient::new("tcp://localhost:1883", "");
+    let cli = mqtt::Client::new("tcp://localhost:1883").unwrap_or_else(|err| {
+        println!("Error creating the client: {:?}", err);
+        process::exit(1);
+    });
 
     let conn_opts = mqtt::ConnectOptionsBuilder::new()
         .keep_alive_interval(Duration::from_secs(20))
@@ -87,7 +111,7 @@ fn main() {
     // Connect and wait for it to complete or fail
     if let Err(e) = cli.connect(conn_opts).wait() {
         println!("Unable to connect:\n\t{:?}", e);
-        ::std::process::exit(1);
+        process::exit(1);
     }
 
     // Create a message and publish it
@@ -103,3 +127,13 @@ fn main() {
     tok.wait().unwrap();
 }
 ```
+
+## External Libraries and Utilities
+
+Several external projects are under development which use or enhance the Paho MQTT Rust library. These can be used in a system with the Rust library or serve as further examples of it's use.
+
+### Redis Persistence
+
+The `mqtt-redis` create allows the use of Redis as a persistence store. It also provides a good example of creating a user-defined persistence which implements the `ClientPersistence` trait. It can be found at:
+
+https://github.com/fpagliughi/mqtt.rust.redis

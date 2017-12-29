@@ -1,6 +1,6 @@
 [package]
 name = "paho-mqtt3as-sys"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Frank Pagliughi <fpagliughi@mindspring.com>"]
 package = "build.rs"
 description = """
@@ -10,6 +10,5 @@ Rust wrapper for the Paho MQTT C Client Library.
 [dependencies]
 
 [build-dependencies]
-#bindgen = "*"
 bindgen = "0.30.0"
 
