@@ -25,10 +25,21 @@ use std::os::raw::{c_void};
 
 use ffi;
 
-/// The options for the Last Will and Testament (LWT)
+// TODO: We probably don't need the will options... at least not for the
+// public API. This is simply a message. So the public API could be:
+// 
+//   let lwt = Message::new(...);
+//   let opts = ConnectOptionsBuilder::new().will_message(lwt).finalize();
+//
+
+/// The options for the Last Will and Testament (LWT).
+/// This defines a message that is registered with the the server at the time
+/// of connection. Then if the connection is lost unexpectedly, the message
+/// is published by the server. 
+///
 #[derive(Debug)]
 pub struct WillOptions {
-	pub opts: ffi::MQTTAsync_willOptions,
+	pub(crate) opts: ffi::MQTTAsync_willOptions,
 	topic: CString,
 	payload: Vec<u8>,
 }

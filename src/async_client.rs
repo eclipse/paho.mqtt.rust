@@ -390,9 +390,7 @@ impl AsyncClient {
 	///
 	/// # Arguments
 	///
-	/// * `server_uri` The address of the MQTT broker.
-	/// * `client_id` The unique name of the client. if this is empty, the
-	///		the broker will assign a unique name.
+	/// `opts` The create options for the client.
 	///
 	pub fn new<T>(opts: T) -> MqttResult<AsyncClient> 
 		where T: Into<CreateOptions>

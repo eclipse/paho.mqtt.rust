@@ -1,6 +1,6 @@
 // connect_options.rs
 // 
-// The set of options for creating an MQTT client.
+// The set of options for connecting to an MQTT client.
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 //
 
@@ -37,6 +37,8 @@ pub const MQTT_VERSION_3_1_1: u32	= ffi::MQTTVERSION_3_1_1;
 // Connections
 
 /// The collection of options for connecting to a broker.
+/// This can be constructed using a 
+/// [ConnectOptionsBuilder](struct.ConnectOptionsBuilder.html).
 #[derive(Debug)]
 pub struct ConnectOptions {
 	pub copts: ffi::MQTTAsync_connectOptions,
@@ -48,12 +50,13 @@ pub struct ConnectOptions {
 }
 
 impl ConnectOptions {
-	/// Creates a new, default set of connect options
+	/// Creates a new, default set of connect options.
 	pub fn new() -> ConnectOptions {
 		ConnectOptions::default()
 	}
 
 	// Fixes up the underlying C struct to point to our cached values.
+	// This should be called any time a cached object is modified.
 	fn fixup(mut opts: ConnectOptions) -> ConnectOptions {
 		opts.copts.will = if let Some(ref mut will_opts) = opts.will {
 			&mut will_opts.opts
@@ -236,8 +239,10 @@ impl ConnectOptionsBuilder {
 	///
 	/// `user_name` The user name to send to the broker.
 	///
-	pub fn user_name(&mut self, user_name: &str) -> &mut ConnectOptionsBuilder {
-		self.user_name = user_name.to_string();
+	pub fn user_name<S>(&mut self, user_name: S) -> &mut ConnectOptionsBuilder 
+		where S: Into<String>
+	{
+		self.user_name = user_name.into();
 		self
 	}
 
@@ -306,6 +311,7 @@ impl ConnectOptionsBuilder {
 	/// Sets the client to automatically reconnect if the connection is lost.
 	///
 	/// # Arguments
+	/// 
 	/// `min_retry_interval` The minimum retry interval. Doubled on each 
 	/// 					 failed retry. This has a resolution in seconds.
 	/// `max_retry_interval` The maximum retry interval. Doubling stops here
@@ -354,6 +360,10 @@ mod tests {
 	use super::*;
 	use std::ffi::{CStr};
 	use ssl_options::SslOptionsBuilder;
+
+	macro_rules! vec_of_strings {
+		($($x:expr),*) => (vec![$($x.to_string()),*]);
+	}
 
 	#[test]
 	fn test_new() {
@@ -413,7 +423,7 @@ mod tests {
 
 	#[test] 
 	fn test_server_uris() {
-		let servers = vec!("tcp://server1:1883".to_string(), "ssl://server2:1885".to_string());
+		let servers = vec_of_strings!("tcp://server1:1883", "ssl://server2:1885");
 
 		let opts = ConnectOptionsBuilder::new()
 						.server_uris(servers.clone()).finalize();
@@ -435,5 +445,56 @@ mod tests {
 		assert_eq!(VER as i32, opts.copts.MQTTVersion);
 	}
 
+	#[test]
+	fn test_assign() {
+		const KEEP_ALIVE_SECS: u64 = 30;
+		const MAX_INFLIGHT: i32 = 25;
+		const USER_NAME: &'static str = "some-name";
+		const PASSWORD: &'static str = "some-password";
+		const CONNECT_TIMEOUT_SECS: u64 = 120;
+
+
+		let org_opts = ConnectOptionsBuilder::new()
+		.keep_alive_interval(Duration::new(KEEP_ALIVE_SECS,0))
+			.clean_session(false)
+			.max_inflight(MAX_INFLIGHT)
+			.user_name(USER_NAME)
+			.password(PASSWORD)
+			.connect_timeout(Duration::new(CONNECT_TIMEOUT_SECS,0))
+			.finalize();
+
+		let opts = org_opts;
+
+		assert_eq!(KEEP_ALIVE_SECS as i32, opts.copts.keepAliveInterval);
+		assert_eq!(0, opts.copts.cleansession);
+		assert_eq!(MAX_INFLIGHT, opts.copts.maxInflight);
+
+		assert_eq!(USER_NAME.as_bytes(), opts.user_name.as_bytes());
+		assert_eq!(PASSWORD.as_bytes(), opts.password.as_bytes());
+
+		assert_eq!(opts.user_name.as_ptr(), opts.copts.username);
+		assert_eq!(opts.password.as_ptr(), opts.copts.password);
+
+		assert_eq!(CONNECT_TIMEOUT_SECS as i32, opts.copts.connectTimeout);
+	}
+/*
+	#[test]
+	fn test_clone() {
+		const TRUST_STORE: &str = "some_file.crt";
+		// Make sure the original goes out of scope 
+		// before testing the clone.
+		let opts = {
+			let org_opts = SslOptionsBuilder::new()
+				.trust_store(TRUST_STORE)
+				.finalize();
+
+			org_opts.clone()
+		};
+
+		assert_eq!(TRUST_STORE, opts.trust_store.to_str().unwrap());
+		let ts = unsafe { CStr::from_ptr(opts.copts.trustStore) };
+		assert_eq!(TRUST_STORE, ts.to_str().unwrap());
+	}
+*/
 }
 

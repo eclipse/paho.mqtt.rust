@@ -61,8 +61,5 @@ pub mod string_collection;
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn it_works() {
-    }
 }
 

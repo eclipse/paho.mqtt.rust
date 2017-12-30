@@ -32,6 +32,6 @@ macro_rules! fail {
 /*
 /// Create a vector of string from str references.
 macro_rules! vec_of_strings {
-    ($($x:expr),*) => (vec![$($x.to_string()),*]);
+	($($x:expr),*) => (vec![$($x.to_string()),*]);
 }
 */

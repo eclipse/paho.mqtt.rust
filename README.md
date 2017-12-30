@@ -70,7 +70,11 @@ export LIBCLANG_PATH=/usr/lib/llvm-3.9/lib
 
 ## Logging
 
-The Rust library uses the `log` crate to output debug and trace information. An application can use the enviroment log crate, `env_logger` to configure output via the `RUST_LOG` environment variable. To use this in an application, the following call should be specified before using any of the Rust MQTT API:
+The Rust library uses the `log` crate to output debug and trace information. Applications can choose to use one of the available logger implementations or define one of their own. More information is available at:
+
+https://docs.rs/log/0.4.0/log/
+
+The sample applications use the enviroment log crate, `env_logger` to configure output via the `RUST_LOG` environment variable. To use this, the following call is specified in the samples before using any of the Rust MQTT API:
 
 ```
 env_logger::init().unwrap();
@@ -79,13 +83,19 @@ env_logger::init().unwrap();
 And then the library will output information as defined by the environment. Use like:
 
 ```
-$ RUST_LOG=trace ./async_publish
+$ RUST_LOG=debug ./async_publish
 DEBUG:paho_mqtt::async_client: Creating client with persistence: 0, 0x0
 DEBUG:paho_mqtt::async_client: AsyncClient handle: 0x7f9ae2eab004
 DEBUG:paho_mqtt::async_client: Connecting handle: 0x7f9ae2eab004
 ...
 ```
 
+In addition, the underlying Paho C library has its own logging capabilities which can be used to trace network and protocol transactions. It is configured by the environment variables `MQTT_C_CLIENT_TRACE` and `MQTT_C_CLIENT_TRACE_LEVEL`. The former names the log file, with the special value "ON" to log to stdout. The latter specifies one of the levels: ERROR, PROTOCOL, MINIMUM, MEDIUM and MAXIMUM.
+
+```
+export MQTT_C_CLIENT_TRACE=ON
+export MQTT_C_CLIENT_TRACE_LEVEL=PROTOCOL
+```
 
 ## Example
 

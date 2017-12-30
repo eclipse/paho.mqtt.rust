@@ -31,8 +31,8 @@ use ffi;
 /// This is the primary data transfer mechanism.
 #[derive(Debug)]
 pub struct Message {
-	pub cmsg: ffi::MQTTAsync_message,
-	pub topic: CString,
+	pub(crate) cmsg: ffi::MQTTAsync_message,
+	pub(crate) topic: CString,
 	payload: Vec<u8>
 }
 

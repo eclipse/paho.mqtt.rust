@@ -3,8 +3,8 @@
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 //
 // A string_collection is a helper to bridge between a collection of 
-// strings in Rust to an array of NUL terminated char string pointers that
-// the C library expects.
+// strings in Rust to an array of NUL terminated char string pointers
+// that  the C library expects.
 //
 // It is useful when a C API takes a `const char *arg[]` parameter.
 //
@@ -112,4 +112,85 @@ impl Clone for StringCollection
 	}
 }
 
+/////////////////////////////////////////////////////////////////////////////
+//								Unit Tests
+/////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	macro_rules! vec_of_strings {
+		($($x:expr),*) => (vec![$($x.to_string()),*]);
+	}
+
+	#[test]
+	fn test_default() {
+		let sc = StringCollection::default();
+		assert_eq!(0, sc.len());
+	}
+
+	#[test]
+	fn test_new() {
+		const N: usize = 3;
+		let v = vec_of_strings!("string0", "string1", "string2");
+		let sc = StringCollection::new(&v);
+
+		assert_eq!(N, sc.len());
+		assert_eq!(N, sc.coll.len());
+		assert_eq!(N, sc.c_coll.len());
+
+		assert_eq!(v[0].as_bytes(), sc.coll[0].as_bytes());
+		assert_eq!(v[1].as_bytes(), sc.coll[1].as_bytes());
+		assert_eq!(v[2].as_bytes(), sc.coll[2].as_bytes());
+
+		assert_eq!(sc.coll[0].as_ptr(), sc.c_coll[0]);
+		assert_eq!(sc.coll[1].as_ptr(), sc.c_coll[1]);
+		assert_eq!(sc.coll[2].as_ptr(), sc.c_coll[2]);
+	}
+
+	#[test]
+	fn test_assign() {
+		const N: usize = 3;
+		let v = vec_of_strings!("string0", "string1", "string2");
+		let org_sc = StringCollection::new(&v);
+
+		let sc = org_sc;
+
+		assert_eq!(N, sc.len());
+		assert_eq!(N, sc.coll.len());
+		assert_eq!(N, sc.c_coll.len());
+
+		assert_eq!(v[0].as_bytes(), sc.coll[0].as_bytes());
+		assert_eq!(v[1].as_bytes(), sc.coll[1].as_bytes());
+		assert_eq!(v[2].as_bytes(), sc.coll[2].as_bytes());
+
+		assert_eq!(sc.coll[0].as_ptr(), sc.c_coll[0]);
+		assert_eq!(sc.coll[1].as_ptr(), sc.c_coll[1]);
+		assert_eq!(sc.coll[2].as_ptr(), sc.c_coll[2]);
+	}
+
+	#[test]
+	fn test_clone() {
+		const N: usize = 3;
+		let v = vec_of_strings!("string0", "string1", "string2");
+
+		let sc = {
+			let org_sc = StringCollection::new(&v);
+			org_sc.clone()
+		};
+
+		assert_eq!(N, sc.len());
+		assert_eq!(N, sc.coll.len());
+		assert_eq!(N, sc.c_coll.len());
+
+		assert_eq!(v[0].as_bytes(), sc.coll[0].as_bytes());
+		assert_eq!(v[1].as_bytes(), sc.coll[1].as_bytes());
+		assert_eq!(v[2].as_bytes(), sc.coll[2].as_bytes());
+
+		assert_eq!(sc.coll[0].as_ptr(), sc.c_coll[0]);
+		assert_eq!(sc.coll[1].as_ptr(), sc.c_coll[1]);
+		assert_eq!(sc.coll[2].as_ptr(), sc.c_coll[2]);
+	}
+}
 

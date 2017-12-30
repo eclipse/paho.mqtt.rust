@@ -76,7 +76,7 @@ pub trait ClientPersistence {
 	/**
 	 * Determines if the persistence store contains the key.
 	 * @param key The key
-	 * @return @em true if the key is found in the store, @em false otherwise.
+	 * @return _true_ if the key is found in the store, _false_ otherwise.
 	 */
 	fn contains_key(&self, key: &str) -> bool;
 }

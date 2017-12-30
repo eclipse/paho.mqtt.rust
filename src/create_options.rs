@@ -32,9 +32,13 @@ Remember the C constants (c_uint)
   MQTTCLIENT_PERSISTENCE_USER    = 2
 */
 
+/// The type of persistence for the client
 pub enum PersistenceType {
+	/// Data and messages are persisted to a local file (default)
 	File,
+	/// No persistence is used.
 	None,
+	/// A user-defined persistence provided by the application.
 	User(Box<Box<ClientPersistence>>),
 }
 
@@ -52,15 +56,20 @@ impl fmt::Debug for PersistenceType {
 //							Create Options
 /////////////////////////////////////////////////////////////////////////////
 
-/**
- * The options for creating an MQTT client.
- */
+/// The options for creating an MQTT client.
+/// This can be constructed using a 
+/// [CreateOptionsBuilder](struct.CreateOptionsBuilder.html).
 #[derive(Debug)]
 pub struct CreateOptions {
-	pub copts: ffi::MQTTAsync_createOptions,
-	pub server_uri: String,
-	pub client_id: String,
-	pub persistence: PersistenceType,
+	/// The underlying C option structure
+	pub(crate) copts: ffi::MQTTAsync_createOptions,
+	/// The URI for the MQTT broker.
+	pub(crate) server_uri: String,
+	/// The unique name for the client.
+	/// This can be left empty for the server to assign a random name.
+	pub(crate) client_id: String,
+	/// The type of persistence used by the client.
+	pub(crate) persistence: PersistenceType,
 }
 
 impl CreateOptions {
@@ -87,6 +96,7 @@ impl<'a, 'b> From<(&'a str, &'b str)> for CreateOptions {
 }
 
 impl Default for CreateOptions {
+	/// Constructs a set of CreatieOptions with reasonable defaults.
 	fn default() -> CreateOptions {
 		CreateOptions {
 			copts: ffi::MQTTAsync_createOptions::default(),
@@ -101,6 +111,21 @@ impl Default for CreateOptions {
 //								Builder
 /////////////////////////////////////////////////////////////////////////////
 
+/// Builder to construct client creation options.
+///
+/// # Examples
+///
+/// ```
+/// extern crate paho_mqtt as mqtt;
+/// 
+/// let opts = mqtt::CreateOptionsBuilder::new()
+///                    .server_uri("tcp://localhost:1883")
+///                    .client_id("client1")
+///                    .finalize();
+/// 
+/// let cli = mqtt::AsyncClient::new(opts).unwrap();
+/// ```
+
 pub struct CreateOptionsBuilder {
 	copts: ffi::MQTTAsync_createOptions,
 	server_uri: String,
@@ -109,6 +134,7 @@ pub struct CreateOptionsBuilder {
 }
 
 impl CreateOptionsBuilder {
+	/// Constructs a builder with default options.
 	pub fn new() -> CreateOptionsBuilder {
 		CreateOptionsBuilder {
 			copts: ffi::MQTTAsync_createOptions::default(),
@@ -118,23 +144,67 @@ impl CreateOptionsBuilder {
 		}
 	}
 
+	/// Sets the the URI to the MQTT broker.
+	/// Alternately, the application can specify multiple servers via the 
+	/// connect options.
+	///
+	/// # Arguments
+	///
+	/// `server_uri` The URI string to specify the server in the form 
+	///              _protocol://host:port_, where the protocol can be
+	///              _tcp_ or _ssl_, and the host can be an IP address
+	///              or domain name.
 	pub fn server_uri<S>(mut self, server_uri: S) -> CreateOptionsBuilder
 			where S: Into<String> {
 		self.server_uri = server_uri.into();
 		self
 	}
 
+	/// Sets the client identifier string that is sent to the server.
+	/// The client ID is a unique name to identify the client to the server,
+	/// which can be used if the client desires the server to hold state 
+	/// about the session. If the client requests a clean sesstion, this can
+	/// be an empty string.
+	/// 
+	/// The broker is required to honor a client ID of up to 23 bytes, but 
+	/// could honor longer ones, depending on the broker.
+	/// 
+	/// Note that if this is an empty string, the clean session parameter 
+	/// *must* be set to _true_.
+	/// 
+	/// # Arguments
+	///
+	/// `client_id` A UTF-8 string identifying the client to the server.
+	///
 	pub fn client_id<S>(mut self, client_id: S) -> CreateOptionsBuilder
 			where S: Into<String> {
 		self.client_id = client_id.into();
 		self
 	}
 
+	/// Sets the type of persistence used by the client.
+	/// The default is for the library to automatically use file persistence,
+	/// although this can be turned off by specify `None` for a more 
+	/// performant, though possibly less reliable system.
+	///
+	/// # Arguments
+	///
+	/// `persist` The type of persistence to use.
+	///
 	pub fn persistence(mut self, persist: PersistenceType) -> CreateOptionsBuilder {
 		self.persistence = persist;
 		self
 	}
 
+	/// Sets a user-defined persistence store.
+	/// This sets the persistence to use a custom one defined by the 
+	/// application. This can be anything that implements the 
+	/// `ClientPersistence` trait.
+	///
+	/// # Arguments
+	///
+	/// `persist` An application-defined custom persistence store.
+	///
 	pub fn user_persistence<T>(mut self, persistence: T) -> CreateOptionsBuilder 
 			where T: ClientPersistence + 'static
 	{
@@ -143,12 +213,24 @@ impl CreateOptionsBuilder {
 		self
 	}
 
+	/// Sets the maximum number of messages that can be buffered for delivery
+	/// when the client is off-line.
+	/// The client has limited support for bufferering messages when the 
+	/// client is temporarily disconnected. This specifies the maximum number
+	/// of messages that can be buffered.
+	///
+	/// # Arguments
+	///
+	/// `n` The maximum number of messages that can be buffered. Setting this
+	///     to zero disables off-line buffering.
+	///
 	pub fn max_buffered_messages(mut self, n: i32) -> CreateOptionsBuilder {
 		self.copts.maxBufferedMessages = n;
 		self.copts.sendWhileDisconnected = if n == 0 { 0 } else { 1 };
 		self
 	}
 
+	/// Constructs a set of create options from the builder information.
 	pub fn finalize(self) -> CreateOptions {
 		CreateOptions {
 			copts: self.copts,
@@ -171,6 +253,7 @@ mod tests {
 	#[test]
 	fn test_default() {
 		let opts = CreateOptions::default();
+		// Get default C options for comparison
 		let copts = ffi::MQTTAsync_createOptions::default();
 
 		// First, make sure C options valid
@@ -222,7 +305,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_defaultbuilder() {
+	fn test_default_builder() {
 		let opts = CreateOptionsBuilder::new().finalize();
 		let copts = ffi::MQTTAsync_createOptions::default();
 

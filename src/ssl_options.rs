@@ -38,7 +38,7 @@ use ffi;
 /// The options for SSL socket connections to the broker.
 #[derive(Debug)]
 pub struct SslOptions {
-	pub copts: ffi::MQTTAsync_SSLOptions,
+	pub(crate) copts: ffi::MQTTAsync_SSLOptions,
 	trust_store: CString,
 	key_store: CString,
 	private_key: CString,
