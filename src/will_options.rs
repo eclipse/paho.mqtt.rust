@@ -19,11 +19,14 @@
  *******************************************************************************/
 
 //use std::slice;
+use std::ptr;
 use std::ffi::{CString, IntoStringError};
 use std::string::{FromUtf8Error};
 use std::os::raw::{c_void};
 
 use ffi;
+
+use message::Message;
 
 // TODO: We probably don't need the will options... at least not for the
 // public API. This is simply a message. So the public API could be:
@@ -39,26 +42,21 @@ use ffi;
 ///
 #[derive(Debug)]
 pub struct WillOptions {
-	pub(crate) opts: ffi::MQTTAsync_willOptions,
+	pub(crate) copts: ffi::MQTTAsync_willOptions,
 	topic: CString,
 	payload: Vec<u8>,
 }
 
 impl WillOptions {
 	pub fn new() -> WillOptions {
-		let opts = WillOptions {
-			opts: ffi::MQTTAsync_willOptions::default(),
-			topic: CString::new("").unwrap(),
-			payload: Vec::new(),
-		};
-		WillOptions::fixup(opts)
+		WillOptions::default()
 	}
 
 	pub fn from_message<V>(topic: &str, payload: V) -> WillOptions
 		where V: Into<Vec<u8>>
 	{
 		let opts = WillOptions {
-			opts: ffi::MQTTAsync_willOptions::default(),
+			copts: ffi::MQTTAsync_willOptions::default(),
 			topic: CString::new(topic).unwrap(),
 			payload: payload.into(),
 		};
@@ -67,9 +65,19 @@ impl WillOptions {
 
 	// Updates the C struct from the cached topic and payload vars
 	fn fixup(mut opts: WillOptions) -> WillOptions {
-		opts.opts.topicName = opts.topic.as_ptr();
-		opts.opts.payload.data = opts.payload.as_ptr() as *const c_void;
-		opts.opts.payload.len = opts.payload.len() as i32;
+		opts.copts.topicName = if opts.topic.as_bytes().len() != 0 {
+			opts.topic.as_ptr() 
+		} 
+		else {
+			ptr::null()
+		};
+		opts.copts.payload.data = if opts.payload.len() != 0 {
+			opts.payload.as_ptr() as *const c_void
+		}
+		else {
+			ptr::null()
+		};
+		opts.copts.payload.len = opts.payload.len() as i32;
 		opts
 	}
 
@@ -91,19 +99,30 @@ impl WillOptions {
 
 	/// Returns the Quality of Service (QOS) for the message.
 	pub fn get_qos(&self) -> i32 {
-		self.opts.qos
+		self.copts.qos
 	}
 
 	/// Gets the 'retained' flag for the message.
 	pub fn get_retained(&self) -> bool {
-		self.opts.retained != 0
+		self.copts.retained != 0
+	}
+}
+
+impl Default for WillOptions {
+	fn default() -> WillOptions {
+		let opts = WillOptions {
+			copts: ffi::MQTTAsync_willOptions::default(),
+			topic: CString::new("").unwrap(),
+			payload: Vec::new(),
+		};
+		WillOptions::fixup(opts)
 	}
 }
 
 impl Clone for WillOptions {
 	fn clone(&self) -> WillOptions {
 		let will = WillOptions {
-			opts: self.opts.clone(),
+			copts: self.copts.clone(),
 			topic: self.topic.clone(),
 			payload: self.payload.clone(),
 		};
@@ -111,55 +130,134 @@ impl Clone for WillOptions {
 	}
 }
 
-#[derive(Debug,Clone)]
-pub struct WillOptionsBuilder { 
-	topic: CString,
-	payload: Vec<u8>,
-	retained: bool,
-	qos: i32,
+impl From<Message> for WillOptions {
+	/// Create `WillOptions` from a `Message`
+	fn from(msg: Message) -> Self {
+		let mut will = WillOptions {
+			copts: ffi::MQTTAsync_willOptions::default(),
+			topic: msg.topic,
+			payload: msg.payload,
+		};
+		will.copts.qos = msg.cmsg.qos;
+		will.copts.retained = msg.cmsg.retained;
+		WillOptions::fixup(will)
+	}
 }
 
-impl WillOptionsBuilder {
-	pub fn new() -> WillOptionsBuilder {
+/////////////////////////////////////////////////////////////////////////////
+//									Unit Tests
+/////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+	//use std::ffi::{CStr};
+	use message::MessageBuilder;
+
+	const STRUCT_ID: &'static [i8] = &[ 'M' as i8, 'Q' as i8, 'T' as i8, 'W' as i8];
+	const STRUCT_VERSION: i32 = 1;
+
+	// These should differ from defaults.
+	const TOPIC: &'static str = "test";
+	const PAYLOAD: &'static [u8] = b"Hello world";
+	const QOS: i32 = 2;
+	const RETAINED: bool = true;
+
+	// By convention our defaults should match the defaults of the C library
+	#[test]
+	fn test_default() {
+		let opts = WillOptions::default();
+		// Get default C options for comparison
 		let copts = ffi::MQTTAsync_willOptions::default();
 
-		WillOptionsBuilder {
-			topic: CString::new("").unwrap(),
-			payload: Vec::new(),
-			retained: copts.retained != 0,
-			qos: copts.qos,
-		}
+		// First, make sure C options valid
+		assert_eq!(STRUCT_ID, copts.struct_id);
+		assert_eq!(STRUCT_VERSION, copts.struct_version);
+		assert_eq!(ptr::null(), copts.message);
+
+		assert_eq!(copts.struct_id, opts.copts.struct_id);
+		assert_eq!(copts.struct_version, opts.copts.struct_version);
+		assert_eq!(copts.topicName, opts.copts.topicName);
+		assert_eq!(copts.retained, opts.copts.retained);
+		assert_eq!(copts.qos, opts.copts.qos);
+		assert_eq!(copts.payload.len, opts.copts.payload.len);
+		assert_eq!(copts.payload.data, opts.copts.payload.data);
+
+		assert_eq!(&[] as &[u8], opts.topic.as_bytes());
+		assert_eq!(&[] as &[u8], opts.payload.as_slice());
 	}
 
-	pub fn topic(&mut self, topic: &str) -> &mut WillOptionsBuilder {
-		self.topic = CString::new(topic).unwrap();
-		self
+	// Test creating will options from a message
+	#[test]
+	fn test_from_message() {
+		let msg = MessageBuilder::new()
+						.topic(TOPIC)
+						.payload(PAYLOAD)
+						.qos(QOS)
+						.retained(RETAINED)
+						.finalize();
+
+		let opts = WillOptions::from(msg);
+
+		assert_eq!(TOPIC, opts.topic.to_str().unwrap());
+		assert_eq!(PAYLOAD, opts.payload.as_slice());
+
+		assert_eq!(opts.payload.len() as i32, opts.copts.payload.len);
+		assert_eq!(opts.payload.as_ptr() as *const c_void, opts.copts.payload.data);
+
+		assert_eq!(QOS, opts.copts.qos);
+		assert!(opts.copts.retained != 0);
 	}
 
-	pub fn payload<V>(&mut self, payload: V) -> &mut WillOptionsBuilder
-		where V: Into<Vec<u8>>
-	{
-		self.payload = payload.into();
-		self
+	// Make sure assignment works properly
+	// This primarily ensures that C pointers stay fixed to cached values,
+	// and/or that the cached buffers don't move due to assignment.
+	#[test]
+	fn test_assign() {
+		let msg = MessageBuilder::new()
+						.topic(TOPIC)
+						.payload(PAYLOAD)
+						.qos(QOS)
+						.retained(RETAINED)
+						.finalize();
+
+		let org_opts = WillOptions::from(msg);
+		let opts = org_opts;
+
+		assert_eq!(TOPIC, opts.topic.to_str().unwrap());
+		assert_eq!(PAYLOAD, opts.payload.as_slice());
+
+		assert_eq!(opts.payload.len() as i32, opts.copts.payload.len);
+		assert_eq!(opts.payload.as_ptr() as *const c_void, opts.copts.payload.data);
+
+		assert_eq!(QOS, opts.copts.qos);
+		assert!(opts.copts.retained != 0);
 	}
 
-	pub fn retained(&mut self, retained: bool) -> &mut WillOptionsBuilder {
-		self.retained = retained;
-		self
-	}
+	// Test that a clone works properly.
+	// This ensures that the cached values are cloned and that the C pointers
+	// in the new object point to those clones.
+	#[test]
+	fn test_clone() {
+		let opts = {
+			let msg = MessageBuilder::new()
+							.topic(TOPIC)
+							.payload(PAYLOAD)
+							.qos(QOS)
+							.retained(RETAINED)
+							.finalize();
 
-	pub fn qos(&mut self, qos: i32) -> &mut WillOptionsBuilder {
-		self.qos = qos;
-		self
-	}
-
-	pub fn finalize(&self) -> WillOptions {
-		let opts = WillOptions {
-			opts: ffi::MQTTAsync_willOptions::default(),
-			topic: self.topic.clone(),
-			payload: self.payload.clone(),
+			let org_opts = WillOptions::from(msg);
+			org_opts.clone()
 		};
-		WillOptions::fixup(opts)
+
+		assert_eq!(TOPIC, opts.topic.to_str().unwrap());
+		assert_eq!(PAYLOAD, opts.payload.as_slice());
+
+		assert_eq!(opts.payload.len() as i32, opts.copts.payload.len);
+		assert_eq!(opts.payload.as_ptr() as *const c_void, opts.copts.payload.data);
+
+		assert_eq!(QOS, opts.copts.qos);
+		assert!(opts.copts.retained != 0);
 	}
 }
-

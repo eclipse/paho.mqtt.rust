@@ -25,6 +25,8 @@ use std::ptr;
 use std::time::Duration;
 use std::ffi::CString;
 use std::os::raw::c_int;
+
+use message::Message;
 use will_options::WillOptions;
 use ssl_options::SslOptions;
 use string_collection::StringCollection;
@@ -59,7 +61,7 @@ impl ConnectOptions {
 	// This should be called any time a cached object is modified.
 	fn fixup(mut opts: ConnectOptions) -> ConnectOptions {
 		opts.copts.will = if let Some(ref mut will_opts) = opts.will {
-			&mut will_opts.opts
+			&mut will_opts.copts
 		}
 		else {
 			ptr::null_mut()
@@ -217,7 +219,19 @@ impl ConnectOptionsBuilder {
 	/// # Arguments
 	///
 	/// `will` The LWT options for the connection.
+	#[deprecated(note="Pass in a message with `will_message` instead")]
 	pub fn will_options(&mut self, will: WillOptions) -> &mut ConnectOptionsBuilder {
+		self.will = Some(will);
+		self
+	}
+
+	/// Sets the LWT message for the connection.
+	///
+	/// # Arguments
+	///
+	/// `will` The LWT options for the connection.
+	pub fn will_message(&mut self, will: Message) -> &mut ConnectOptionsBuilder {
+		let will = WillOptions::from(will);
 		self.will = Some(will);
 		self
 	}

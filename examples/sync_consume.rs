@@ -52,15 +52,15 @@ fn main() {
 	});
 
 	// Define the set of options for the connection
-	let will_opts = mqtt::WillOptionsBuilder::new()
+	let lwt = mqtt::MessageBuilder::new()
 		.topic("test")
-		.payload("Consumer lost connection".as_bytes().to_vec())
+		.payload("Sync consumer lost connection")
 		.finalize();
 
 	let conn_opts = mqtt::ConnectOptionsBuilder::new()
 		.keep_alive_interval(Duration::from_secs(20))
 		.clean_session(true)
-		.will_options(will_opts)
+		.will_message(lwt)
 		.finalize();
 
 	// Make the connection to the broker

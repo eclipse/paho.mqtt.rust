@@ -33,7 +33,7 @@ use ffi;
 pub struct Message {
 	pub(crate) cmsg: ffi::MQTTAsync_message,
 	pub(crate) topic: CString,
-	payload: Vec<u8>
+	pub(crate) payload: Vec<u8>
 }
 
 impl Message {
@@ -264,18 +264,28 @@ impl MessageBuilder
 #[cfg(test)]
 mod tests {
 	use super::*;
-	//use std::ffi::{CStr};
 	use std::os::raw::{c_char};
+
+	const STRUCT_ID: &'static [i8] = &[ 'M' as c_char, 'Q' as i8, 'T' as i8, 'M' as i8 ];
+	const STRUCT_VERSION: i32 = 0;
+
+	// These should differ from defaults
+	const TOPIC: &'static str = "test";
+	const PAYLOAD: &'static [u8] = b"Hello world";
+	const QOS: i32 = 2;
+	const RETAINED: bool = true;
+
+	// By convention our defaults should match the defaults of the C library
+	#[test]
+	fn test_default() {
+	}
 
 	#[test]
 	fn test_new() {
-		const TOPIC: &'static str = "test";
-		const PAYLOAD: &'static [u8] = b"Hello world";
-		const QOS: i32 = 2;
-
 		let msg = Message::new(TOPIC, PAYLOAD, QOS);
-		assert_eq!([ 'M' as c_char, 'Q' as i8, 'T' as i8, 'M' as i8 ], msg.cmsg.struct_id);
-		assert_eq!(0, msg.cmsg.struct_version);
+
+		assert_eq!(STRUCT_ID, msg.cmsg.struct_id);
+		assert_eq!(STRUCT_VERSION, msg.cmsg.struct_version);
 
 		assert_eq!(TOPIC, msg.topic.to_str().unwrap());
 		assert_eq!(PAYLOAD, msg.payload.as_slice());
@@ -289,11 +299,6 @@ mod tests {
 
 	#[test]
 	fn test_from_tuple() {
-		const TOPIC: &'static str = "test";
-		const PAYLOAD: &'static [u8] = b"Hello world";
-		const QOS: i32 = 2;
-		const RETAINED: bool = true;
-
 		let msg = Message::from((TOPIC, PAYLOAD, QOS, RETAINED));
 
 		// The topic is only kept in the Rust struct as a CString
@@ -320,7 +325,7 @@ mod tests {
 
 		assert_eq!(0, msg.topic.as_bytes().len());
 		assert_eq!(&[] as &[u8], msg.topic.as_bytes());
-		assert_eq!(vec![] as Vec<u8>, msg.payload);
+		assert_eq!(&[] as &[u8], msg.payload.as_slice());
 	}
 
 	#[test]
@@ -368,13 +373,11 @@ mod tests {
 		assert!(msg.cmsg.retained != 0);
 	}
 
+	// Make sure assignment works properly
+	// This primarily ensures that C pointers stay fixed to cached values,
+	// and/or that the cached buffers don't move due to assignment.
 	#[test]
-	fn test_copy() {
-		const TOPIC: &'static str = "test";
-		const PAYLOAD: &'static [u8] = b"Hello world";
-		const QOS: i32 = 2;
-		const RETAINED: bool = true;
-
+	fn test_assign() {
 		let org_msg = MessageBuilder::new()
 						.topic(TOPIC)
 						.payload(PAYLOAD)
@@ -395,6 +398,9 @@ mod tests {
 		assert!(msg.cmsg.retained != 0);
 	}
 
+	// Test that a clone works properly.
+	// This ensures that the cached values are cloned and that the C pointers
+	// in the new object point to those clones.
 	#[test]
 	fn test_clone() {
 		const TOPIC: &'static str = "test";

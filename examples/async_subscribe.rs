@@ -94,17 +94,14 @@ fn main() {
 	});
 
 	// Define the set of options for the connection
-	let will_opts = mqtt::WillOptionsBuilder::new()
-		.topic("test")
-		.payload("Lost connection".as_bytes().to_vec())
-		.finalize();
+	let lwt = mqtt::Message::new("test", "Async subscriber lost connection", 1);
 
 	println!("Starting conn_opts builder");
 	let conn_opts = mqtt::ConnectOptionsBuilder::new()
 		.keep_alive_interval(Duration::from_secs(20))
 		.mqtt_version(mqtt::MQTT_VERSION_3_1_1)
 		.clean_session(true)
-		.will_options(will_opts)
+		.will_message(lwt)
 		.finalize();
 
 	println!("\nFinished conn_opts builder");
