@@ -46,11 +46,9 @@
 
 extern crate log;
 extern crate env_logger;
-
-extern crate paho_mqtt;
+extern crate paho_mqtt as mqtt;
 
 use std::{time, env, process};
-use paho_mqtt as mqtt;
 
 fn main() {
 	// Initialize the logger from the environment

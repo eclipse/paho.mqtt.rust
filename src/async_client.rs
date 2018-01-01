@@ -1,9 +1,10 @@
 // async_client.rs
+// 
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 //
 
 /*******************************************************************************
- * Copyright (c) 2017 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -19,7 +20,7 @@
  *******************************************************************************/
 
 use std::str;
-use std::{ptr, slice};	// mem
+use std::{ptr, slice, mem};
 use std::time::Duration;
 use std::sync::{Arc, Mutex, Condvar};
 use std::ffi::{CString, CStr};
@@ -318,7 +319,9 @@ pub type MessageArrivedCallback = FnMut(&AsyncClient, Message) + 'static;
 // every callback to synchronize data access from the callback.
 struct CallbackContext
 {
+	/// Callback for when the client loses connection to the server.
 	on_connection_lost: Option<Box<ConnectionLostCallback>>,
+	/// Callback for when a message arrives from the server.
 	on_message_arrived: Option<Box<MessageArrivedCallback>>,
 }
 
@@ -542,6 +545,7 @@ impl AsyncClient {
 	/// Attempts to reconnect to the broker.
 	/// This can only be called after a connection was initially made or
 	/// attempted. It will retry with the same connect options.
+	///
 	pub fn reconnect(&self) -> Arc<Token> {
 		let connopts = {
 			let lkopts = self.opts.lock().unwrap();
@@ -579,6 +583,7 @@ impl AsyncClient {
 	///
 	/// `opt_opts` Optional disconnect options. Specifying `None` will use
 	/// 		   default of immediate (zero timeout) disconnect.
+	///
 	pub fn disconnect<T>(&self, opt_opts: T) -> Arc<Token>
 			where T: Into<Option<DisconnectOptions>>
 	{
@@ -617,6 +622,7 @@ impl AsyncClient {
 	///
 	/// `timeout` The amount of time to wait for the disconnect. This has
 	/// 		  a resolution in milliseconds.
+	///
 	pub fn disconnect_after(&self, timeout: Duration) -> Arc<Token> {
 		let disconn_opts = DisconnectOptionsBuilder::new()
 								.timeout(timeout).finalize();
@@ -663,6 +669,7 @@ impl AsyncClient {
 	///
 	/// * `cb` The callback to register with the library. This can be a
 	/// 	function or a closure.
+	///
 	pub fn set_message_callback<F>(&mut self, cb: F)
 		where F: FnMut(&AsyncClient,Message) + 'static
 	{
@@ -689,6 +696,7 @@ impl AsyncClient {
 	/// # Arguments
 	///
 	/// * `msg` The message to publish.
+	///
 	pub fn publish(&self, msg: Message) -> Arc<DeliveryToken> {
 		debug!("Publish: {:?}", msg);
 
@@ -720,6 +728,7 @@ impl AsyncClient {
 	///
 	/// `topic` The topic name
 	/// `qos` The quality of service requested for messages
+	///
 	pub fn subscribe(&self, topic: &str, qos: i32) -> Arc<Token> {
 		debug!("Subscribe to '{}' @ QOS {}", topic, qos);
 
@@ -747,12 +756,13 @@ impl AsyncClient {
 	///
 	/// # Arguments
 	///
-	/// `topic` The topic name
+	/// `topics` The collection of topic names
 	/// `qos` The quality of service requested for messages
-	pub fn subscribe_many(&self, topic: Vec<String>, mut qos: Vec<i32>) -> Arc<Token> {
-		debug!("Subscribe to '{:?}' @ QOS {:?}", topic, qos);
-
-		// TOOD: Make sure topic & qos are same length (or use min)
+	///
+	pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> Arc<Token>
+		where T: AsRef<str>
+	{
+		// TOOD: Make sure topics & qos are same length (or use min)
 		let tok = Arc::new(DeliveryToken::new());
 		let tokcb = tok.clone();
 
@@ -760,11 +770,17 @@ impl AsyncClient {
 		copts.onSuccess = Some(Token::on_success);
 		copts.context = Arc::into_raw(tokcb) as *mut c_void;
 
-		let topic = StringCollection::new(&topic);
+		let topics = StringCollection::new(topics);
+
+		debug!("Subscribe to '{:?}' @ QOS {:?}", topics, qos);
 
 		let rc = unsafe {
-			ffi::MQTTAsync_subscribeMany(self.handle, topic.len() as c_int,
-										 topic.as_c_arr_ptr(), qos.as_mut_ptr(), &mut copts)
+			ffi::MQTTAsync_subscribeMany(self.handle, 
+										 topics.len() as c_int,
+										 topics.as_c_arr_ptr(), 
+										 // C lib takes mutable QoS ptr, but doesn't mutate
+										 mem::transmute(qos.as_ptr()), 
+										 &mut copts)
 		};
 
 		if rc != 0 {
@@ -780,6 +796,7 @@ impl AsyncClient {
 	///
 	/// `topic` The topic to unsubscribe. It must match a topic from a
 	/// 		previous subscribe.
+	///
 	pub fn unsubscribe(&self, topic: &str) -> Arc<Token> {
 		debug!("Unsubscribe from '{}'", topic);
 
@@ -809,9 +826,10 @@ impl AsyncClient {
 	///
 	/// `topic` The topics to unsubscribe. Each must match a topic from a
 	/// 		previous subscribe.
-	pub fn unsubscribe_many(&self, topic: Vec<String>) -> Arc<Token> {
-		debug!("Unsubscribe from '{:?}'", topic);
-
+	///
+	pub fn unsubscribe_many<T>(&self, topics: &[T]) -> Arc<Token> 
+		where T: AsRef<str>
+	{
 		let tok = Arc::new(DeliveryToken::new());
 		let tokcb = tok.clone();
 
@@ -819,11 +837,15 @@ impl AsyncClient {
 		copts.onSuccess = Some(Token::on_success);
 		copts.context = Arc::into_raw(tokcb) as *mut c_void;
 
-		let topic = StringCollection::new(&topic);
+		let topics = StringCollection::new(topics);
+
+		debug!("Unsubscribe from '{:?}'", topics);
 
 		let rc = unsafe {
-			ffi::MQTTAsync_unsubscribeMany(self.handle, topic.len() as c_int,
-										   topic.as_c_arr_ptr(), &mut copts)
+			ffi::MQTTAsync_unsubscribeMany(self.handle, 
+										   topics.len() as c_int,
+										   topics.as_c_arr_ptr(), 
+										   &mut copts)
 		};
 
 		if rc != 0 {
@@ -833,10 +855,15 @@ impl AsyncClient {
 		else { tok }
 	}
 
-	/// Start consuming incoming messages.
-	/// This initializes the client to receive messages into an internal
-	/// queue which can be read synchronously.
-	pub fn start_consuming(&mut self) -> Receiver<Message> {
+	/// Starts the client consuming messages.
+	/// This starts the client receiving messages and placing them into an
+	/// mpsc queue. It returns the receiving-end of the queue for the 
+	/// application to get the messages.
+	/// This can be called at any time after the client is created, but it 
+	/// should be called before subscribing to any topics, otherwise messages
+	/// can be lost.
+	//
+	pub fn start_consuming(&mut self) -> mpsc::Receiver<Message> {
 		let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
 
 		self.set_message_callback(move |_,msg| {

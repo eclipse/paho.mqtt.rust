@@ -10,7 +10,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -43,8 +43,15 @@ pub struct StringCollection
 
 impl StringCollection
 {
-	/// Creates a StringCollection from a vector of strings.
-	pub fn new(coll: &Vec<String>) -> StringCollection {
+	/// Creates a StringCollection from a vector of string references.
+	///
+	/// # Arguments
+	///
+	/// `coll` A collection of string references.
+	///
+	pub fn new<T>(coll: &[T]) -> StringCollection 
+		where T: AsRef<str>
+	{
 		let sc = StringCollection {
 			coll: StringCollection::to_cstring(coll),
 			c_coll: Vec::new(),
@@ -52,20 +59,20 @@ impl StringCollection
 		StringCollection::fixup(sc)
 	}
 
-	// Convert a vector of strings to a vector of CStrings.
-	fn to_cstring(coll: &Vec<String>) -> Vec<CString> {
+	// Convert a collection of string references to a vector of CStrings.
+	fn to_cstring<T>(coll: &[T]) -> Vec<CString> 
+		where T: AsRef<str>
+	{
  		coll.iter()
-			.map(|s| CString::new(s.as_str()).unwrap())
+			.map(|s| CString::new(s.as_ref()).unwrap())
 			.collect()
 	}
 
-	// Convert a vector of CString's to a vector of C char pointers.
+	// Convert a collection of CString's to a vector of C char pointers.
 	// Note that the pointers are invalidated if the original vector or
 	// any of the strings in it change.
-	fn to_c_vec(sv: &Vec<CString>) -> Vec<*const c_char> {
-		sv.iter()
-			.map(|cs| cs.as_ptr())
-			.collect()
+	fn to_c_vec(sv: &[CString]) -> Vec<*const c_char> {
+		sv.iter().map(|cs| cs.as_ptr()).collect()
 	}
 
 	// Updates the cached vector to correspond to the string.
@@ -132,13 +139,34 @@ mod tests {
 
 	#[test]
 	fn test_new() {
-		const N: usize = 3;
-		let v = vec_of_strings!("string0", "string1", "string2");
+		let v = ["string0", "string1", "string2"];
+		let n = v.len();
+
 		let sc = StringCollection::new(&v);
 
-		assert_eq!(N, sc.len());
-		assert_eq!(N, sc.coll.len());
-		assert_eq!(N, sc.c_coll.len());
+		assert_eq!(n, sc.len());
+		assert_eq!(n, sc.coll.len());
+		assert_eq!(n, sc.c_coll.len());
+
+		assert_eq!(v[0].as_bytes(), sc.coll[0].as_bytes());
+		assert_eq!(v[1].as_bytes(), sc.coll[1].as_bytes());
+		assert_eq!(v[2].as_bytes(), sc.coll[2].as_bytes());
+
+		assert_eq!(sc.coll[0].as_ptr(), sc.c_coll[0]);
+		assert_eq!(sc.coll[1].as_ptr(), sc.c_coll[1]);
+		assert_eq!(sc.coll[2].as_ptr(), sc.c_coll[2]);
+	}
+
+	#[test]
+	fn test_new_from_vec_strings() {
+		let v = vec_of_strings![ "string0", "string1", "string2" ];
+		let n = v.len();
+
+		let sc = StringCollection::new(&v);
+
+		assert_eq!(n, sc.len());
+		assert_eq!(n, sc.coll.len());
+		assert_eq!(n, sc.c_coll.len());
 
 		assert_eq!(v[0].as_bytes(), sc.coll[0].as_bytes());
 		assert_eq!(v[1].as_bytes(), sc.coll[1].as_bytes());
@@ -151,15 +179,16 @@ mod tests {
 
 	#[test]
 	fn test_assign() {
-		const N: usize = 3;
-		let v = vec_of_strings!("string0", "string1", "string2");
+		let v = [ "string0", "string1", "string2" ];;
+		let n = v.len();
+
 		let org_sc = StringCollection::new(&v);
 
 		let sc = org_sc;
 
-		assert_eq!(N, sc.len());
-		assert_eq!(N, sc.coll.len());
-		assert_eq!(N, sc.c_coll.len());
+		assert_eq!(n, sc.len());
+		assert_eq!(n, sc.coll.len());
+		assert_eq!(n, sc.c_coll.len());
 
 		assert_eq!(v[0].as_bytes(), sc.coll[0].as_bytes());
 		assert_eq!(v[1].as_bytes(), sc.coll[1].as_bytes());
@@ -172,17 +201,17 @@ mod tests {
 
 	#[test]
 	fn test_clone() {
-		const N: usize = 3;
-		let v = vec_of_strings!("string0", "string1", "string2");
+		let v = [ "string0", "string1", "string2" ];
+		let n = v.len();
 
 		let sc = {
 			let org_sc = StringCollection::new(&v);
 			org_sc.clone()
 		};
 
-		assert_eq!(N, sc.len());
-		assert_eq!(N, sc.coll.len());
-		assert_eq!(N, sc.c_coll.len());
+		assert_eq!(n, sc.len());
+		assert_eq!(n, sc.coll.len());
+		assert_eq!(n, sc.c_coll.len());
 
 		assert_eq!(v[0].as_bytes(), sc.coll[0].as_bytes());
 		assert_eq!(v[1].as_bytes(), sc.coll[1].as_bytes());

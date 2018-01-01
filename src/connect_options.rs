@@ -5,7 +5,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -303,8 +303,10 @@ impl ConnectOptionsBuilder {
 	/// `server_uris` The addresses of the brokers to which this client 
 	/// 			  should connect.
 	//
-	pub fn server_uris(&mut self, server_uris: Vec<String>) -> &mut ConnectOptionsBuilder {
-		self.server_uris = StringCollection::new(&server_uris);
+	pub fn server_uris<T>(&mut self, server_uris: &[T]) -> &mut ConnectOptionsBuilder 
+		where T: AsRef<str>
+	{
+		self.server_uris = StringCollection::new(server_uris);
 		self
 	}
 
@@ -375,10 +377,6 @@ mod tests {
 	use std::ffi::{CStr};
 	use ssl_options::SslOptionsBuilder;
 
-	macro_rules! vec_of_strings {
-		($($x:expr),*) => (vec![$($x.to_string()),*]);
-	}
-
 	#[test]
 	fn test_new() {
 		let opts = ConnectOptions::new();
@@ -437,10 +435,10 @@ mod tests {
 
 	#[test] 
 	fn test_server_uris() {
-		let servers = vec_of_strings!("tcp://server1:1883", "ssl://server2:1885");
+		let servers = [ "tcp://server1:1883", "ssl://server2:1885" ];
 
 		let opts = ConnectOptionsBuilder::new()
-						.server_uris(servers.clone()).finalize();
+						.server_uris(&servers).finalize();
 
 		assert_eq!(servers.len() as i32, opts.copts.serverURIcount);
 

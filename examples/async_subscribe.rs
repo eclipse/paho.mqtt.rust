@@ -13,6 +13,7 @@
 //  - Receiving network disconnect updates and attempting manual reconnects.
 //  - Using a "clean session" and manually re-subscribing to topics on
 //    reconnect.
+//	- Last will and testament 
 //
 
 /*******************************************************************************
@@ -33,20 +34,22 @@
 
 extern crate log;
 extern crate env_logger;
-
 extern crate paho_mqtt as mqtt;
 
 use std::{process, thread};
 use std::time::Duration;
 
+// The topics to which we subscribe.
+const TOPICS: &[&str] = &["test", "hello" ];
+const QOS: &[i32] = &[1, 1];
 
 // Callback for a successful connection to the broker.
 // We subscribe to the topic(s) we want here.
 fn on_connect_success(cli: &mqtt::AsyncClient, _msgid: u16) {
-	println!("Connection succeeded\n");
+	println!("Connection succeeded");
 	// Subscribe to the desired topic(s).
-	//cli.subscribe("test", 1);
-	cli.subscribe_many(vec!("test".to_string(), "hello".to_string()), vec!(1, 1));
+	//cli.subscribe_many(TOPICS, vec!(1, 1));
+	cli.subscribe_many(TOPICS, QOS);
 	println!("Subscribing to topics.");
 	// TODO: This doesn't yet handle a failed subscription.
 }
@@ -90,21 +93,18 @@ fn main() {
 	cli.set_message_callback(|_cli,msg| {
 		let topic = msg.get_topic().unwrap();
 		let payload_str = msg.get_payload_str().unwrap();
-		println!("Message:  {} - {}\n", topic, payload_str);
+		println!("Message:  {} - {}", topic, payload_str);
 	});
 
 	// Define the set of options for the connection
 	let lwt = mqtt::Message::new("test", "Async subscriber lost connection", 1);
 
-	println!("Starting conn_opts builder");
 	let conn_opts = mqtt::ConnectOptionsBuilder::new()
 		.keep_alive_interval(Duration::from_secs(20))
 		.mqtt_version(mqtt::MQTT_VERSION_3_1_1)
 		.clean_session(true)
 		.will_message(lwt)
 		.finalize();
-
-	println!("\nFinished conn_opts builder");
 
 	// Make the connection to the broker
 	println!("Connecting to the MQTT server...");
@@ -115,12 +115,12 @@ fn main() {
 		thread::sleep(Duration::from_millis(1000));
 	}
 
-	/*
-	unreachable!();
-	cli.unsubscribe_many(vec!("test".to_string(), "hello".to_string())).wait();
+	// Hitting ^C will exit the app and cause the broker to publish the 
+	// LWT message since we're not disconnecting cleanly.
 
-	let tok = cli.disconnect(None);
-	tok.wait();
+	/*
+	cli.unsubscribe_many(TOPICS).wait();
+	cli.disconnect(None).wait();
 	*/
 }
 

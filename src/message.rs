@@ -1,9 +1,10 @@
 // message.rs
+// 
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 //
 
 /*******************************************************************************
- * Copyright (c) 2017 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -19,10 +20,12 @@
  *******************************************************************************/
 
 use std::slice;
-use std::ffi::{CString, IntoStringError};
+use std::ffi::{CString};
+use std::str::{Utf8Error};
 use std::string::{FromUtf8Error};
 use std::os::raw::{c_void};
 use std::convert::From;
+use std::fmt;
 
 use ffi;
 
@@ -47,12 +50,14 @@ impl Message {
 	pub fn new<V>(topic: &str, payload: V, qos: i32) -> Message
 		where V: Into<Vec<u8>>
 	{
-		let mut msg = Message {
-			cmsg: ffi::MQTTAsync_message::default(),
+		let msg = Message {
+			cmsg: ffi::MQTTAsync_message {
+				qos,
+				..ffi::MQTTAsync_message::default()
+			},
 			topic: CString::new(topic).unwrap(),
 			payload: payload.into(),
 		};
-		msg.cmsg.qos = qos;
 		Message::fixup(msg)
 	}
 
@@ -64,16 +69,19 @@ impl Message {
 	/// * `topic` The topic on which the message is published.
 	/// * `payload` The binary payload of the message
 	/// * `qos` The quality of service for message delivery (0, 1, or 2)
+	///
 	pub fn new_retained<V>(topic: &str, payload: V, qos: i32) -> Message
 		where V: Into<Vec<u8>>
 	{
-		let mut msg = Message {
-			cmsg: ffi::MQTTAsync_message::default(),
+		let msg = Message {
+			cmsg: ffi::MQTTAsync_message {
+				qos,
+				retained: 1,
+				..ffi::MQTTAsync_message::default()
+			},
 			topic: CString::new(topic).unwrap(),
 			payload: payload.into(),
 		};
-		msg.cmsg.qos = qos;
-		msg.cmsg.retained = 1;	// true
 		Message::fixup(msg)
 	}
 
@@ -104,14 +112,14 @@ impl Message {
 
 	/// Gets the topic for the message.
 	/// Note that this copies the topic.
-	pub fn get_topic(&self) -> Result<String, IntoStringError> {
-		self.topic.clone().into_string()
+	pub fn get_topic(&self) -> Result<&str, Utf8Error> {
+		self.topic.to_str()
 	}
 
 	/// Gets the payload of the message.
 	/// This returns the payload as a binary vector.
-	pub fn get_payload(&self) -> &Vec<u8> {
-		&self.payload
+	pub fn get_payload(&self) -> &[u8] {
+		self.payload.as_slice()
 	}
 
 	/// Gets the payload of the message as a string.
@@ -174,6 +182,20 @@ impl<'a, 'b> From<(&'a str, &'b [u8], i32, bool)> for Message {
 		msg.cmsg.qos = qos;
 		msg.cmsg.retained = if retained { 1 } else { 0 };
 		Message::fixup(msg)
+	}
+}
+
+impl fmt::Display for Message
+{
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		let topic = match self.topic.as_c_str().to_str() {
+			Ok(s) => s,
+			Err(_) => return Err(fmt::Error),
+		};
+		match self.get_payload_str() {
+			Ok(s) => write!(f, "{}: {}", topic, s),
+			Err(_) => write!(f, "{}: {:?}", topic, self.payload),
+		}
 	}
 }
 
@@ -298,7 +320,19 @@ mod tests {
 	}
 
 	#[test]
-	fn test_from_tuple() {
+	fn test_from_2_tuple() {
+		let msg = Message::from((TOPIC, PAYLOAD));
+
+		// The topic is only kept in the Rust struct as a CString
+		assert_eq!(TOPIC, msg.topic.to_str().unwrap());
+		assert_eq!(PAYLOAD, msg.payload.as_slice());
+
+		assert_eq!(msg.payload.len() as i32, msg.cmsg.payloadlen);
+		assert_eq!(msg.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
+	}
+
+	#[test]
+	fn test_from_4_tuple() {
 		let msg = Message::from((TOPIC, PAYLOAD, QOS, RETAINED));
 
 		// The topic is only kept in the Rust struct as a CString
@@ -337,6 +371,7 @@ mod tests {
 
 		// The topic is only kept in the Rust struct as a CString
 		assert_eq!(TOPIC, msg.topic.to_str().unwrap());
+		assert_eq!(TOPIC, msg.get_topic().unwrap());
 	}
 
 	#[test]
@@ -347,6 +382,7 @@ mod tests {
 					.payload(PAYLOAD).finalize();
 
 		assert_eq!(PAYLOAD, msg.payload.as_slice());
+		assert_eq!(PAYLOAD, msg.get_payload());
 
 		assert_eq!(msg.payload.len() as i32, msg.cmsg.payloadlen);
 		assert_eq!(msg.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
@@ -360,6 +396,7 @@ mod tests {
 					.qos(QOS).finalize();
 
 		assert_eq!(QOS, msg.cmsg.qos);
+		assert_eq!(QOS, msg.get_qos());
 	}
 
 	#[test]
@@ -371,6 +408,7 @@ mod tests {
 		let msg = MessageBuilder::new()
 					.retained(true).finalize();
 		assert!(msg.cmsg.retained != 0);
+		assert!(msg.get_retained());
 	}
 
 	// Make sure assignment works properly

@@ -52,17 +52,6 @@ impl WillOptions {
 		WillOptions::default()
 	}
 
-	pub fn from_message<V>(topic: &str, payload: V) -> WillOptions
-		where V: Into<Vec<u8>>
-	{
-		let opts = WillOptions {
-			copts: ffi::MQTTAsync_willOptions::default(),
-			topic: CString::new(topic).unwrap(),
-			payload: payload.into(),
-		};
-		WillOptions::fixup(opts)
-	}
-
 	// Updates the C struct from the cached topic and payload vars
 	fn fixup(mut opts: WillOptions) -> WillOptions {
 		opts.copts.topicName = if opts.topic.as_bytes().len() != 0 {
@@ -133,13 +122,15 @@ impl Clone for WillOptions {
 impl From<Message> for WillOptions {
 	/// Create `WillOptions` from a `Message`
 	fn from(msg: Message) -> Self {
-		let mut will = WillOptions {
-			copts: ffi::MQTTAsync_willOptions::default(),
+		let will = WillOptions {
+			copts: ffi::MQTTAsync_willOptions {
+				qos: msg.cmsg.qos,
+				retained: msg.cmsg.retained,
+				..ffi::MQTTAsync_willOptions::default()
+			},
 			topic: msg.topic,
 			payload: msg.payload,
 		};
-		will.copts.qos = msg.cmsg.qos;
-		will.copts.retained = msg.cmsg.retained;
 		WillOptions::fixup(will)
 	}
 }

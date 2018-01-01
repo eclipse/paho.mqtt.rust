@@ -13,6 +13,7 @@
 //  - Recieving and acting upon commands via MQTT topics
 //  - Manual reconnects
 //  - Using a persistent (non-clean) session
+//	- Last will and testament
 //
 
 /*******************************************************************************
@@ -33,7 +34,6 @@
 
 extern crate log;
 extern crate env_logger;
-
 extern crate paho_mqtt as mqtt;
 
 use std::process;
@@ -72,28 +72,24 @@ fn main() {
 
 	// Initialize the consumer & subscribe to topics
 	let rx = cli.start_consuming();
-	let subscriptions = vec!("test".to_string(), "hello".to_string());
+	let subscriptions = [ "test", "hello" ];
+	let qos = [1, 1];
 
-	if let Err(e) = cli.subscribe_many(subscriptions, vec!(1, 1)) {
+	println!("Subscribing to topics...");
+	if let Err(e) = cli.subscribe_many(&subscriptions, &qos) {
 		println!("Error subscribing to topics: {:?}", e);
 		cli.disconnect(None).unwrap();
-		::std::process::exit(1);
+		process::exit(1);
 	}
 
-	// Just wait for incoming messages.
-	loop {
-		let rsp = rx.recv();
-
-		if let Err(e) = rsp {
-			println!("Error receiving a message: {:?}", e);
-			break;
-		}
-
-		let msg = rsp.unwrap();
-		println!("Message: {:?}", msg);
+	// Just loop on incoming messages.
+	println!("Waiting for messages...");
+	for msg in rx.iter() {
+		println!("{}", msg);
 	}
 
-	cli.unsubscribe_many(vec!("test".to_string(), "hello".to_string())).unwrap();
+	println!("Exiting");
+	cli.unsubscribe_many(&subscriptions).unwrap();
 	cli.disconnect(None).unwrap();
 }
 

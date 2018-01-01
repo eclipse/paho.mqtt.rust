@@ -6,7 +6,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -21,26 +21,39 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-
 use std::sync::{Arc};
-//use ffi;
+
 use async_client::{AsyncClient,DeliveryToken};
 use message::Message;
-//use errors::{MqttResult};
 
 /////////////////////////////////////////////////////////////////////////////
 //								Topic
 /////////////////////////////////////////////////////////////////////////////
 
+/// A topic destination for messages.
+/// This keeps message parameters for repeatedly publishing to the same
+/// topic on a server.
 pub struct Topic<'a> {
+	/// Reference to the broker that will receive the messages.
 	cli: &'a AsyncClient,
+	/// The topic on which to publish the messages.
 	topic: String,
+	/// The QoS level to publish the messages.
 	qos: i32,
+	/// Whether the last message should be retained by the broker.
 	retained: bool,
 }
 
 impl<'a> Topic<'a> 
 {
+	/// Creates a new topic object for publishing messages.
+	///
+	/// # Arguments
+	///
+	/// `cli` The client used to publish the messages.
+	/// `topic` The topic on which to publish the messages
+	/// `qos` The quality of service for messages
+	///
 	pub fn new(cli: &'a AsyncClient, topic: &str, qos: i32) -> Topic<'a> {
 		Topic {
 			cli,
@@ -50,9 +63,33 @@ impl<'a> Topic<'a>
 		}
 	}
 
+	/// Creates a new topic object for publishing messages.
+	///
+	/// # Arguments
+	///
+	/// `cli` The client used to publish the messages.
+	/// `topic` The topic on which to publish the messages
+	/// `qos` The quality of service for messages
+	///
+	pub fn new_retained(cli: &'a AsyncClient, topic: &str, qos: i32) -> Topic<'a> {
+		Topic {
+			cli,
+			topic: topic.to_string(),
+			qos,
+			retained: false,
+		}
+	}
+
+	/// Publish a message on the topic.
+	///
+	/// # Arguments
+	///
+	/// `payload` The payload of the message
+	///
 	pub fn publish<V>(&self, payload: V) -> Arc<DeliveryToken>
 		where V: Into<Vec<u8>>
 	{
+		// OPTIMIZE: This could be more efficient.
 		let msg = Message::new(&self.topic, payload, self.qos);
 		self.cli.publish(msg)
 	}

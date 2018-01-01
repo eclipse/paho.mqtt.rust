@@ -1,9 +1,12 @@
 [package]
 name = "paho-mqtt"
-version = "0.1.0"
+version = "0.3.0"
 authors = ["Frank Pagliughi <fpagliughi@mindspring.com>"]
+homepage = "https://github.com/eclipse/paho.mqtt.rust"
+repository = "https://github.com/eclipse/paho.mqtt.rust"
+keywords = [ "MQTT", "IoT", "Paho", "messaging" ]
 description = """
-The Paho MQTT Rust Client Library
+The Eclipse Paho MQTT Rust Client Library
 This is currently a wrapper around the Paho C library.
 """
 

@@ -1,9 +1,10 @@
 // errors.rs
+// 
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 //
 
 /*******************************************************************************
- * Copyright (c) 2017 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -27,14 +28,14 @@ use std::convert::From;
 /// The possible errors
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum ErrorKind {
+	/// General Failure
+	General,
+	/// Persistence Error
+	PersistenceError,
 	/// Bad QoS value
 	QosError,
 	/// Operation failed because of a type mismatch.
 	TypeError,
-	/// Persistence Error
-	PersistenceError,
-	/// General Failure (TODO: Something better than this)
-	General,
 	/// I/O Error
 	IoError,
 }
@@ -87,7 +88,10 @@ impl From<(ErrorKind, i32, &'static str, String)> for MqttError {
     }
 }
 
+/// MQTT Errors implement the std::error::Error trait
 impl error::Error for MqttError {
+	/// A short description of the error.
+	/// This should not contain newlines or explicit formatting.
     fn description(&self) -> &str {
         match self.repr {
             ErrorRepr::WithDescription(_, _, desc) => desc,
@@ -96,6 +100,7 @@ impl error::Error for MqttError {
         }
     }
 
+	/// The lower-level cause of the error, if any.
     fn cause(&self) -> Option<&error::Error> {
         match self.repr {
             ErrorRepr::IoError(ref err) => Some(err as &error::Error),

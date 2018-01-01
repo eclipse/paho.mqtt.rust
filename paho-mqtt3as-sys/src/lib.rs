@@ -1,7 +1,23 @@
 // lib.rs
 //
-// The main library file for the Paho MQTT Rust Library.
+// The main library file for the Paho MQTT Rust library low-level C wrapper.
 //
+
+/*******************************************************************************
+ * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ *
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ *   http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * Contributors:
+ *    Frank Pagliughi - initial implementation and documentation
+ *******************************************************************************/
 
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
@@ -13,6 +29,12 @@
 use std::ptr;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+
+// The following 'Default' trait implementations contain initializations
+// for the structures from the Paho C library. Each of those structs
+// contains an initializer macro in MQTTAsync.h.
+// By convention, these default initializers match those macros from the
+// C library.
 
 /////////////////////////////////////////////////////////////////////////////
 // Client creation
@@ -65,9 +87,6 @@ impl Default for MQTTAsync_connectOptions {
 /////////////////////////////////////////////////////////////////////////////
 // Options
 
-// Defaults for MQTTAsync_willOptions
-// These default options should match the C macro: 
-//   MQTTAsync_willOptions_initializer
 impl Default for MQTTAsync_willOptions {
 	fn default() -> MQTTAsync_willOptions {
 		MQTTAsync_willOptions {
@@ -85,9 +104,6 @@ impl Default for MQTTAsync_willOptions {
 	}
 }
 
-// Defaults for MQTTAsync_SSLOptions
-// These default options should match the C language macro:
-//		MQTTAsync_SSLOptions_initializer
 impl Default for MQTTAsync_SSLOptions {
 	fn default() -> MQTTAsync_SSLOptions {
 		MQTTAsync_SSLOptions {
@@ -156,8 +172,5 @@ impl Default for MQTTAsync_disconnectOptions {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn it_works() {
-    }
 }
 

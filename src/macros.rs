@@ -1,9 +1,12 @@
 // macros.rs
+// 
 // This file is part of the Eclipse Paho MQTT Rust Client library.
+//
+// This contains the macro definitions for the crate.
 //
 
 /*******************************************************************************
- * Copyright (c) 2017 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -17,7 +20,6 @@
  * Contributors:
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
-
 
 #![macro_use]
 
