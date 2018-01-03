@@ -180,7 +180,7 @@ impl Client {
 	/// should be called before subscribing to any topics, otherwise messages
 	/// can be lost.
 	//
-	pub fn start_consuming(&mut self) -> mpsc::Receiver<Message> {
+	pub fn start_consuming(&mut self) -> mpsc::Receiver<Option<Message>> {
 		self.cli.start_consuming()
 	}
 }

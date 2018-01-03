@@ -155,8 +155,6 @@ impl Token {
 		}
 	}
 
-
-
 	// Callback from the C library for when an async operation succeeds.
 	unsafe extern "C" fn on_success(context: *mut c_void, rsp: *mut ffi::MQTTAsync_successData) {
 		debug!("Token success! {:?}, {:?}", context, rsp);
@@ -310,7 +308,7 @@ pub type DeliveryToken = Token;
 pub type ConnectionLostCallback = FnMut(&mut AsyncClient) + 'static;
 
 // User callback signature for when subscribed messages are received.
-pub type MessageArrivedCallback = FnMut(&AsyncClient, Message) + 'static;
+pub type MessageArrivedCallback = FnMut(&AsyncClient, Option<Message>) + 'static;
 
 // The context provided for the client callbacks.
 // Note that the Paho C library maintains a single void* context pointer
@@ -355,8 +353,13 @@ impl AsyncClient {
 			let cli = context as *mut AsyncClient;
 			let mut cbctx = (*cli).callback_context.lock().unwrap();
 
+			if let Some(ref mut cb) = (*cbctx).on_message_arrived {
+				trace!("Invoking disconnect message callback");
+				cb(&*cli, None);
+			}
+
 			if let Some(ref mut cb) = (*cbctx).on_connection_lost {
-				debug!("Invoking connection lost callback");
+				trace!("Invoking connection lost callback");
 				cb(&mut *cli);
 			}
 		}
@@ -376,12 +379,13 @@ impl AsyncClient {
 
 			if let Some(ref mut cb) = (*cbctx).on_message_arrived {
 				let len = topic_len as usize;
+				// TODO: Handle UTF-8 error(s)
 				let tp = str::from_utf8(slice::from_raw_parts(topic_name as *mut u8, len)).unwrap();
 				let topic = CString::new(tp).unwrap();
 				let msg = Message::from_c_parts(topic, &*cmsg);
 
-				debug!("Invoking message callback");
-				cb(&*cli, msg);
+				trace!("Invoking message callback");
+				cb(&*cli, Some(msg));
 			}
 		}
 
@@ -671,7 +675,7 @@ impl AsyncClient {
 	/// 	function or a closure.
 	///
 	pub fn set_message_callback<F>(&mut self, cb: F)
-		where F: FnMut(&AsyncClient,Message) + 'static
+		where F: FnMut(&AsyncClient, Option<Message>) + 'static
 	{
 		// A pointer to self will serve as the callback context
 		let self_ptr = self as *mut _ as *mut c_void;
@@ -863,8 +867,8 @@ impl AsyncClient {
 	/// should be called before subscribing to any topics, otherwise messages
 	/// can be lost.
 	//
-	pub fn start_consuming(&mut self) -> mpsc::Receiver<Message> {
-		let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
+	pub fn start_consuming(&mut self) -> mpsc::Receiver<Option<Message>> {
+		let (tx, rx): (Sender<Option<Message>>, Receiver<Option<Message>>) = mpsc::channel();
 
 		self.set_message_callback(move |_,msg| {
 			tx.send(msg).unwrap();

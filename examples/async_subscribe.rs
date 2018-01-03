@@ -91,9 +91,11 @@ fn main() {
 	// Attach a closure to the client to receive callback
 	// on incoming messages.
 	cli.set_message_callback(|_cli,msg| {
-		let topic = msg.get_topic().unwrap();
-		let payload_str = msg.get_payload_str().unwrap();
-		println!("Message:  {} - {}", topic, payload_str);
+		if let Some(msg) = msg {
+			let topic = msg.get_topic().unwrap();
+			let payload_str = msg.get_payload_str().unwrap();
+			println!("Message:  {} - {}", topic, payload_str);
+		}
 	});
 
 	// Define the set of options for the connection
