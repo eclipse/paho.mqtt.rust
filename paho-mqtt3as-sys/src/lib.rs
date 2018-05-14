@@ -27,6 +27,7 @@
 #![allow(dead_code)]
 
 use std::ptr;
+use std::os::raw::c_char;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
@@ -42,7 +43,7 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 impl Default for MQTTAsync_createOptions {
 	fn default() -> MQTTAsync_createOptions {
 		MQTTAsync_createOptions {
-			struct_id: [ 'M' as i8, 'Q' as i8, 'C' as i8, 'O' as i8],
+			struct_id: [ 'M' as c_char, 'Q' as c_char, 'C' as c_char, 'O' as c_char],
 			struct_version: 0,
 			sendWhileDisconnected: 0,
 			maxBufferedMessages: 100,
@@ -56,7 +57,7 @@ impl Default for MQTTAsync_createOptions {
 impl Default for MQTTAsync_connectOptions {
 	fn default() -> MQTTAsync_connectOptions {
 		MQTTAsync_connectOptions {
-			struct_id: [ 'M' as i8, 'Q' as i8, 'T' as i8, 'C' as i8],
+			struct_id: [ 'M' as c_char, 'Q' as c_char, 'T' as c_char, 'C' as c_char],
 			struct_version: 5,
 			keepAliveInterval: 60,
 			cleansession: 1,
@@ -90,7 +91,7 @@ impl Default for MQTTAsync_connectOptions {
 impl Default for MQTTAsync_willOptions {
 	fn default() -> MQTTAsync_willOptions {
 		MQTTAsync_willOptions {
-			struct_id: [ 'M' as i8, 'Q' as i8, 'T' as i8, 'W' as i8 ],
+			struct_id: [ 'M' as c_char, 'Q' as c_char, 'T' as c_char, 'W' as c_char ],
 			struct_version: 1,	// 1 indicates binary payload
 			topicName: ptr::null(),
 			message: ptr::null(),
@@ -107,7 +108,7 @@ impl Default for MQTTAsync_willOptions {
 impl Default for MQTTAsync_SSLOptions {
 	fn default() -> MQTTAsync_SSLOptions {
 		MQTTAsync_SSLOptions {
-			struct_id: [ 'M' as i8, 'Q' as i8, 'T' as i8, 'S' as i8 ],
+			struct_id: [ 'M' as c_char, 'Q' as c_char, 'T' as c_char, 'S' as c_char ],
 			struct_version: 0,
 			trustStore: ptr::null(),
 			keyStore: ptr::null(),
@@ -123,7 +124,7 @@ impl Default for MQTTAsync_SSLOptions {
 impl Default for MQTTAsync_responseOptions {
 	fn default() -> MQTTAsync_responseOptions {
 		MQTTAsync_responseOptions {
-			struct_id: [ 'M' as i8, 'Q' as i8, 'T' as i8, 'R' as i8 ],
+			struct_id: [ 'M' as c_char, 'Q' as c_char, 'T' as c_char, 'R' as c_char ],
 			struct_version: 0,
 			onSuccess: None,
 			onFailure: None,
@@ -139,7 +140,7 @@ impl Default for MQTTAsync_responseOptions {
 impl Default for MQTTAsync_message {
 	fn default() -> MQTTAsync_message {
 		MQTTAsync_message {
-			struct_id: [ 'M' as i8, 'Q' as i8, 'T' as i8, 'M' as i8 ],
+			struct_id: [ 'M' as c_char, 'Q' as c_char, 'T' as c_char, 'M' as c_char ],
 			struct_version: 0,
 			payloadlen: 0,
 			payload: ptr::null_mut(),
@@ -157,7 +158,7 @@ impl Default for MQTTAsync_message {
 impl Default for MQTTAsync_disconnectOptions {
 	fn default() -> MQTTAsync_disconnectOptions {
 		MQTTAsync_disconnectOptions {
-			struct_id: [ 'M' as i8, 'Q' as i8, 'T' as i8, 'D' as i8],
+			struct_id: [ 'M' as c_char, 'Q' as c_char, 'T' as c_char, 'D' as c_char],
 			struct_version: 0,
 			timeout: 0,
 			onSuccess: None,
