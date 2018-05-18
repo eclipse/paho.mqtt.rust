@@ -116,6 +116,9 @@ impl Default for MQTTAsync_SSLOptions {
 			privateKeyPassword: ptr::null(),
 			enabledCipherSuites: ptr::null(),
 			enableServerCertAuth: 1,
+			sslVersion: 1,
+			verify: 0,
+			CApath: ptr::null(),
 		}
 	}
 }
