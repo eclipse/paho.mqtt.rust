@@ -446,7 +446,8 @@ impl AsyncClient {
         };
 
         let (ptype, usrptr) = match opts.persistence {
-            PersistenceType::User(persist) => (ffi::MQTTCLIENT_PERSISTENCE_USER, Box::into_raw(persist) as *mut _),
+            PersistenceType::User(persist) => (ffi::MQTTCLIENT_PERSISTENCE_USER,
+                                               Box::into_raw(persist) as *mut c_void),
             PersistenceType::File => (ffi::MQTTCLIENT_PERSISTENCE_DEFAULT, ptr::null_mut()),
             PersistenceType::None => (ffi::MQTTCLIENT_PERSISTENCE_NONE, ptr::null_mut()),
         };
