@@ -10,11 +10,11 @@ _The API is guaranteed to change repeatedly and often while the code is being de
 
 Initial development is being done on Linux. That is currently the only system known to work.
 
-It is hoped that a full, stable, version 1.0 release should be ready by early 2018.
+It is hoped that a full, stable, version 1.0 release should be ready by mid-2018.
 
 ## Features
 
-The initial version of the library is a wrapper for the Paho C library, similar to the implementation for the current Paho C++ library. It will target MQTT v3.1 and 3.1.1, and should include all of the features available in the C library, including:
+The initial version of the library is a wrapper for the Paho C library, similar to the implementation for the current Paho C++ library. It will target MQTT v3.1 and 3.1.1, and will include all of the features available in the C library, including:
 
 * Standard TCP support
 * SSL / TLS

@@ -19,81 +19,91 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
+#![deny(missing_docs)]
+
+//! Disconnect options for the Paho MQTT Rust client library.
+//! This contains the structures to define the options for disconnecting from
+//! the MQTT broker/server.
+
 use ffi;
 use std::time::Duration;
 
 /// The collection of options for disconnecting from the client.
 #[derive(Debug)]
 pub struct DisconnectOptions {
-	pub copts: ffi::MQTTAsync_disconnectOptions,
+    /// The underlying C disconnect options
+    pub copts: ffi::MQTTAsync_disconnectOptions,
 }
 
 impl DisconnectOptions {
-	pub fn new() -> DisconnectOptions {
-		DisconnectOptions::default()
-	}
+    /// Create a new `DisconnectOptions`
+    pub fn new() -> DisconnectOptions {
+        DisconnectOptions::default()
+    }
 }
 
 impl Default for DisconnectOptions {
-	fn default() -> DisconnectOptions {
-		DisconnectOptions {
-			copts: ffi::MQTTAsync_disconnectOptions::default(),
-		}
-	}
+    fn default() -> DisconnectOptions {
+        DisconnectOptions {
+            copts: ffi::MQTTAsync_disconnectOptions::default(),
+        }
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////
-//								Builder
+//                              Builder
 /////////////////////////////////////////////////////////////////////////////
 
+/// Builder to create the options for disconnecting from an MQTT server.
 pub struct DisconnectOptionsBuilder {
-	copts: ffi::MQTTAsync_disconnectOptions,
+    copts: ffi::MQTTAsync_disconnectOptions,
 }
 
 impl DisconnectOptionsBuilder {
-	pub fn new() -> DisconnectOptionsBuilder {
-		DisconnectOptionsBuilder {
-			copts: ffi::MQTTAsync_disconnectOptions::default(),
-		}
-	}
+    /// Create a new `DisconnectOptionsBuilder`
+    pub fn new() -> DisconnectOptionsBuilder {
+        DisconnectOptionsBuilder {
+            copts: ffi::MQTTAsync_disconnectOptions::default(),
+        }
+    }
 
-	/// Sets the time interval to allow the disconnect to complete.
-	/// This specifies the time to allow in-flight messages to complete.
-	/// 
-	/// # Arguments
-	///
-	/// `timeout` The time interval to allow the disconnect to 
-	/// 		  complete. This has a resolution of seconds.
-	pub fn timeout(&mut self, timeout: Duration) -> &mut DisconnectOptionsBuilder {
-		let secs = timeout.as_secs();
-		self.copts.timeout = if secs == 0 { 1 } else { secs as i32 };
-		self
-	}
+    /// Sets the time interval to allow the disconnect to complete.
+    /// This specifies the time to allow in-flight messages to complete.
+    ///
+    /// # Arguments
+    ///
+    /// `timeout` The time interval to allow the disconnect to
+    ///           complete. This has a resolution of seconds.
+    pub fn timeout(&mut self, timeout: Duration) -> &mut DisconnectOptionsBuilder {
+        let secs = timeout.as_secs();
+        self.copts.timeout = if secs == 0 { 1 } else { secs as i32 };
+        self
+    }
 
-	/// Finalize the builder to create the connect options.
-	pub fn finalize(&self) -> DisconnectOptions {
-		DisconnectOptions {
-			copts: self.copts.clone(),
-		}
-	}
+    /// Finalize the builder to create the connect options.
+    pub fn finalize(&self) -> DisconnectOptions {
+        DisconnectOptions {
+            copts: self.copts.clone(),
+        }
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////
-//								Unit Tests
+//                              Unit Tests
 /////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	//use std::ffi::{CStr};
+    use super::*;
+    //use std::ffi::{CStr};
 
-	#[test]
-	fn test_new() {
-		let opts = DisconnectOptions::new();
+    #[test]
+    fn test_new() {
+        let opts = DisconnectOptions::new();
 
-		assert_eq!([ 'M' as i8, 'Q' as i8, 'T' as i8, 'D' as i8 ], opts.copts.struct_id);
-		assert_eq!(0, opts.copts.struct_version);
-	}
+        assert_eq!([ 'M' as i8, 'Q' as i8, 'T' as i8, 'D' as i8 ], opts.copts.struct_id);
+        assert_eq!(0, opts.copts.struct_version);
+    }
 
 }
 
