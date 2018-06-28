@@ -375,7 +375,7 @@ impl AsyncClient {
     // Low-level callback for when the connection is lost.
     unsafe extern "C" fn on_connection_lost(context: *mut c_void,
                                             _cause: *mut c_char) {
-        warn!("\nConnection lost. Context: {:?}", context);
+        warn!("Connection lost. Context: {:?}", context);
         if !context.is_null() {
             let cli = context as *mut AsyncClient;
             let mut cbctx = (*cli).callback_context.lock().unwrap();
@@ -397,8 +397,8 @@ impl AsyncClient {
                                             topic_name: *mut c_char,
                                             topic_len: c_int,
                                             mut cmsg: *mut ffi::MQTTAsync_message) -> c_int {
-        debug!("\nMessage arrived. Context: {:?}, topic: {:?} len {:?} cmsg: {:?}: {:?}",
-                 context, topic_name, topic_len, cmsg, *cmsg);
+        debug!("Message arrived. Context: {:?}, topic: {:?} len {:?} cmsg: {:?}: {:?}",
+               context, topic_name, topic_len, cmsg, *cmsg);
 
         if !context.is_null() {
             let cli = context as *mut AsyncClient;
@@ -406,9 +406,15 @@ impl AsyncClient {
 
             if let Some(ref mut cb) = (*cbctx).on_message_arrived {
                 let len = topic_len as usize;
-                // TODO: Handle UTF-8 error(s)
-                let tp = str::from_utf8(slice::from_raw_parts(topic_name as *mut u8, len)).unwrap();
-                let topic = CString::new(tp).unwrap();
+                let topic = if len == 0 {
+                    info!("Got a zero-length topic");
+                    CStr::from_ptr(topic_name).to_owned()
+                }
+                else {
+                    // TODO: Handle UTF-8 error(s)
+                    let tp = str::from_utf8(slice::from_raw_parts(topic_name as *mut u8, len)).unwrap();
+                    CString::new(tp).unwrap()
+                };
                 let msg = Message::from_c_parts(topic, &*cmsg);
 
                 trace!("Invoking message callback");
@@ -543,10 +549,10 @@ impl AsyncClient {
               FF: FnMut(&AsyncClient,u16,i32) + 'static
     {
         debug!("Connecting handle: {:?}", self.handle);
-        debug!("\nConnect opts: {:?}", opts);
+        debug!("Connect opts: {:?}", opts);
         unsafe {
             if !opts.copts.will.is_null() {
-                debug!("\nWill: {:?}", *(opts.copts.will));
+                debug!("Will: {:?}", *(opts.copts.will));
             }
         }
 
@@ -557,7 +563,7 @@ impl AsyncClient {
         opts.copts.onSuccess = Some(Token::on_success);
         opts.copts.onFailure = Some(Token::on_failure);
         opts.copts.context = Arc::into_raw(tokcb) as *mut c_void;;
-        debug!("\nConnect opts: {:?}", opts);
+        debug!("Connect opts: {:?}", opts);
         {
             let mut lkopts = self.opts.lock().unwrap();
             *lkopts = opts.clone();
