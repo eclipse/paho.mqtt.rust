@@ -767,9 +767,9 @@ impl AsyncClient {
     /// `topic` The topic name
     /// `qos` The quality of service requested for messages
     ///
-    pub fn subscribe(&self, topic: &str, qos: i32) -> Arc<Token> {
-        debug!("Subscribe to '{}' @ QOS {}", topic, qos);
-
+    pub fn subscribe<S>(&self, topic: S, qos: i32) -> Arc<Token>
+        where S: Into<String>
+    {
         let tok = Arc::new(DeliveryToken::new());
         let tokcb = tok.clone();
 
@@ -777,7 +777,9 @@ impl AsyncClient {
         copts.onSuccess = Some(Token::on_success);
         copts.context = Arc::into_raw(tokcb) as *mut c_void;
 
-        let topic = CString::new(topic).unwrap();
+        let topic = CString::new(topic.into()).unwrap();
+
+        debug!("Subscribe to '{:?}' @ QOS {}", topic, qos);
 
         let rc = unsafe {
             ffi::MQTTAsync_subscribe(self.handle, topic.as_ptr(), qos, &mut copts)
@@ -835,9 +837,9 @@ impl AsyncClient {
     /// `topic` The topic to unsubscribe. It must match a topic from a
     ///         previous subscribe.
     ///
-    pub fn unsubscribe(&self, topic: &str) -> Arc<Token> {
-        debug!("Unsubscribe from '{}'", topic);
-
+    pub fn unsubscribe<S>(&self, topic: S) -> Arc<Token>
+        where S: Into<String>
+    {
         let tok = Arc::new(DeliveryToken::new());
         let tokcb = tok.clone();
 
@@ -845,7 +847,9 @@ impl AsyncClient {
         copts.onSuccess = Some(Token::on_success);
         copts.context = Arc::into_raw(tokcb) as *mut c_void;
 
-        let topic = CString::new(topic).unwrap();
+        let topic = CString::new(topic.into()).unwrap();
+
+        debug!("Unsubscribe from '{:?}'", topic);
 
         let rc = unsafe {
             ffi::MQTTAsync_unsubscribe(self.handle, topic.as_ptr(), &mut copts)

@@ -54,10 +54,12 @@ impl<'a> Topic<'a>
     /// `topic` The topic on which to publish the messages
     /// `qos` The quality of service for messages
     ///
-    pub fn new(cli: &'a AsyncClient, topic: &str, qos: i32) -> Topic<'a> {
+    pub fn new<T>(cli: &'a AsyncClient, topic: T, qos: i32) -> Topic<'a>
+        where T: Into<String>
+    {
         Topic {
             cli,
-            topic: topic.to_string(),
+            topic: topic.into(),
             qos,
             retained: false,
         }
@@ -71,12 +73,14 @@ impl<'a> Topic<'a>
     /// `topic` The topic on which to publish the messages
     /// `qos` The quality of service for messages
     ///
-    pub fn new_retained(cli: &'a AsyncClient, topic: &str, qos: i32) -> Topic<'a> {
+    pub fn new_retained<T>(cli: &'a AsyncClient, topic: T, qos: i32) -> Topic<'a>
+        where T: Into<String>
+    {
         Topic {
             cli,
-            topic: topic.to_string(),
+            topic: topic.into(),
             qos,
-            retained: false,
+            retained: true,
         }
     }
 
@@ -90,7 +94,7 @@ impl<'a> Topic<'a>
         where V: Into<Vec<u8>>
     {
         // OPTIMIZE: This could be more efficient.
-        let msg = Message::new(&self.topic, payload, self.qos);
+        let msg = Message::new(self.topic.clone(), payload, self.qos);
         self.cli.publish(msg)
     }
 }

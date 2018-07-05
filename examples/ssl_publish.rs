@@ -17,7 +17,7 @@
 //!     $ mosquitto -c test/tls-testing/mosquitto.conf
 //!
 //! Then use the file "test-root-ca.crt" from that directory
-//! (paho.mqtt.c/test/tls-testing) for the trust store for this program.
+//! (paho.mqtt.c/test/tls-testing/keys) for the trust store for this program.
 //!
 
 /*******************************************************************************
@@ -85,9 +85,7 @@ fn main() {
 
     let msg = mqtt::MessageBuilder::new()
         .topic("test")
-        .payload("Hello secure world!".as_bytes())
-        // TODO: We should be allowed to do this:
-        //.payload(b"Hello secure world!")
+        .payload("Hello secure world!")
         .qos(1)
         .finalize();
 

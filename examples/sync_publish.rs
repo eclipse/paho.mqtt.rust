@@ -49,7 +49,12 @@ fn main() {
     }
 
     // Create a message and publish it
-    let msg = mqtt::Message::new("test", "Hello synchronous world!", 0);
+    let msg = mqtt::MessageBuilder::new()
+        .topic("test")
+        .payload("Hello synchronous world!")
+        .qos(1)
+        .finalize();
+
 
     if let Err(e) = cli.publish(msg) {
         println!("Error sending message: {:?}", e);

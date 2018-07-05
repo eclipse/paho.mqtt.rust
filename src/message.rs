@@ -47,15 +47,16 @@ impl Message {
     /// * `topic` The topic on which the message is published.
     /// * `payload` The binary payload of the message
     /// * `qos` The quality of service for message delivery (0, 1, or 2)
-    pub fn new<V>(topic: &str, payload: V, qos: i32) -> Message
-        where V: Into<Vec<u8>>
+    pub fn new<S,V>(topic: S, payload: V, qos: i32) -> Message
+        where S: Into<String>,
+              V: Into<Vec<u8>>
     {
         let msg = Message {
             cmsg: ffi::MQTTAsync_message {
                 qos,
                 ..ffi::MQTTAsync_message::default()
             },
-            topic: CString::new(topic).unwrap(),
+            topic: CString::new(topic.into()).unwrap(),
             payload: payload.into(),
         };
         Message::fixup(msg)
@@ -70,8 +71,9 @@ impl Message {
     /// * `payload` The binary payload of the message
     /// * `qos` The quality of service for message delivery (0, 1, or 2)
     ///
-    pub fn new_retained<V>(topic: &str, payload: V, qos: i32) -> Message
-        where V: Into<Vec<u8>>
+    pub fn new_retained<S,V>(topic: S, payload: V, qos: i32) -> Message
+        where S: Into<String>,
+              V: Into<Vec<u8>>
     {
         let msg = Message {
             cmsg: ffi::MQTTAsync_message {
@@ -79,7 +81,7 @@ impl Message {
                 retained: 1,
                 ..ffi::MQTTAsync_message::default()
             },
-            topic: CString::new(topic).unwrap(),
+            topic: CString::new(topic.into()).unwrap(),
             payload: payload.into(),
         };
         Message::fixup(msg)
@@ -227,8 +229,10 @@ impl MessageBuilder
     /// # Arguments
     ///
     /// `topic` The topic on which the message should be published.
-    pub fn topic(mut self, topic: &str) -> MessageBuilder {
-        self.topic = topic.to_string();
+    pub fn topic<T>(mut self, topic: T) -> MessageBuilder
+        where T: Into<String>
+    {
+        self.topic = topic.into();
         self
     }
 
