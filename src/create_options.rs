@@ -248,6 +248,10 @@ impl CreateOptionsBuilder {
 #[cfg(test)]
 mod tests {
 	use super::*;
+    use std::os::raw::{c_char};
+
+    // The identifier for the create options structure
+    const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'C' as c_char, b'O' as c_char];
 
 	// Rust options should be the same as the C options
 	#[test]
@@ -257,7 +261,7 @@ mod tests {
 		let copts = ffi::MQTTAsync_createOptions::default();
 
 		// First, make sure C options valid
-		assert_eq!([ 'M' as i8, 'Q' as i8, 'C' as i8, 'O' as i8], copts.struct_id);
+        assert_eq!(STRUCT_ID, copts.struct_id);
 		assert_eq!(0, copts.struct_version);	// Currently supported version
 
 		assert_eq!(copts.struct_id, opts.copts.struct_id);
@@ -276,7 +280,7 @@ mod tests {
 		let opts = CreateOptions::from(HOST);
 		let copts = ffi::MQTTAsync_createOptions::default();
 
-		assert_eq!([ 'M' as i8, 'Q' as i8, 'C' as i8, 'O' as i8], opts.copts.struct_id);
+		assert_eq!(STRUCT_ID, opts.copts.struct_id);
 		assert_eq!(0, opts.copts.struct_version);	// Currently supported version
 		assert_eq!(copts.sendWhileDisconnected, opts.copts.sendWhileDisconnected);
 		assert_eq!(copts.maxBufferedMessages, opts.copts.maxBufferedMessages);
@@ -294,7 +298,7 @@ mod tests {
 		let opts = CreateOptions::from((HOST,ID));
 		let copts = ffi::MQTTAsync_createOptions::default();
 
-		assert_eq!([ 'M' as i8, 'Q' as i8, 'C' as i8, 'O' as i8], opts.copts.struct_id);
+		assert_eq!(STRUCT_ID, opts.copts.struct_id);
 		assert_eq!(0, opts.copts.struct_version);	// Currently supported version
 		assert_eq!(copts.sendWhileDisconnected, opts.copts.sendWhileDisconnected);
 		assert_eq!(copts.maxBufferedMessages, opts.copts.maxBufferedMessages);
@@ -310,7 +314,7 @@ mod tests {
 		let copts = ffi::MQTTAsync_createOptions::default();
 
 		// First, make sure C options valid
-		assert_eq!([ 'M' as i8, 'Q' as i8, 'C' as i8, 'O' as i8], copts.struct_id);
+		assert_eq!(STRUCT_ID, copts.struct_id);
 		assert_eq!(0, copts.struct_version);	// Currently supported version
 
 		assert_eq!(copts.struct_id, opts.copts.struct_id);
@@ -336,7 +340,7 @@ mod tests {
 						.max_buffered_messages(MAX_BUF_MSGS)
 						.finalize();
 
-		assert_eq!([ 'M' as i8, 'Q' as i8, 'C' as i8, 'O' as i8], opts.copts.struct_id);
+		assert_eq!(STRUCT_ID, opts.copts.struct_id);
 		assert_eq!(0, opts.copts.struct_version);	// Currently supported version
 
 		assert_eq!(HOST, &opts.server_uri);

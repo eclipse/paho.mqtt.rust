@@ -181,15 +181,17 @@ impl SslOptionsBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    //use std::ptr;
     use std::ffi::{CStr};
+
+    // Identifier for the C SSL options structure
+    const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'S' as c_char ];
 
     #[test]
     fn test_new() {
         let opts = SslOptions::new();
         //let copts = ffi::MQTTAsync_SSLOptions::default();
 
-        assert_eq!([ 'M' as i8, 'Q' as i8, 'T' as i8, 'S' as i8 ], opts.copts.struct_id);
+        assert_eq!(STRUCT_ID, opts.copts.struct_id);
         assert_eq!(0, opts.copts.struct_version);
         assert_eq!(ptr::null(), opts.copts.trustStore);
         // TODO: Check the other strings
@@ -200,7 +202,7 @@ mod tests {
         let opts = SslOptionsBuilder::new()
             .finalize();
 
-        assert_eq!([ 'M' as i8, 'Q' as i8, 'T' as i8, 'S' as i8 ], opts.copts.struct_id);
+        assert_eq!(STRUCT_ID, opts.copts.struct_id);
         assert_eq!(0, opts.copts.struct_version);
         assert_eq!(ptr::null(), opts.copts.trustStore);
         // TODO: Check the other strings
@@ -261,5 +263,4 @@ mod tests {
         assert_eq!(TRUST_STORE, ts.to_str().unwrap());
     }
 }
-
 

@@ -95,13 +95,16 @@ impl DisconnectOptionsBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    //use std::ffi::{CStr};
+    use std::os::raw::c_char;
+
+    // Identifier fo a C disconnect options struct
+    const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'D' as c_char ];
 
     #[test]
     fn test_new() {
         let opts = DisconnectOptions::new();
 
-        assert_eq!([ 'M' as i8, 'Q' as i8, 'T' as i8, 'D' as i8 ], opts.copts.struct_id);
+        assert_eq!(STRUCT_ID, opts.copts.struct_id);
         assert_eq!(0, opts.copts.struct_version);
     }
 

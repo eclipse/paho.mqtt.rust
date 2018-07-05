@@ -141,10 +141,10 @@ impl From<Message> for WillOptions {
 #[cfg(test)]
 mod tests {
     use super::*;
-    //use std::ffi::{CStr};
+    use std::os::raw::{c_char};
     use message::MessageBuilder;
 
-    const STRUCT_ID: &'static [i8] = &[ 'M' as i8, 'Q' as i8, 'T' as i8, 'W' as i8];
+    const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'W' as c_char];
     const STRUCT_VERSION: i32 = 1;
 
     // These should differ from defaults.

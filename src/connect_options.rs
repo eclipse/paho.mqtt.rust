@@ -380,12 +380,16 @@ mod tests {
     use super::*;
     use std::ffi::{CStr};
     use ssl_options::SslOptionsBuilder;
+    use std::os::raw::c_char;
+
+    // Identifier fo a C connect options struct
+    const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'C' as c_char ];
 
     #[test]
     fn test_new() {
         let opts = ConnectOptions::new();
 
-        assert_eq!([ 'M' as i8, 'Q' as i8, 'T' as i8, 'C' as i8 ], opts.copts.struct_id);
+        assert_eq!(STRUCT_ID, opts.copts.struct_id);
         assert_eq!(5, opts.copts.struct_version);
         assert_eq!(ptr::null(), opts.copts.will);
         assert_eq!(ptr::null(), opts.copts.username);

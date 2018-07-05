@@ -289,9 +289,9 @@ impl MessageBuilder
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::os::raw::{c_char};
+    use std::os::raw::c_char;
 
-    const STRUCT_ID: &'static [i8] = &[ 'M' as c_char, 'Q' as i8, 'T' as i8, 'M' as i8 ];
+    const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'M' as c_char ];
     const STRUCT_VERSION: i32 = 0;
 
     // These should differ from defaults
@@ -354,7 +354,7 @@ mod tests {
         let msg = MessageBuilder::new().finalize();
         let cmsg = ffi::MQTTAsync_message::default();
 
-        assert_eq!([ 'M' as c_char, 'Q' as i8, 'T' as i8, 'M' as i8 ], cmsg.struct_id);
+        assert_eq!(STRUCT_ID, cmsg.struct_id);
         assert_eq!(0, cmsg.struct_version);
 
         assert_eq!(cmsg.struct_id, msg.cmsg.struct_id);
