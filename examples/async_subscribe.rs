@@ -92,8 +92,8 @@ fn main() {
     // on incoming messages.
     cli.set_message_callback(|_cli,msg| {
         if let Some(msg) = msg {
-            let topic = msg.get_topic().unwrap();
-            let payload_str = msg.get_payload_str().unwrap();
+            let topic = msg.topic();
+            let payload_str = msg.payload_str().unwrap();
             println!("Message:  {} - {}", topic, payload_str);
         }
     });

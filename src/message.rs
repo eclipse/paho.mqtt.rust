@@ -21,7 +21,6 @@
 
 use std::slice;
 use std::ffi::{CString};
-use std::str::{Utf8Error};
 use std::string::{FromUtf8Error};
 use std::os::raw::{c_void};
 use std::convert::From;
@@ -114,29 +113,29 @@ impl Message {
 
     /// Gets the topic for the message.
     /// Note that this copies the topic.
-    pub fn get_topic(&self) -> Result<&str, Utf8Error> {
-        self.topic.to_str()
+    pub fn topic(&self) -> &str {
+        self.topic.to_str().unwrap()
     }
 
     /// Gets the payload of the message.
     /// This returns the payload as a binary vector.
-    pub fn get_payload(&self) -> &[u8] {
+    pub fn payload(&self) -> &[u8] {
         self.payload.as_slice()
     }
 
     /// Gets the payload of the message as a string.
     /// Note that this clones the payload.
-    pub fn get_payload_str(&self) -> Result<String, FromUtf8Error> {
+    pub fn payload_str(&self) -> Result<String, FromUtf8Error> {
         String::from_utf8(self.payload.clone())
     }
 
     /// Returns the Quality of Service (QOS) for the message.
-    pub fn get_qos(&self) -> i32 {
+    pub fn qos(&self) -> i32 {
         self.cmsg.qos
     }
 
     /// Gets the 'retained' flag for the message.
-    pub fn get_retained(&self) -> bool {
+    pub fn retained(&self) -> bool {
         self.cmsg.retained != 0
     }
 }
@@ -194,7 +193,7 @@ impl fmt::Display for Message
             Ok(s) => s,
             Err(_) => return Err(fmt::Error),
         };
-        match self.get_payload_str() {
+        match self.payload_str() {
             Ok(s) => write!(f, "{}: {}", topic, s),
             Err(_) => write!(f, "{}: {:?}", topic, self.payload),
         }
@@ -375,7 +374,7 @@ mod tests {
 
         // The topic is only kept in the Rust struct as a CString
         assert_eq!(TOPIC, msg.topic.to_str().unwrap());
-        assert_eq!(TOPIC, msg.get_topic().unwrap());
+        assert_eq!(TOPIC, msg.topic());
     }
 
     #[test]
@@ -386,7 +385,7 @@ mod tests {
                     .payload(PAYLOAD).finalize();
 
         assert_eq!(PAYLOAD, msg.payload.as_slice());
-        assert_eq!(PAYLOAD, msg.get_payload());
+        assert_eq!(PAYLOAD, msg.payload());
 
         assert_eq!(msg.payload.len() as i32, msg.cmsg.payloadlen);
         assert_eq!(msg.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
@@ -400,7 +399,7 @@ mod tests {
                     .qos(QOS).finalize();
 
         assert_eq!(QOS, msg.cmsg.qos);
-        assert_eq!(QOS, msg.get_qos());
+        assert_eq!(QOS, msg.qos());
     }
 
     #[test]
@@ -412,7 +411,7 @@ mod tests {
         let msg = MessageBuilder::new()
                     .retained(true).finalize();
         assert!(msg.cmsg.retained != 0);
-        assert!(msg.get_retained());
+        assert!(msg.retained());
     }
 
     // Make sure assignment works properly

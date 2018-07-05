@@ -113,6 +113,10 @@ impl ConnectOptions {
         opts
     }
 
+    /// Gets the "clean session" setting in the options.
+    pub fn clean_session(&self) -> bool {
+        self.copts.cleansession != 0
+    }
     /// This sets the "clean session" behavior for connecting to the server.
     /// When set to true, this directs the server to throw away any state
     /// related to the client, as determined by the client identifier.
@@ -120,11 +124,6 @@ impl ConnectOptions {
     /// resumes the previous session.
     pub fn set_clean_session(&mut self, clean: bool) {
         self.copts.cleansession = if clean { 1 } else { 0 }
-    }
-
-    /// Gets the "clean session" setting in the options.
-    pub fn get_clean_session(&self) -> bool {
-        self.copts.cleansession != 0
     }
 }
 

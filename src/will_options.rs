@@ -70,28 +70,28 @@ impl WillOptions {
     }
 
     /// Gets the topic string for the LWT
-    fn get_topic(&self) -> Result<String, IntoStringError> {
+    fn topic(&self) -> Result<String, IntoStringError> {
         self.topic.clone().into_string()
     }
 
     /// Gets the payload of the LWT
-    pub fn get_payload(&self) -> &Vec<u8> {
+    pub fn payload(&self) -> &Vec<u8> {
         &self.payload
     }
 
     /// Gets the payload of the message as a string.
     /// Note that this clones the payload.
-    pub fn get_payload_str(&self) -> Result<String, FromUtf8Error> {
+    pub fn payload_str(&self) -> Result<String, FromUtf8Error> {
         String::from_utf8(self.payload.clone())
     }
 
     /// Returns the Quality of Service (QOS) for the message.
-    pub fn get_qos(&self) -> i32 {
+    pub fn qos(&self) -> i32 {
         self.copts.qos
     }
 
     /// Gets the 'retained' flag for the message.
-    pub fn get_retained(&self) -> bool {
+    pub fn retained(&self) -> bool {
         self.copts.retained != 0
     }
 }
@@ -251,3 +251,4 @@ mod tests {
         assert!(opts.copts.retained != 0);
     }
 }
+

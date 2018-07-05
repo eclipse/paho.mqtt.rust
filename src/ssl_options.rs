@@ -20,8 +20,7 @@
  *******************************************************************************/
 
 use std::ptr;
-use std::ffi::{CString};    //, IntoStringError};
-//use std::string::{FromUtf8Error};
+use std::ffi::{CString};
 use std::os::raw::{c_char};
 
 use ffi;
@@ -75,27 +74,27 @@ impl SslOptions {
         opts
     }
 
-    pub fn get_trust_store(&self) -> String {
+    pub fn trust_store(&self) -> String {
         self.trust_store.to_str().unwrap().to_string()
     }
 
-    pub fn get_key_store(&self) -> String {
+    pub fn key_store(&self) -> String {
         self.key_store.to_str().unwrap().to_string()
     }
 
-    pub fn get_private_key(&self) -> String {
+    pub fn private_key(&self) -> String {
         self.private_key.to_str().unwrap().to_string()
     }
 
-    pub fn get_private_key_password(&self) -> String {
+    pub fn private_key_password(&self) -> String {
         self.private_key_password.to_str().unwrap().to_string()
     }
 
-    pub fn get_enabled_cipher_suites(&self) -> String {
+    pub fn enabled_cipher_suites(&self) -> String {
         self.enabled_cipher_suites.to_str().unwrap().to_string()
     }
 
-    pub fn get_enable_server_cert_auth(&self) -> bool {
+    pub fn enable_server_cert_auth(&self) -> bool {
         self.copts.enableServerCertAuth != 0
     }
 }
