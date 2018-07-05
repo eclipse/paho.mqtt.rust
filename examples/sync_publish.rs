@@ -1,15 +1,14 @@
-// sync_publish.rs
-//
+// paho-mqtt/examples/sync_publish.rs
 // This is a Paho MQTT Rust client sample application.
 //
-// This application is a simple MQTT publisher using the
-// synchronous/blocking client interface.
-//
-// The sample demonstrates:
-//	- Use of the synchronous/blocking API
-//	- Connecting to an MQTT broker
-//	- Publishing messages
-//
+//! This application is a simple MQTT publisher using the
+//! synchronous/blocking client interface.
+//!
+//! The sample demonstrates:
+//!   - Use of the synchronous/blocking API
+//!   - Connecting to an MQTT broker
+//!   - Publishing messages
+//!
 
 /*******************************************************************************
  * Copyright (c) 2017 Frank Pagliughi <fpagliughi@mindspring.com>
@@ -34,28 +33,28 @@ extern crate paho_mqtt as mqtt;
 use std::process;
 
 fn main() {
-	// Initialize the logger from the environment
-	env_logger::init().unwrap();
+    // Initialize the logger from the environment
+    env_logger::init().unwrap();
 
-	// Create a client & define connect options
-	let cli = mqtt::Client::new("tcp://localhost:1883").unwrap_or_else(|e| {
-		println!("Error creating the client: {:?}", e);
-		process::exit(1);
-	});
+    // Create a client & define connect options
+    let cli = mqtt::Client::new("tcp://localhost:1883").unwrap_or_else(|e| {
+        println!("Error creating the client: {:?}", e);
+        process::exit(1);
+    });
 
-	// Connect and wait for it to complete or fail
-	if let Err(e) = cli.connect(None) {
-		println!("Unable to connect: {:?}", e);
-		process::exit(1);
-	}
+    // Connect and wait for it to complete or fail
+    if let Err(e) = cli.connect(None) {
+        println!("Unable to connect: {:?}", e);
+        process::exit(1);
+    }
 
-	// Create a message and publish it
-	let msg = mqtt::Message::new("test", "Hello synchronous world!", 0);
+    // Create a message and publish it
+    let msg = mqtt::Message::new("test", "Hello synchronous world!", 0);
 
-	if let Err(e) = cli.publish(msg) {
-		println!("Error sending message: {:?}", e);
-	}
+    if let Err(e) = cli.publish(msg) {
+        println!("Error sending message: {:?}", e);
+    }
 
-	// Disconnect from the broker
-	cli.disconnect(None).unwrap();
+    // Disconnect from the broker
+    cli.disconnect(None).unwrap();
 }

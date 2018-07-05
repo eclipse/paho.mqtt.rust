@@ -1,20 +1,20 @@
-// async_subscribe.rs
-//
+// paho-mqtt/examples/async_subscribe.rs
 // This is a Paho MQTT Rust client, sample application.
 //
-// This application is an MQTT subscriber using the asynchronous client
-// interface, employing callbacks to receive messages and status updates.
-// It also monitors for disconnects and performs manual re-connections.
-//
-// The sample demonstrates:
-//  - Connecting to an MQTT server/broker.
-//  - Subscribing to a topic
-//  - Receiving messages through the callback API
-//  - Receiving network disconnect updates and attempting manual reconnects.
-//  - Using a "clean session" and manually re-subscribing to topics on
-//    reconnect.
-//	- Last will and testament 
-//
+//! This application is an MQTT subscriber using the asynchronous client
+//! interface of the Paho Rust client library, employing callbacks to
+//! receive messages and status updates. It also monitors for disconnects
+//! and performs manual re-connections.
+//!
+//! The sample demonstrates:
+//!   - Connecting to an MQTT server/broker.
+//!   - Subscribing to a topic
+//!   - Receiving messages through the callback API
+//!   - Receiving network disconnect updates and attempting manual reconnects.
+//!   - Using a "clean session" and manually re-subscribing to topics on
+//!     reconnect.
+//!   - Last will and testament
+//!
 
 /*******************************************************************************
  * Copyright (c) 2017 Frank Pagliughi <fpagliughi@mindspring.com>
@@ -40,18 +40,18 @@ use std::{process, thread};
 use std::time::Duration;
 
 // The topics to which we subscribe.
-const TOPICS: &[&str] = &["test", "hello" ];
+const TOPICS: &[&str] = &[ "test", "hello" ];
 const QOS: &[i32] = &[1, 1];
 
 // Callback for a successful connection to the broker.
 // We subscribe to the topic(s) we want here.
 fn on_connect_success(cli: &mqtt::AsyncClient, _msgid: u16) {
-	println!("Connection succeeded");
-	// Subscribe to the desired topic(s).
-	//cli.subscribe_many(TOPICS, vec!(1, 1));
-	cli.subscribe_many(TOPICS, QOS);
-	println!("Subscribing to topics.");
-	// TODO: This doesn't yet handle a failed subscription.
+    println!("Connection succeeded");
+    // Subscribe to the desired topic(s).
+    //cli.subscribe_many(TOPICS, vec!(1, 1));
+    cli.subscribe_many(TOPICS, QOS);
+    println!("Subscribing to topics.");
+    // TODO: This doesn't yet handle a failed subscription.
 }
 
 // Callback for a failed attempt to connect to the server.
@@ -62,67 +62,62 @@ fn on_connect_success(cli: &mqtt::AsyncClient, _msgid: u16) {
 // *not* conected, and thus not doing anything important. So we don't worry
 // too much about stopping its callback thread.
 fn on_connect_failure(cli: &mqtt::AsyncClient, _msgid: u16, rc: i32) {
-	println!("Connection attempt failed with error code {}.\n", rc);
-	thread::sleep(Duration::from_millis(2500));
-	cli.reconnect_with_callbacks(on_connect_success, on_connect_failure);
+    println!("Connection attempt failed with error code {}.\n", rc);
+    thread::sleep(Duration::from_millis(2500));
+    cli.reconnect_with_callbacks(on_connect_success, on_connect_failure);
 }
 
 /////////////////////////////////////////////////////////////////////////////
 
 fn main() {
-	// Initialize the logger from the environment
-	env_logger::init().unwrap();
+    // Initialize the logger from the environment
+    env_logger::init().unwrap();
 
-	// Create the client connection
-	let mut cli = mqtt::AsyncClient::new(("tcp://localhost:1883", "rust-async-sub")).unwrap_or_else(|e| {
-		println!("Error creating the client: {:?}", e);
-		process::exit(1);
-	});
+    // Create the client connection
+    let mut cli = mqtt::AsyncClient::new(("tcp://localhost:1883", "rust-async-sub")).unwrap_or_else(|e| {
+        println!("Error creating the client: {:?}", e);
+        process::exit(1);
+    });
 
-	// Set a closure to be called whenever the client loses the connection.
-	// It will attempt to reconnect, and set up function callbacks to keep
-	// retrying until the connection is re-established.
-	cli.set_connection_lost_callback(|cli: &mut mqtt::AsyncClient| {
-		println!("Connection lost. Attempting reconnect.");
-		thread::sleep(Duration::from_millis(2500));
-		cli.reconnect_with_callbacks(on_connect_success, on_connect_failure);
-	});
+    // Set a closure to be called whenever the client loses the connection.
+    // It will attempt to reconnect, and set up function callbacks to keep
+    // retrying until the connection is re-established.
+    cli.set_connection_lost_callback(|cli: &mut mqtt::AsyncClient| {
+        println!("Connection lost. Attempting reconnect.");
+        thread::sleep(Duration::from_millis(2500));
+        cli.reconnect_with_callbacks(on_connect_success, on_connect_failure);
+    });
 
-	// Attach a closure to the client to receive callback
-	// on incoming messages.
-	cli.set_message_callback(|_cli,msg| {
-		if let Some(msg) = msg {
-			let topic = msg.get_topic().unwrap();
-			let payload_str = msg.get_payload_str().unwrap();
-			println!("Message:  {} - {}", topic, payload_str);
-		}
-	});
+    // Attach a closure to the client to receive callback
+    // on incoming messages.
+    cli.set_message_callback(|_cli,msg| {
+        if let Some(msg) = msg {
+            let topic = msg.get_topic().unwrap();
+            let payload_str = msg.get_payload_str().unwrap();
+            println!("Message:  {} - {}", topic, payload_str);
+        }
+    });
 
-	// Define the set of options for the connection
-	let lwt = mqtt::Message::new("test", "Async subscriber lost connection", 1);
+    // Define the set of options for the connection
+    let lwt = mqtt::Message::new("test", "Async subscriber lost connection", 1);
 
-	let conn_opts = mqtt::ConnectOptionsBuilder::new()
-		.keep_alive_interval(Duration::from_secs(20))
-		.mqtt_version(mqtt::MQTT_VERSION_3_1_1)
-		.clean_session(true)
-		.will_message(lwt)
-		.finalize();
+    let conn_opts = mqtt::ConnectOptionsBuilder::new()
+        .keep_alive_interval(Duration::from_secs(20))
+        .mqtt_version(mqtt::MQTT_VERSION_3_1_1)
+        .clean_session(true)
+        .will_message(lwt)
+        .finalize();
 
-	// Make the connection to the broker
-	println!("Connecting to the MQTT server...");
-	cli.connect_with_callbacks(conn_opts, on_connect_success, on_connect_failure);
+    // Make the connection to the broker
+    println!("Connecting to the MQTT server...");
+    cli.connect_with_callbacks(conn_opts, on_connect_success, on_connect_failure);
 
-	// Just wait for incoming messages.
-	loop {
-		thread::sleep(Duration::from_millis(1000));
-	}
+    // Just wait for incoming messages.
+    loop {
+        thread::sleep(Duration::from_millis(1000));
+    }
 
-	// Hitting ^C will exit the app and cause the broker to publish the 
-	// LWT message since we're not disconnecting cleanly.
-
-	/*
-	cli.unsubscribe_many(TOPICS).wait();
-	cli.disconnect(None).wait();
-	*/
+    // Hitting ^C will exit the app and cause the broker to publish the
+    // LWT message since we're not disconnecting cleanly.
 }
 

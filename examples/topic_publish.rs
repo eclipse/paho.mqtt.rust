@@ -1,16 +1,17 @@
-// topic_publish.rs
-// 
+// paho-mqtt/examples/topic_publish.rs
 // Example application for Paho MQTT Rust library.
-// This is a simple asynchronous publisher that uses a topic object to 
-// repeatedly publish messages on the same topic.
 //
-// This sample demonstrates:
-//	- Connecting to an MQTT broker
-//	- Publishing a message asynchronously
-//	- Using a 'Topic' object to publish multiple messages to the same topic.
+//! This is a simple asynchronous publisher that uses a topic object to
+//! repeatedly publish messages on the same topic.
+//!
+//! This sample demonstrates:
+//!   - Connecting to an MQTT broker
+//!   - Publishing a message asynchronously
+//!   - Using a 'Topic' object to publish multiple messages to the same topic.
+//!
 
 /*******************************************************************************
- * Copyright (c) 2017 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
