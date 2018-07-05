@@ -19,6 +19,8 @@
  *******************************************************************************/
 
 //! Last Will and Testament (LWT) options for the Paho MQTT Rust client library.
+//!
+
 // TODO: We probably don't need the will options... at least not for the
 // public API. This is simply a message. So the public API could be:
 //
@@ -27,9 +29,9 @@
 //
 
 use std::ptr;
-use std::ffi::{CString, IntoStringError};
-use std::string::{FromUtf8Error};
-use std::os::raw::{c_void};
+use std::ffi::CString;
+use std::string::FromUtf8Error;
+use std::os::raw::c_void;
 
 use ffi;
 
@@ -39,6 +41,19 @@ use message::Message;
 /// This defines a message that is registered with the the server at the time
 /// of connection. Then if the connection is lost unexpectedly, the message
 /// is published by the server.
+///
+/// The will options are somewhat redundant in that they simply represent a
+/// message, albeit a special one, that is included in the connect options.
+/// This structure may eventually be phased out, and therefore users are
+/// encouraged to just create a `Message` object and use it when building
+/// `ConnectOptions`:
+/// ```
+/// extern crate paho_mqtt as mqtt;
+///
+/// let lwt = mqtt::Message::new("lwt", "disconnected", 1);
+/// let opts = mqtt::ConnectOptionsBuilder::new().will_message(lwt).finalize();
+/// ```
+///
 #[derive(Debug)]
 pub struct WillOptions {
     pub(crate) copts: ffi::MQTTAsync_willOptions,
@@ -47,8 +62,49 @@ pub struct WillOptions {
 }
 
 impl WillOptions {
-    pub fn new() -> WillOptions {
-        WillOptions::default()
+    /// Creates a new WillOptions message.
+    ///
+    /// # Arguments
+    ///
+    /// * `topic` The topic on which the LWT message is to be published.
+    /// * `payload` The binary payload of the LWT message
+    /// * `qos` The quality of service for message delivery (0, 1, or 2)
+    pub fn new<S,V>(topic: S, payload: V, qos: i32) -> WillOptions
+        where S: Into<String>,
+              V: Into<Vec<u8>>
+    {
+        let opts = WillOptions {
+            copts: ffi::MQTTAsync_willOptions {
+                qos,
+                ..ffi::MQTTAsync_willOptions::default()
+            },
+            topic: CString::new(topic.into()).unwrap(),
+            payload: payload.into(),
+        };
+        WillOptions::fixup(opts)
+    }
+
+    /// Creates a new WillOptions message with the 'retain' flag set.
+    ///
+    /// # Arguments
+    ///
+    /// * `topic` The topic on which the LWT message is to be published.
+    /// * `payload` The binary payload of the LWT message
+    /// * `qos` The quality of service for message delivery (0, 1, or 2)
+    pub fn new_retained<S,V>(topic: S, payload: V, qos: i32) -> WillOptions
+        where S: Into<String>,
+              V: Into<Vec<u8>>
+    {
+        let opts = WillOptions {
+            copts: ffi::MQTTAsync_willOptions {
+                retained: 1,
+                qos,
+                ..ffi::MQTTAsync_willOptions::default()
+            },
+            topic: CString::new(topic.into()).unwrap(),
+            payload: payload.into(),
+        };
+        WillOptions::fixup(opts)
     }
 
     // Updates the C struct from the cached topic and payload vars
@@ -70,12 +126,12 @@ impl WillOptions {
     }
 
     /// Gets the topic string for the LWT
-    fn topic(&self) -> Result<String, IntoStringError> {
-        self.topic.clone().into_string()
+    fn topic(&self) -> &str {
+        self.topic.to_str().unwrap()
     }
 
     /// Gets the payload of the LWT
-    pub fn payload(&self) -> &Vec<u8> {
+    pub fn payload(&self) -> &[u8] {
         &self.payload
     }
 
@@ -97,6 +153,7 @@ impl WillOptions {
 }
 
 impl Default for WillOptions {
+    /// Creates a WillOptions struct with default options
     fn default() -> WillOptions {
         let opts = WillOptions {
             copts: ffi::MQTTAsync_willOptions::default(),
@@ -108,6 +165,9 @@ impl Default for WillOptions {
 }
 
 impl Clone for WillOptions {
+    /// Creates a clone of the WillOptions struct.
+    /// This clones the cached values and updates the C struct to refer
+    /// to them.
     fn clone(&self) -> WillOptions {
         let will = WillOptions {
             copts: self.copts.clone(),
@@ -144,6 +204,7 @@ mod tests {
     use std::os::raw::{c_char};
     use message::MessageBuilder;
 
+    // The C struct identifier for will options and the supported struct version.
     const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'W' as c_char];
     const STRUCT_VERSION: i32 = 1;
 
@@ -175,6 +236,40 @@ mod tests {
 
         assert_eq!(&[] as &[u8], opts.topic.as_bytes());
         assert_eq!(&[] as &[u8], opts.payload.as_slice());
+    }
+
+    #[test]
+    fn test_new() {
+        let msg = WillOptions::new(TOPIC, PAYLOAD, QOS);
+
+        assert_eq!(STRUCT_ID, msg.copts.struct_id);
+        assert_eq!(STRUCT_VERSION, msg.copts.struct_version);
+
+        assert_eq!(TOPIC, msg.topic.to_str().unwrap());
+        assert_eq!(PAYLOAD, msg.payload.as_slice());
+
+        assert_eq!(msg.payload.len() as i32, msg.copts.payload.len);
+        assert_eq!(msg.payload.as_ptr() as *const c_void, msg.copts.payload.data);
+
+        assert_eq!(QOS, msg.copts.qos);
+        assert!(msg.copts.retained == 0);
+    }
+
+    #[test]
+    fn test_new_retained() {
+        let msg = WillOptions::new_retained(TOPIC, PAYLOAD, QOS);
+
+        assert_eq!(STRUCT_ID, msg.copts.struct_id);
+        assert_eq!(STRUCT_VERSION, msg.copts.struct_version);
+
+        assert_eq!(TOPIC, msg.topic.to_str().unwrap());
+        assert_eq!(PAYLOAD, msg.payload.as_slice());
+
+        assert_eq!(msg.payload.len() as i32, msg.copts.payload.len);
+        assert_eq!(msg.payload.as_ptr() as *const c_void, msg.copts.payload.data);
+
+        assert_eq!(QOS, msg.copts.qos);
+        assert!(msg.copts.retained != 0);
     }
 
     // Test creating will options from a message
