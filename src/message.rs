@@ -21,9 +21,9 @@
 
 use std::slice;
 use std::ffi::{CString};
-use std::string::{FromUtf8Error};
 use std::os::raw::{c_void};
 use std::convert::From;
+use std::borrow::Cow;
 use std::fmt;
 
 use ffi;
@@ -124,9 +124,14 @@ impl Message {
     }
 
     /// Gets the payload of the message as a string.
-    /// Note that this clones the payload.
-    pub fn payload_str(&self) -> Result<String, FromUtf8Error> {
-        String::from_utf8(self.payload.clone())
+    ///
+    /// This utilizes the "lossy" style of conversion from the std library.
+    /// If the contents of the CStr are valid UTF-8 data, this function will
+    /// return a `Cow::Borrowed([&str])` with the the corresponding `[&str]` slice.
+    /// Otherwise, it will replace any invalid UTF-8 sequences with U+FFFD
+    /// REPLACEMENT CHARACTER and return a `Cow::Owned(String)` with the result.
+    pub fn payload_str(&self) -> Cow<str> {
+        String::from_utf8_lossy(&self.payload)
     }
 
     /// Returns the Quality of Service (QOS) for the message.
@@ -193,10 +198,8 @@ impl fmt::Display for Message
             Ok(s) => s,
             Err(_) => return Err(fmt::Error),
         };
-        match self.payload_str() {
-            Ok(s) => write!(f, "{}: {}", topic, s),
-            Err(_) => write!(f, "{}: {:?}", topic, self.payload),
-        }
+        let payload = self.payload_str();
+        write!(f, "{}: {}", topic, payload)
     }
 }
 

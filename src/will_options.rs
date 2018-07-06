@@ -30,8 +30,8 @@
 
 use std::ptr;
 use std::ffi::CString;
-use std::string::FromUtf8Error;
 use std::os::raw::c_void;
+use std::borrow::Cow;
 
 use ffi;
 
@@ -137,8 +137,8 @@ impl WillOptions {
 
     /// Gets the payload of the message as a string.
     /// Note that this clones the payload.
-    pub fn payload_str(&self) -> Result<String, FromUtf8Error> {
-        String::from_utf8(self.payload.clone())
+    pub fn payload_str(&self) -> Cow<str> {
+        String::from_utf8_lossy(&self.payload)
     }
 
     /// Returns the Quality of Service (QOS) for the message.

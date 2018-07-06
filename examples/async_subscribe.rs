@@ -50,7 +50,7 @@ fn on_connect_success(cli: &mqtt::AsyncClient, _msgid: u16) {
     // Subscribe to the desired topic(s).
     //cli.subscribe_many(TOPICS, vec!(1, 1));
     cli.subscribe_many(TOPICS, QOS);
-    println!("Subscribing to topics.");
+    println!("Subscribing to topics: {:?}", TOPICS);
     // TODO: This doesn't yet handle a failed subscription.
 }
 
@@ -93,8 +93,8 @@ fn main() {
     cli.set_message_callback(|_cli,msg| {
         if let Some(msg) = msg {
             let topic = msg.topic();
-            let payload_str = msg.payload_str().unwrap();
-            println!("Message:  {} - {}", topic, payload_str);
+            let payload_str = msg.payload_str();
+            println!("{} - {}", topic, payload_str);
         }
     });
 
