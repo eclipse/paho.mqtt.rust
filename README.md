@@ -19,7 +19,7 @@ The initial version of the library is a wrapper for the Paho C library, similar 
 * Standard TCP support
 * SSL / TLS
 * Last Will and Testament (LWT)
-* Message Persistence 
+* Message Persistence
   * File or memory persistence
   * User-defined
 * Automatic Reconnect
@@ -54,7 +54,15 @@ If the C library is not installed in a default system location, then the path to
 
 `PAHO_MQTT_C_INC_PATH= ...path to headers...`
 
-`PAHO_MQTT_C_LIB_PATH= ...path to library...` 
+`PAHO_MQTT_C_LIB_PATH= ...path to library...`
+
+### Mac OS X
+
+paho.mqtt.rust links to libpaho-mqtt3as. Mac OS X is not able find it from original files therefore create symlinks:
+
+ln -s /usr/local/lib/libpaho-mqtt3as.so.1.0 /usr/local/lib/libpaho-mqtt3as.dylib
+ln -s /usr/local/lib/libpaho-mqtt3as.so.1.0 /usr/local/lib/libpaho-mqtt3as.so.1
+
 
 ### Bindgen linker issue
 
