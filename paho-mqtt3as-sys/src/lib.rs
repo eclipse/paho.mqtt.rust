@@ -80,7 +80,12 @@ impl Default for MQTTAsync_connectOptions {
 			binarypwd: MQTTAsync_connectOptions__bindgen_ty_1 {
 				len: 0,
 				data: ptr::null(),
-			}
+			},
+			cleanstart: 0,
+			connectProperties: ptr::null_mut(),
+			onFailure5: None,
+			onSuccess5: None,
+			willProperties: ptr::null_mut(),
 		}
 	}
 }
@@ -133,6 +138,23 @@ impl Default for MQTTAsync_responseOptions {
 			onFailure: None,
 			context: ptr::null_mut(),
 			token: 0,
+			onFailure5: None,
+			onSuccess5: None,
+			properties: MQTTProperties{
+				count: 0,
+				max_count: 0,
+				length: 0,
+				array: ptr::null_mut()
+			},
+			subscribe_options: MQTTSubscribe_options {
+				struct_id: [ b'M' as c_char, b'Q' as c_char, b'S' as c_char, b'O' as c_char ],
+				struct_version: 0,
+				noLocal: 0,
+				retainAsPublished: 0,
+				retainHandling: 0,
+			},
+			subscribe_options_count: 0,
+			subscribe_options_list: ptr::null_mut(),
 		}
 	}
 }
@@ -150,9 +172,15 @@ impl Default for MQTTAsync_message {
 			qos: 0,
 			retained: 0,
 			dup: 0,
-			msgid: 0
+			msgid: 0,
+			properties: MQTTProperties{
+				count: 0,
+				max_count: 0,
+				length: 0,
+				array: ptr::null_mut()
+			},
 		}
-	}	
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -166,6 +194,15 @@ impl Default for MQTTAsync_disconnectOptions {
 			timeout: 0,
 			onSuccess: None,
 			onFailure: None,
+			onFailure5: None,
+			onSuccess5: None,
+			properties: MQTTProperties{
+				count: 0,
+				max_count: 0,
+				length: 0,
+				array: ptr::null_mut()
+			},
+			reasonCode: MQTTReasonCodes::SUCCESS,
 			context: ptr::null_mut(),
 		}
 	}
