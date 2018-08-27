@@ -923,8 +923,17 @@ impl AsyncClient {
 
 impl Drop for AsyncClient {
     fn drop(&mut self) {
+        if !self.handle.is_null() {
+            unsafe {
+                ffi::MQTTAsync_destroy(&mut self.handle as *mut *mut c_void);
+            }
+        }
         if !self.persistence_ptr.is_null() {
             unsafe {
+                let context = (*self.persistence_ptr).context;
+                if !context.is_null() {
+                    drop(Box::from_raw(context));
+                }
                 drop(Box::from_raw(self.persistence_ptr));
             }
         }
