@@ -928,6 +928,11 @@ impl Drop for AsyncClient {
                 drop(Box::from_raw(self.persistence_ptr));
             }
         }
+        if !self.handle.is_null() {
+            unsafe {
+                ffi::MQTTAsync_destroy(&mut self.handle as *mut *mut c_void);
+            }
+        }
     }
 }
 
