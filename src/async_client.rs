@@ -362,9 +362,6 @@ pub struct AsyncClient {
     server_uri: CString,
     // The MQTT client ID name
     client_id: CString,
-    // Raw pointer to the user persistence (if any)
-    // This is a consumed box, and should be dropped manually
-    persistence_ptr: *mut ffi::MQTTClient_persistence,
 }
 
 impl AsyncClient {
@@ -448,7 +445,6 @@ impl AsyncClient {
             }),
             server_uri: CString::new(opts.server_uri).unwrap(),
             client_id: CString::new(opts.client_id).unwrap(),
-            persistence_ptr: ptr::null_mut(),
         };
 
         let (ptype, usrptr) = match opts.persistence {
@@ -460,9 +456,9 @@ impl AsyncClient {
 
         debug!("Creating client with persistence: {}, {:?}", ptype, usrptr);
 
-        if !usrptr.is_null() {
-            // TODO: The bridge should return boxed persistence given uptr
-            let persistence = Box::new(ffi::MQTTClient_persistence {
+        let persistence = match usrptr.is_null() {
+            true => ptr::null_mut(),
+            false => &mut ffi::MQTTClient_persistence {
                 context: usrptr,
                 popen: Some(ClientPersistenceBridge::on_open),
                 pclose: Some(ClientPersistenceBridge::on_close),
@@ -472,22 +468,17 @@ impl AsyncClient {
                 pkeys: Some(ClientPersistenceBridge::on_keys),
                 pclear: Some(ClientPersistenceBridge::on_clear),
                 pcontainskey: Some(ClientPersistenceBridge::on_contains_key),
-            });
-
-            // Note that the C library does NOT keep a copy of this persistence
-            // store structure. We must keep a copy alive for as long as the
-            // client remains active.
-            cli.persistence_ptr = Box::into_raw(persistence);
-        }
-
+            },
+        } as *mut c_void;
         let rc = unsafe {
             ffi::MQTTAsync_createWithOptions(&mut cli.handle as *mut *mut c_void,
                                              cli.server_uri.as_ptr(),
                                              cli.client_id.as_ptr(),
                                              ptype as c_int,
-                                             cli.persistence_ptr as *mut c_void,
+                                             persistence,
                                              &mut opts.copts) as i32
         };
+
 
         if rc != 0 {
             warn!("Create result: {}", rc);
@@ -923,11 +914,6 @@ impl AsyncClient {
 
 impl Drop for AsyncClient {
     fn drop(&mut self) {
-        if !self.persistence_ptr.is_null() {
-            unsafe {
-                drop(Box::from_raw(self.persistence_ptr));
-            }
-        }
         if !self.handle.is_null() {
             unsafe {
                 ffi::MQTTAsync_destroy(&mut self.handle as *mut *mut c_void);
@@ -1051,7 +1037,6 @@ impl AsyncClientBuilder {
             }),
             server_uri: CString::new(self.server_uri.clone()).unwrap(),
             client_id: CString::new(self.client_id.clone()).unwrap(),
-            persistence_ptr: ptr::null_mut(),
         };
 
         // TODO We wouldn't need this if C options were immutable in call
