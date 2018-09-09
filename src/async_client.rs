@@ -435,6 +435,9 @@ impl AsyncClient {
         let mut opts = opts.into();
 
         // TODO: Don't unwrap() CStrings. Return error instead.
+        // Implement the kind of Error and replace the unwrap with ?.
+        let server_uri = CString::new(opts.server_uri).unwrap();
+        let client_id = CString::new(opts.client_id).unwrap();
 
         let mut cli = AsyncClient {
             handle: ptr::null_mut(),
@@ -443,8 +446,8 @@ impl AsyncClient {
                 on_connection_lost: None,
                 on_message_arrived: None,
             }),
-            server_uri: CString::new(opts.server_uri).unwrap(),
-            client_id: CString::new(opts.client_id).unwrap(),
+            server_uri,
+            client_id,
         };
 
         let (ptype, usrptr) = match opts.persistence {
@@ -469,13 +472,13 @@ impl AsyncClient {
                 pclear: Some(ClientPersistenceBridge::on_clear),
                 pcontainskey: Some(ClientPersistenceBridge::on_contains_key),
             },
-        } as *mut c_void;
+        };
         let rc = unsafe {
             ffi::MQTTAsync_createWithOptions(&mut cli.handle as *mut *mut c_void,
                                              cli.server_uri.as_ptr(),
                                              cli.client_id.as_ptr(),
                                              ptype as c_int,
-                                             persistence,
+                                             persistence as *mut c_void,
                                              &mut opts.copts) as i32
         };
 
