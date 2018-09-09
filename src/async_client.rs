@@ -898,3 +898,29 @@ mod tests {
     }
 }
 
+#[cfg(test)]
+mod tests {
+
+    use super::*; 
+    use create_options::{CreateOptionsBuilder};
+    
+    #[test]
+    fn test_create_async_client() {
+        let client = AsyncClient::new("tcp://localhost:1883");
+        assert!(client.is_ok(), "Error in creating simple async client, do you have a running MQTT server on localhost:1883?");
+    }
+
+    #[test]
+    fn test_async_client_with_client_id() {
+        println!("With client id");
+        let options = CreateOptionsBuilder::new().client_id("test1").finalize();
+        let client = AsyncClient::new(options);
+        assert!(client.is_ok(), "Error in creating async client with client_id");
+        let tok = client.unwrap().connect(None);
+        match tok.wait() {
+            Ok(_) => (),
+            Err(e) => println!("(Error) {}", e)
+        }
+    }
+}
+
