@@ -17,11 +17,11 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
+use std::convert::From;
 use std::error;
 use std::fmt;
 use std::io;
-use std::str::{/*from_utf8,*/ Utf8Error};
-use std::convert::From;
+use std::str::Utf8Error;
 
 /// The possible errors
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
@@ -52,37 +52,52 @@ enum ErrorRepr {
 
 impl From<io::Error> for MqttError {
     fn from(err: io::Error) -> MqttError {
-        MqttError { repr: ErrorRepr::IoError(err) }
+        MqttError {
+            repr: ErrorRepr::IoError(err),
+        }
     }
 }
 
 impl From<Utf8Error> for MqttError {
     fn from(_: Utf8Error) -> MqttError {
-        MqttError { repr: ErrorRepr::WithDescription(ErrorKind::TypeError, -1, "Invalid UTF-8") }
+        MqttError {
+            repr: ErrorRepr::WithDescription(ErrorKind::TypeError, -1, "Invalid UTF-8"),
+        }
     }
 }
 
 impl From<(ErrorKind, &'static str)> for MqttError {
     fn from((kind, desc): (ErrorKind, &'static str)) -> MqttError {
-        MqttError { repr: ErrorRepr::WithDescription(kind, -1, desc) }
+        MqttError {
+            repr: ErrorRepr::WithDescription(kind, -1, desc),
+        }
     }
 }
 
 impl From<(ErrorKind, i32, &'static str)> for MqttError {
     fn from((kind, err, desc): (ErrorKind, i32, &'static str)) -> MqttError {
-        MqttError { repr: ErrorRepr::WithDescription(kind, err, desc) }
+        MqttError {
+            repr: ErrorRepr::WithDescription(kind, err, desc),
+        }
     }
 }
 
 impl From<(ErrorKind, &'static str, String)> for MqttError {
     fn from((kind, desc, detail): (ErrorKind, &'static str, String)) -> MqttError {
-        MqttError { repr: ErrorRepr::WithDescriptionAndDetail(kind, -1, desc, detail) }
+        MqttError {
+            repr: ErrorRepr::WithDescriptionAndDetail(kind, -1, desc, detail),
+        }
     }
 }
 
-impl From<(ErrorKind, i32, &'static str, String)> for MqttError {
-    fn from((kind, err, desc, detail): (ErrorKind, i32, &'static str, String)) -> MqttError {
-        MqttError { repr: ErrorRepr::WithDescriptionAndDetail(kind, err, desc, detail) }
+impl<S> From<(ErrorKind, i32, &'static str, S)> for MqttError
+where
+    S: Into<String>,
+{
+    fn from((kind, err, desc, detail): (ErrorKind, i32, &'static str, S)) -> MqttError {
+        MqttError {
+            repr: ErrorRepr::WithDescriptionAndDetail(kind, err, desc, detail.into()),
+        }
     }
 }
 
