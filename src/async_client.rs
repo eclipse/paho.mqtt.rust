@@ -289,9 +289,8 @@ impl Token {
 
         let rc = (*retv).ret_code;
         debug!("Token completed: {}", rc);
-        // TODO: Get real error result & message
         if rc != 0 {
-            let msg = (*retv).err_msg.clone();
+            let msg = Token::error_msg(rc);
             fail!((ErrorKind::General, rc, "Error", msg));
         }
         Ok(())
@@ -313,9 +312,8 @@ impl Token {
 
         let rc = (*retv).ret_code;
         debug!("Timed token completed: {}", rc);
-        // TODO: Get real error result & message
         if rc != 0 {
-            let msg = (*retv).err_msg.clone();
+            let msg = Token::error_msg(rc);
             fail!((ErrorKind::General, rc, "Error", msg));
         }
 
