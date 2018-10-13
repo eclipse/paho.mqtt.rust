@@ -1,7 +1,0 @@
-syntax: glob
-target/
-**/*.rs.bk
-Cargo.lock
-\.git/
-**/*.orig
-
