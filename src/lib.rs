@@ -35,7 +35,7 @@
 #[macro_use]
 extern crate log;
 
-extern crate paho_mqtt3as_sys as ffi;
+extern crate paho_mqtt_sys as ffi;
 
 pub use async_client::*;        //{AsyncClient, AsyncClientBuilder};
 pub use client::*;              //{Client, ClientBuilder};

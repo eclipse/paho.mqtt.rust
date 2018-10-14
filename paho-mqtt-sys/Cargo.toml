@@ -1,5 +1,5 @@
 [package]
-name = "paho-mqtt3as-sys"
+name = "paho-mqtt-sys"
 version = "0.2.0"
 authors = ["Frank Pagliughi <fpagliughi@mindspring.com>"]
 package = "build.rs"
