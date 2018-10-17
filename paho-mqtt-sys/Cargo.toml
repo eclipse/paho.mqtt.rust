@@ -7,8 +7,14 @@ description = """
 Rust wrapper for the Paho MQTT C Client Library.
 """
 
-[dependencies]
+[features]
+#default = ["paho_mqtt_1_2_1"]
+#default = []
+buildtime_bindgen = ["bindgen"]
+bundled = ["cmake"]
 
 [build-dependencies]
-bindgen = "0.30.0"
+bindgen = { version = "0.42", optional = true }
+cmake = { version = "0.1", optional = true }
+
 

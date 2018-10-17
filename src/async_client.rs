@@ -815,7 +815,7 @@ impl AsyncClient {
         let rc = unsafe {
             ffi::MQTTAsync_subscribeMany(self.handle,
                                          topics.len() as c_int,
-                                         topics.as_c_arr_ptr(),
+                                         topics.as_c_arr_mut_ptr(),
                                          // C lib takes mutable QoS ptr, but doesn't mutate
                                          mem::transmute(qos.as_ptr()),
                                          &mut copts)
@@ -884,7 +884,7 @@ impl AsyncClient {
         let rc = unsafe {
             ffi::MQTTAsync_unsubscribeMany(self.handle,
                                            topics.len() as c_int,
-                                           topics.as_c_arr_ptr(),
+                                           topics.as_c_arr_mut_ptr(),
                                            &mut copts)
         };
 

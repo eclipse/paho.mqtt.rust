@@ -1,10 +1,10 @@
-// build.rs
+// paho-mqtt-sys/build.rs
 //
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 //
 
 /*******************************************************************************
- * Copyright (c) 2017 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -19,152 +19,220 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-// TODO:
-// 
-// Currently this should be able to use the Paho C library if it was 
-// already compiled and installed to the normal system directory.
-// 
-// Eventually it should be able to download the C library from GitHub, 
-// then build and install it.
-//
-// To work with development branches of the C lib, the user can define 
+// Run 'cargo build -vv' to see debug output to console.
+// We output some strings "debug:..."
+// This is helpful to figure out what the build is doing.
+
+// To work with development branches of the C lib, the user can define
 // environment variables:
-//		PAHO_MQTT_C_INC_PATH= ...path to headers...
-//		PAHO_MQTT_C_LIB_PATH= ...path to library...`
+//      PAHO_MQTT_C_INCLUDE_DIR= ...path to headers...
+//      PAHO_MQTT_C_LIB_DIR= ...path to library...`
+//
+// or you could simply set:
+//      PAHO_MQTT_C_DIR=...
+//
+// in which case it will assume:
+//      PAHO_MQTT_C_INCLUDE_DIR=$PAHO_C_DIR/include
+//      PAHO_MQTT_C_LIB_DIR=$PAHO_C_DIR/lib
+//
+// The basic decision tree is as follow:
+//  + If "bundled" feature, compile the bundled C lib
+//    - If "buildtime_bindgen" feature, regenerate bindings
+//    - else use bundled bindings
+//  + else (!"bundled")
+//    - If environment vars set use that lib,
+//      ^ If "builtime_bindgen" generate bindings for user lib
+//      ^ else assume proper version and use bundled bindings
+//    - else (no env)
+//      ^ If "builtime_bindgen" exit with an error
+//      ^ else assume system install and use bundled bindings
 //
 
-extern crate bindgen;
-
-use std::env;
-use std::path::PathBuf;
+// TODO: Assuming the proper installed version of the library is problematic.
+//      We should check that the version is correct, if possible.
 
 fn main() {
+    build::main();
+}
 
-	// Run 'cargo build -vv' to see debug output to console.
-	// This is helpful to figure out what the build is doing.
-	let cver = bindgen::clang_version();
-	println!("debug:clang version: {}", cver.full);
+// Determine if we're usine SSL or not, by feature request
+fn link_lib() -> &'static str {
+    if cfg!(feature = "no-ssl") {
+        "paho-mqtt3a-static"
+    }
+    else {
+        "paho-mqtt3as-static"
+    }
+}
 
-	let target = env::var("TARGET").expect("TARGET was not set");
+#[cfg(not(feature = "buildtime_bindgen"))]
+mod bindings {
+    const PAHO_MQTT_C_VERSION: &'static str = "1.2.1";
 
-	//let paho_c_path_env = env::var("PAHO_C_PATH").unwrap_or("<unknown>".to_string());
+    use std::{env, fs};
+    use std::path::Path;
 
-	// TODO: These should not hard-code paths on my workstation.
+    pub fn place_bindings(_inc_dir: &str) {
+        let out_dir = env::var("OUT_DIR").unwrap();
+        let out_path = Path::new(&out_dir).join("bindings.rs");
 
-	let dflt_inc_path = String::from(if target.contains("linux") {
-										 "/home/fmp/mqtt/paho.mqtt.c/src"
-									 }
-									 else if target.contains("windows") {
-										 r"D:\mqtt\paho.mqtt.c\src"
-									 }
-									 else {
-										 "."
-									 });
+        let bindings = format!("bindings/bindings_paho_mqtt_{}.rs", PAHO_MQTT_C_VERSION);
+        fs::copy(&bindings, out_path)
+            .expect("Could not copy bindings to output directory");
+    }
+}
 
-	let dflt_lib_path = String::from(if target.contains("linux") {
-										 "/home/fmp/mqtt/paho.mqtt.c/build/output"
-									 }
-									 else if target.contains("windows") {
-										 r"D:\mqtt\paho.mqtt.c\build\src\Debug"
-									 }
-									 else {
-										 "."
-									 });
+#[cfg(feature = "buildtime_bindgen")]
+mod bindings {
+    extern crate bindgen;
 
-	let paho_c_inc_path = match env::var("PAHO_MQTT_C_INC_PATH") {
-		Ok(path) => path,
-		_ => match env::var("PAHO_MQTT_C_PATH") {
-				Ok(path) => path + "/src",
-				_ => dflt_inc_path,
-		},
-	};
+    use std::env;
+    use std::path::PathBuf;
 
-	let paho_c_lib_path = match env::var("PAHO_MQTT_C_LIB_PATH") {
-		Ok(path) => path,
-		_ => match env::var("PAHO_MQTT_C_PATH") {
-				Ok(path) => path + "/build/output",
-				_ => dflt_lib_path,
-		},
-	};
+    pub fn place_bindings(inc_dir: &str) {
+        let cver = bindgen::clang_version();
+        println!("debug:clang version: {}", cver.full);
+        println!("debug:bindgen include path: {}", inc_dir);
 
-	let inc_path = format!("-I{}", paho_c_inc_path);
-	let lib_path = paho_c_lib_path;
+        // The bindgen::Builder is the main entry point
+        // to bindgen, and lets you build up options for
+        // the resulting bindings.
+        let bindings = bindgen::Builder::default()
+            // Older clang versions (~v3.6) improperly mangle the functions.
+            // We shouldn't require mangling for straight C library. I think.
+            .trust_clang_mangling(false)
+            // The input header we would like to generate
+            // bindings for.
+            .header("wrapper.h").clang_arg(inc_dir)
+            // Finish the builder and generate the bindings.
+            .generate()
+            // Unwrap the Result and panic on failure.
+            .expect("Unable to generate bindings");
 
-	println!("debug:inc_path={}", inc_path);
-	println!("debug:lib_path={}", lib_path);
+        // Write the bindings to the $OUT_DIR/bindings.rs file.
+        let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+        bindings
+            .write_to_file(out_path.join("bindings.rs"))
+            .expect("Couldn't write bindings!");
+    }
+}
 
-	//let paho_c_lib_path_env = env::var("PAHO_C_LIB_PATH");
+#[cfg(feature = "bundled")]
+mod build {
+    extern crate cmake;
 
-	// This is the path for a local GNU Make build of the Paho C lib
+    use super::*;
+    use std::{/*env, fs,*/ process};
+    use std::path::Path;
+    use std::process::Command;
 
-	// This would be the path for a CMake build w/ local install
-	//let link_path = "/home/fmp/mqtt/paho.mqtt.c/build-cmake/_install/lib";
+    pub fn main() {
+        // we rerun the build if the `build.rs` file is changed.
+        println!("cargo:rerun-if-changed=build.rs");
 
-	//println!("cargo:include={}", hdr_path);
+        // Mske sure that the Git submodule is checked out
 
-	// Tell cargo to tell rustc to link the Paho MQTT C library
-	// shared library.
-	// This would be the link specifier for the static library
-	//println!("cargo:rustc-link-lib=static=paho-mqtt3as-static");
+        if !Path::new("paho.mqtt.c/.git").exists() {
+            let _ = Command::new("git")
+                        .args(&["submodule", "update", "--init"])
+                        .status();
+        }
 
-	println!("cargo:rustc-link-search=native={}", lib_path);
+        // Use cmake to build the C lib
+        let mut cmk = cmake::Config::new("paho.mqtt.c/")
+            .define("PAHO_BUILD_STATIC", "on")
+            .define("PAHO_WITH_SSL", "on")
+            .build();
 
-	if target.contains("windows") {
-		println!("cargo:rustc-link-lib=static=paho-mqtt3a-static");
-	}
-	else {
-		println!("cargo:rustc-link-lib=paho-mqtt3as");
-	}
+        // We check if the target library was compiled.
+        let cmk_out_dir = cmk.clone();
+        let cmk_out_dir = Path::new(&cmk_out_dir).join("lib");
 
-	/*
-	if target.contains("linux") {
-		hdr_path = "-I/home/fmp/mqtt/paho.mqtt.c/src";
+        let link_lib = link_lib();
+        let link_file = format!("lib{}.a", link_lib);
 
-		// This is the path for a local GNU Make build of the Paho C lib
-		let link_path = "/home/fmp/mqtt/paho.mqtt.c/build/output";
+        let lib = cmk_out_dir.join(Path::new(&link_file));
+        if !lib.exists() {
+            println!("Error building Paho C library: '{}'", lib.to_string_lossy());
+            process::exit(103);
+        }
 
-		// This would be the path for a CMake build w/ local install
-		//let link_path = "/home/fmp/mqtt/paho.mqtt.c/build-cmake/_install/lib";
+        // Get bundled bindings or regenerate
+        let mut cmk_inc = cmk.clone();
+        cmk_inc.push("include");
+        let inc_dir = format!("{}", cmk_inc.display());
+        bindings::place_bindings(&inc_dir);
 
-		//println!("cargo:include={}", hdr_path);
 
-		// Tell cargo to tell rustc to link the Paho MQTT C library
-		// shared library.
-		// This would be the link specifier for the static library
-		//println!("cargo:rustc-link-lib=static=paho-mqtt3as-static");
+        // we add the folder where all the libraries are built to the path search
+        cmk.push("lib");
 
-		println!("cargo:rustc-link-lib=paho-mqtt3as");
-		println!("cargo:rustc-link-search=native={}", link_path);
-	}
-	else if target.contains("windows") {
-		hdr_path = r"-ID:\mqtt\paho.mqtt.c\src";
-		let link_path = r"D:\mqtt\paho.mqtt.c\build\src\Debug";
+        println!("cargo:rustc-link-search=native={}", cmk.display());
+        println!("cargo:rustc-link-lib=static={}", link_lib);
+    }
+}
 
-		println!("cargo:rustc-link-lib=static=paho-mqtt3a-static");
-		println!("cargo:rustc-link-search=native={}", link_path);
 
-	}
-	*/
+#[cfg(not(feature = "bundled"))]
+mod build {
+    use super::*;
+    use std::env;
 
-	// The bindgen::Builder is the main entry point
-	// to bindgen, and lets you build up options for
-	// the resulting bindings.
-	let bindings = bindgen::Builder::default()
-		// Older clang versions (~v3.6) improperly mangle the functions.
-		// We shouldn't require mangling for straight C library. I think.
-		.trust_clang_mangling(false)
-		// The input header we would like to generate
-		// bindings for.
-		.header("wrapper.h").clang_arg(inc_path)
-		// Finish the builder and generate the bindings.
-		.generate()
-		// Unwrap the Result and panic on failure.
-		.expect("Unable to generate bindings");
+    // Set the library path, and return the location of the header,
+    // if found.
+    fn find_paho_c() -> Option<String> {
+        let link_lib = link_lib();
 
-	// Write the bindings to the $OUT_DIR/bindings.rs file.
-	let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
-	bindings
-		.write_to_file(out_path.join("bindings.rs"))
-		.expect("Couldn't write bindings!");
+        println!("cargo:rerun-if-env-changed=PAHO_MQTT_C_DIR");
+        println!("cargo:rerun-if-env-changed=PAHO_MQTT_C_INCLUDE_DIR");
+        println!("cargo:rerun-if-env-changed=PAHO_MQTT_C_LIB_DIR");
+
+        if cfg!(target_os = "windows") {
+            println!("cargo:rerun-if-env-changed=PATH");
+        }
+
+        println!("cargo:rustc-link-lib={}", link_lib);
+
+        // Allow users to specify where to find the C lib.
+        if let Ok(lib_dir) = env::var("PAHO_MQTT_C_LIB_DIR") {
+            if let Ok(inc_dir) = env::var("PAHO_MQTT_C_INCLUDE_DIR") {
+                println!("debug:inc_dir={}", inc_dir);
+                println!("debug:lib_dir={}", lib_dir);
+                //println!("cargo:rustc-link-lib={}", link_lib);
+                println!("cargo:rustc-link-search={}", lib_dir);
+                return Some(inc_dir);
+            }
+            else {
+                panic!("If specifying lib dir, must also specify include dir");
+            }
+        }
+
+        if let Ok(dir) = env::var("PAHO_MQTT_C_DIR") {
+            //println!("cargo:rustc-link-lib={}", link_lib);
+            println!("cargo:rustc-link-search={}", format!("{}/lib", dir));
+            return Some(format!("{}/include", dir));
+        }
+
+        //println!("cargo:rustc-link-search=native={}", lib_path);
+        None
+    }
+
+    pub fn main() {
+        // We will use the directory `paho.mqtt.c`, if something change
+        // there we should rerun the compile step.
+        println!("cargo:rerun-if-changed=paho.mqtt.c/");
+
+        if let Some(inc_dir) = find_paho_c() {
+            bindings::place_bindings(&inc_dir);
+        }
+        else {
+            if cfg!(feature = "buildtime_bindgen") {
+                panic!("Can't generate bindings. Unknown library location");
+            }
+            else {
+                bindings::place_bindings("");
+            }
+        }
+    }
 }
 

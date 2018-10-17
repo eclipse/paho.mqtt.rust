@@ -54,6 +54,8 @@ pub const MQTT_VERSION_3_1_1: u32   = ffi::MQTTVERSION_3_1_1;
 #[derive(Debug)]
 pub struct ConnectOptions {
     /// The underlying C options structure.
+    /// The 'will', 'ssl', 'username', and 'password' fields should
+    /// be NULL (not empty) if unused.
     pub copts: ffi::MQTTAsync_connectOptions,
     will: Option<Box<WillOptions>>,
     ssl: Option<Box<SslOptions>>,
@@ -102,7 +104,7 @@ impl ConnectOptions {
 
         let n = opts.server_uris.len();
         if n != 0 {
-            opts.copts.serverURIs = opts.server_uris.as_c_arr_ptr();
+            opts.copts.serverURIs = opts.server_uris.as_c_arr_mut_ptr();
             opts.copts.serverURIcount = n as c_int;
         }
         else {
