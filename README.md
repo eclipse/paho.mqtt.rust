@@ -10,7 +10,7 @@ _The API is guaranteed to change repeatedly and often while the code is being de
 
 Initial development is being done on Linux. That is currently the only system known to work.
 
-It is hoped that a full, stable, version 1.0 release should be ready by mid-2018.
+It is hoped that a full, stable, version 1.0 release should be ready by the end of 2018.
 
 ## Features
 
@@ -33,35 +33,85 @@ The initial version of the library is a wrapper for the Paho C library, similar 
 The library is a standard Rust "crate" using the _Cargo_ build tool. It uses the standard cargo commands for building:
 
 `$ cargo build`
-Builds the library complete with C bindings
+
+Builds the library.
 
 `$ cargo build --examples`
-Builds the sample applications in the _examples_ subdirectory.
+
+Builds the library and sample applications in the _examples_ subdirectory.
 
 `$ cargo test`
+
 Builds and runs the unit tests.
 
 `$ cargo doc`
+
 Generates reference documentation.
 
-### Paho C Library
+###  The Paho C Library and _paho-mqtt-sys_
 
-The Paho Rust library is a wrapper around the Paho C library, and needs to locate both the pre-built library file and the C headers, particularly _MQTTAsync.h_.
+The Paho Rust crate is a wrapper around the Paho C library. The project provides a Rust _-sys_ crate, called _paho-mqtt-sys_, which provides unsafe bindings to the C library.  The repository contains a Git submodule pointing to the specific version of the C library that the Rust crate requires, and by default, it will automatically build and link to that library, using pre-generated C bindings that are also included in the repo.
+
+When building, the user has several options:
+
+ - Build the bundled library using the pre-generated bindings (default).
+ - Build the bundled library, but regenerate the bindings at build time.
+ - Use an external library, with the location specified by environment variables, generating the bindings at build time.
+ - Use the pre-installed library with the pre-generated bindings.
+
+These are chosen with cargo features, explained below.
 
 Currently the Rust library is only linking to the SSL version of the library, _libpaho-mqtt3as_.
 
-If the C library is not installed in a default system location, then the path to the headers and library must be specified as:
+#### Building the bundled Paho C library
 
-`PAHO_MQTT_C_INC_PATH= ...path to headers...`
+This is the default:
 
-`PAHO_MQTT_C_LIB_PATH= ...path to library...` 
+    $ cargo build
+    
+This will initialize and update the C library sources from Git, then use the _cmake_ crate to build the static version of the C library, and link it in. By default, the build will use the pre-generated bindings in _bindings/bindings_paho_mqtt_X_Y_Z.rs_, where _X_Y_Z_ is the currently supported library version.
 
-### Bindgen linker issue
+When building the bundled libraries, the bindings can also be regenerated at build-time. This is especially useful when building on uncommon/untested platforms to ensure proper bindings for that system. This is done using the "buildtime_bindgen" feature:
 
-The crate currently uses the Rust _bindgen_ library to create the bindings to the Paho C library.
+    $ cargo build --features "buildtime_bindgen"
+    
+In this case it will generate bindings based on the header files in the bundled C repository,
+
+#### Linking to an exteral Paho C library
+
+The crate can generate bindings to a copy of the Paho C library in a different location in the local file system, and link to that library. 
+
+    $ cargo build --features "external,buildtime_bindgen"
+
+The location is specified via environment variables:
+
+    PAHO_MQTT_C_INCLUDE_DIR= ...path to headers...
+    PAHO_MQTT_C_LIB_DIR= ...path to library...
+
+Alternately, this can be expressed with the single environment variable:
+
+    PAHO_MQTT_C_DIR= ...path to install directory...
+    
+In this case, it's assumed that the headers are in an _include/_ directory below the one specified, and the library is in _lib/_ under it.
+
+#### Linking to the installed Paho C library
+
+If the correct version of the Paho C library is expected to be installed on the target system, the simplest solution is to use the pre-generated bindings and specify a link to the shared paho C library. 
+
+    $ cargo build --features "external"
+
+This is especially useful in a production environment where the system is well controlled, such as  when working with full-system build tools like _yocto_ or _buildroot_. It could be easier to build or cross-compile the packages separately.
+
+This option should be used with caution when building an application that will ship independetly of the target system, since it assumes a _very specific_ version of the C library and will fail if that is not the one on the target.
+
+
+#### Bindgen linker issue
+
+The crate can optionally use the Rust _bindgen_ library to create the bindings to the Paho C library.
+
 https://rust-lang-nursery.github.io/rust-bindgen/
 
-Bindgen requires a recent version of the Clang library installed on the system - recommended v3.9 or 4.0. The bindgen dependencies seem, however, to seek out the oldest Clang version if multiple ones are installed on the system. On Ubuntu 14.04 or 16.04, the Clang v3.6 default might give some problems, although as the Paho builder is currently configured, it should work.
+Bindgen requires a relatively recent version of the Clang library installed on the system - recommended v3.9 or 4.0. The bindgen dependencies seem, however, to seek out the oldest Clang version if multiple ones are installed on the system. On Ubuntu 14.04 or 16.04, the Clang v3.6 default might give some problems, although as the Paho builder is currently configured, it should work.
 
 But the safest thing would be to set the `LIBCLANG_PATH` environment variable to point to a supported version, like:
 ```
