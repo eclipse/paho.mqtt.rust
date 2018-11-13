@@ -19,8 +19,10 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-// Run 'cargo build -vv' to see debug output to console.
-// We output some strings "debug:..."
+// Run 'cargo build -vv' to see debug output to console or check the 'output'
+// file in the build directory.
+//
+// We write some strings "debug:..."
 // This is helpful to figure out what the build is doing.
 
 // To work with development branches of the C lib, the user can define
@@ -37,7 +39,7 @@
 //
 // The basic decision tree is as follow:
 //  + If "bundled" feature, compile the bundled C lib
-//    - If "buildtime_bindgen" feature, regenerate bindings
+//    - If "build_bindgen" feature, regenerate bindings
 //    - else use bundled bindings
 //  + else (!"bundled")
 //    - If environment vars set use that lib,
@@ -55,17 +57,20 @@ fn main() {
     build::main();
 }
 
-// Determine if we're usine SSL or not, by feature request
+// Determine if we're usine SSL or not, by feature request.
+// This determines which Paho C library we link to.
 fn link_lib() -> &'static str {
-    if cfg!(feature = "no-ssl") {
-        "paho-mqtt3a-static"
+    if cfg!(feature = "ssl") {
+        println!("debug:link Using SSL library");
+        "paho-mqtt3as-static"
     }
     else {
-        "paho-mqtt3as-static"
+        println!("debug:link Using non-SSL library");
+        "paho-mqtt3a-static"
     }
 }
 
-#[cfg(not(feature = "buildtime_bindgen"))]
+#[cfg(not(feature = "build_bindgen"))]
 mod bindings {
     const PAHO_MQTT_C_VERSION: &'static str = "1.2.1";
 
@@ -82,7 +87,7 @@ mod bindings {
     }
 }
 
-#[cfg(feature = "buildtime_bindgen")]
+#[cfg(feature = "build_bindgen")]
 mod bindings {
     extern crate bindgen;
 
@@ -139,9 +144,11 @@ mod build {
         }
 
         // Use cmake to build the C lib
+        let ssl = if cfg!(feature = "ssl") { "on" } else { "off" };
+
         let mut cmk = cmake::Config::new("paho.mqtt.c/")
             .define("PAHO_BUILD_STATIC", "on")
-            .define("PAHO_WITH_SSL", "on")
+            .define("PAHO_WITH_SSL", ssl)
             .build();
 
         // We check if the target library was compiled.
@@ -166,6 +173,11 @@ mod build {
 
         // we add the folder where all the libraries are built to the path search
         cmk.push("lib");
+
+        if cfg!(feature = "ssl") {
+            println!("cargo:rustc-link-lib=ssl");
+            println!("cargo:rustc-link-lib=crypto");
+        }
 
         println!("cargo:rustc-link-search=native={}", cmk.display());
         println!("cargo:rustc-link-lib=static={}", link_lib);
@@ -198,7 +210,7 @@ mod build {
             if let Ok(inc_dir) = env::var("PAHO_MQTT_C_INCLUDE_DIR") {
                 println!("debug:inc_dir={}", inc_dir);
                 println!("debug:lib_dir={}", lib_dir);
-                //println!("cargo:rustc-link-lib={}", link_lib);
+
                 println!("cargo:rustc-link-search={}", lib_dir);
                 return Some(inc_dir);
             }
@@ -222,17 +234,12 @@ mod build {
         // there we should rerun the compile step.
         println!("cargo:rerun-if-changed=paho.mqtt.c/");
 
-        if let Some(inc_dir) = find_paho_c() {
-            bindings::place_bindings(&inc_dir);
+        let inc_dir = find_paho_c().unwrap_or_default();
+        if cfg!(feature = "build_bindgen") && inc_dir.is_empty() {
+            panic!("Can't generate bindings. Unknown library location");
         }
-        else {
-            if cfg!(feature = "buildtime_bindgen") {
-                panic!("Can't generate bindings. Unknown library location");
-            }
-            else {
-                bindings::place_bindings("");
-            }
-        }
+
+        bindings::place_bindings(&inc_dir);
     }
 }
 
