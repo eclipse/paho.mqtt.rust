@@ -4,15 +4,18 @@ This repository contains the source code for the [Eclipse Paho](http://eclipse.o
 
 ## Pre-release notes
 
+The Rust crate is a safe wrapper around the Paho C Library. This version is **specifically matched to Paho C v 1.2.x**, and is currently being tested with version 1.2.1. It will not build against newer versions of the C library, as the C lib expands functionality by extending structures, thus breaking the Rust build.
+
 This is a pre-release version of the library for the development and testing of an MQTT API for the Rust language.
 
 _The API is guaranteed to change repeatedly and often while the code is being developed prior to a formal release. Use it with caution._
 
 Initial development is being done on Linux. That is currently the only system known to work.
 
-It is hoped that a full, stable, version 1.0 release should be ready by the end of 2018.
+It is hoped that a full, stable, release should be ready by the end of 2018.
 
-## Features
+
+### Features
 
 The initial version of the library is a wrapper for the Paho C library, similar to the implementation for the current Paho C++ library. It will target MQTT v3.1 and 3.1.1, and will include all of the features available in the C library, including:
 
@@ -20,13 +23,21 @@ The initial version of the library is a wrapper for the Paho C library, similar 
 * SSL / TLS
 * Last Will and Testament (LWT)
 * Message Persistence 
-  * File or memory persistence
-  * User-defined
+* File or memory persistence
+* User-defined
 * Automatic Reconnect
 * Offline Buffering
 * High Availability
 * Asynchronous (Non-blocking) API
-* Synchronous (Blocking)  API's
+* Synchronous (Blocking)  API
+
+### Future Release
+
+This crate was initially started with the intention of being a quick re-write of the Paho C++ crate, which was used as a template for a rough API and implementation. The hope was more to introduce Rust to the the MQTT community than the other way around. Thus, this initial version lacks tight integration into some of the de facto libraries used in Rust for this type of library, such as *futures* and *tokio*.
+
+This will, hopefully, be remidied very soon.
+
+As soon as the current version is stabilized and released, work will immediately begin on a version to wrap the recently-released Paho C v1.3 to bring in support for MQTT v5 and WebSockets. At that time, we will also introduce integration with futures and optional *tokio* support.
 
 ## Building the Crate
 
@@ -34,7 +45,7 @@ The library is a standard Rust "crate" using the _Cargo_ build tool. It uses the
 
 `$ cargo build`
 
-Builds the library.
+Builds the library, and also builds the *-sys* subcrate and the bundled Paho C library. It includes SSL, as it is defined as a default feature. 
 
 `$ cargo build --examples`
 
@@ -50,11 +61,11 @@ Generates reference documentation.
 
 ###  The Paho C Library and _paho-mqtt-sys_
 
-The Paho Rust crate is a wrapper around the Paho C library. The project provides a Rust _-sys_ crate, called _paho-mqtt-sys_, which provides unsafe bindings to the C library.  The repository contains a Git submodule pointing to the specific version of the C library that the Rust crate requires, and by default, it will automatically build and link to that library, using pre-generated C bindings that are also included in the repo.
+The Paho Rust crate is a wrapper around the Paho C library. The project includes a Rust _-sys_ crate, called _paho-mqtt-sys_, which provides unsafe bindings to the C library.  The repository contains a Git submodule pointing to the specific version of the C library that the Rust crate requires, and by default, it will automatically build and link to that library, using pre-generated C bindings that are also included in the repo.
 
 When building, the user has several options:
 
- - Build the bundled library using the pre-generated bindings (default).
+ - Build the bundled library using the pre-generated bindings and SSL (default).
  - Build the bundled library, but regenerate the bindings at build time.
  - Use an external library, with the location specified by environment variables, generating the bindings at build time.
  - Use the pre-installed library with the pre-generated bindings.
@@ -73,7 +84,7 @@ This will initialize and update the C library sources from Git, then use the _cm
 
 When building the bundled libraries, the bindings can also be regenerated at build-time. This is especially useful when building on uncommon/untested platforms to ensure proper bindings for that system. This is done using the "buildtime_bindgen" feature:
 
-    $ cargo build --features "buildtime_bindgen"
+    $ cargo build --features "build_bindgen"
     
 In this case it will generate bindings based on the header files in the bundled C repository,
 
@@ -81,9 +92,11 @@ In this case it will generate bindings based on the header files in the bundled 
 
 The crate can generate bindings to a copy of the Paho C library in a different location in the local file system, and link to that library. 
 
-    $ cargo build --features "external,buildtime_bindgen"
+    $ cargo build --no-default-features --features "build_bindgen,ssl"
 
-The location is specified via environment variables:
+The "ssl" feature can be omitted if it is not desired. 
+
+The location of the C library is specified via environment variables:
 
     PAHO_MQTT_C_INCLUDE_DIR= ...path to headers...
     PAHO_MQTT_C_LIB_DIR= ...path to library...
@@ -94,16 +107,17 @@ Alternately, this can be expressed with the single environment variable:
     
 In this case, it's assumed that the headers are in an _include/_ directory below the one specified, and the library is in _lib/_ under it.
 
-#### Linking to the installed Paho C library
+#### Linking to an installed Paho C library
 
-If the correct version of the Paho C library is expected to be installed on the target system, the simplest solution is to use the pre-generated bindings and specify a link to the shared paho C library. 
+If the correct version of the Paho C library (v1.2.x) is expected to be installed on the target system, the simplest solution is to use the pre-generated bindings and specify a link to the shared paho C library. 
 
-    $ cargo build --features "external"
+    $ cargo build --no-default-features --features "ssl"
 
 This is especially useful in a production environment where the system is well controlled, such as  when working with full-system build tools like _yocto_ or _buildroot_. It could be easier to build or cross-compile the packages separately.
 
-This option should be used with caution when building an application that will ship independetly of the target system, since it assumes a _very specific_ version of the C library and will fail if that is not the one on the target.
+Again, the "ssl" feature can be omitted if it is not desired.
 
+This option should be used with caution when building an application that will ship independetly of the target system, since it assumes a _very specific_ version of the C library and will fail if that is not the one on the target.
 
 #### Bindgen linker issue
 
@@ -116,6 +130,26 @@ Bindgen requires a relatively recent version of the Clang library installed on t
 But the safest thing would be to set the `LIBCLANG_PATH` environment variable to point to a supported version, like:
 ```
 export LIBCLANG_PATH=/usr/lib/llvm-3.9/lib
+```
+
+### Cross-Compiling
+
+I was pleasently surprised to discover that the *cmake* crate seems to automatically handle cross-compiling libraries. You'll need a C cross-compiler installed on your system. See here for more info about cross-compiling Rust, in general: 
+
+https://github.com/japaric/rust-cross
+
+For example, to do a full build for `ARMv7`, which includes Raspberry Pi's, BeagleBones, UDOO Neo's, and lots of other ARM maker boards:
+
+```
+$ cargo build --target=armv7-unknown-linux-gnueabihf --examples
+```
+
+This builds the main crate, the *-sys* crate, and it cross-compiles the Paho C library. It uses SSL, so it requires you to have a version of the SSL development library installed with the cross-compiler.
+
+If you don't have SSL for the cross-compiler
+```
+$ cargo build --target=armv7-unknown-linux-gnueabihf --no-default-features \
+    --features="bundled" --examples
 ```
 
 ## Logging
