@@ -8,7 +8,7 @@ keywords = [ "MQTT", "IoT", "Paho", "messaging" ]
 license = "EPLv1.0"
 readme = "README.md"
 description = """
-The Official Eclipse Paho MQTT Rust Client Library
+The Official Eclipse Paho MQTT Rust Client Library.
 This is currently a wrapper around the Paho C library.
 """
 
