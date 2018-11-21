@@ -39,6 +39,9 @@ pub struct StringCollection
     /// A vector cache of pointers into `coll`
     /// This must be updated any time `coll` is modified.
     c_coll: Vec<*const c_char>,
+    /// A vector cache of mut pointers into `coll`
+    /// This must be updated any time `coll` is modified.
+    c_mut_coll: Vec<*mut c_char>,
 }
 
 impl StringCollection
@@ -55,6 +58,7 @@ impl StringCollection
         let sc = StringCollection {
             coll: StringCollection::to_cstring(coll),
             c_coll: Vec::new(),
+            c_mut_coll: Vec::new(),
         };
         StringCollection::fixup(sc)
     }
@@ -69,15 +73,25 @@ impl StringCollection
     }
 
     // Convert a collection of CString's to a vector of C char pointers.
+    //
     // Note that the pointers are invalidated if the original vector or
     // any of the strings in it change.
     fn to_c_vec(sv: &[CString]) -> Vec<*const c_char> {
         sv.iter().map(|cs| cs.as_ptr()).collect()
     }
 
+    // Convert a collection of CString's to a vector of C char pointers.
+    //
+    // Note that the pointers are invalidated if the original vector or
+    // any of the strings in it change.
+    fn to_c_mut_vec(sv: &[CString]) -> Vec<*mut c_char> {
+        sv.iter().map(|cs| cs.as_ptr() as *mut c_char).collect()
+    }
+
     // Updates the cached vector to correspond to the string.
     fn fixup(mut coll: StringCollection) -> StringCollection {
         coll.c_coll = StringCollection::to_c_vec(&coll.coll);
+        coll.c_mut_coll = StringCollection::to_c_mut_vec(&coll.coll);
         coll
     }
 
@@ -86,7 +100,8 @@ impl StringCollection
         self.coll.len()
     }
 
-    /// Gets the collection as a pointer to C string pointers.
+    /// Gets the collection as a pointer to const C string pointers.
+    ///
     /// This returns a pointer that can be sent to a C API that takes a
     /// pointer to an array of char pointers, like `const char* arr[]`
     /// This function is inherently unsafe. The pointer it returns is only
@@ -94,6 +109,21 @@ impl StringCollection
     /// should be requested when needed and not stored for future use.
     pub fn as_c_arr_ptr(&self) -> *const *const c_char {
         self.c_coll.as_ptr()
+    }
+
+    /// Gets the collection as a pointer to mutable C string pointers.
+    ///
+    /// This returns a pointer that can be sent to a C API that takes a
+    /// pointer to an array of mutable char pointers, like `char* arr[]`
+    /// This function is inherently unsafe. The pointer it returns is only
+    /// valid while the collection remains unmodified. In general, it
+    /// should be requested when needed and not stored for future use.
+    ///
+    /// This function is required due to the lax nature of the use of
+    /// const strings in the C API. Hopefully the API will be fixed and
+    /// this function can be removed
+    pub fn as_c_arr_mut_ptr(&self) -> *const *mut c_char {
+        self.c_mut_coll.as_ptr()
     }
 }
 
@@ -103,6 +133,7 @@ impl Default for StringCollection
         let sc = StringCollection {
             coll: Vec::new(),
             c_coll: Vec::new(),
+            c_mut_coll: Vec::new(),
         };
         StringCollection::fixup(sc)
     }
@@ -114,6 +145,7 @@ impl Clone for StringCollection
         let sc = StringCollection {
             coll: self.coll.clone(),
             c_coll: Vec::new(),
+            c_mut_coll: Vec::new(),
         };
         StringCollection::fixup(sc)
     }

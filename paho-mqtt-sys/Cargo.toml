@@ -1,0 +1,25 @@
+[package]
+name = "paho-mqtt-sys"
+version = "0.2.0"
+authors = ["Frank Pagliughi <fpagliughi@mindspring.com>"]
+package = "build.rs"
+description = """
+Rust wrapper for the Paho MQTT C Client Library.
+"""
+
+# The build features are:
+#   "bundled" - use/build the bundled Paho C library.
+#   "build_bindgen" - Use 'bindgen' to regenerate the bindings to the C library.
+#   "ssl" - Enable SSL features and link to the Paho C library that uses SSL.
+
+[features]
+default = ["bundled", "ssl"]
+bundled = ["cmake"]
+build_bindgen = ["bindgen"]
+ssl = []
+
+[build-dependencies]
+bindgen = { version = "0.42", optional = true }
+cmake = { version = "0.1", optional = true }
+
+

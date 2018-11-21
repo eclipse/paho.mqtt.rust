@@ -12,8 +12,14 @@ This is currently a wrapper around the Paho C library.
 """
 
 [dependencies]
-paho-mqtt3as-sys = { path = "paho-mqtt3as-sys" }
+paho-mqtt-sys = { path = "paho-mqtt-sys", default-features=false }
 libc = "0.2"
 log = "0.3"
 env_logger = "0.3"
+
+[features]
+default = ["bundled", "ssl"]
+bundled = ["paho-mqtt-sys/bundled"]
+build_bindgen = ["paho-mqtt-sys/build_bindgen"]
+ssl = ["paho-mqtt-sys/ssl"]
 
