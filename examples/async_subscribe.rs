@@ -82,7 +82,7 @@ fn main() {
     // Set a closure to be called whenever the client loses the connection.
     // It will attempt to reconnect, and set up function callbacks to keep
     // retrying until the connection is re-established.
-    cli.set_connection_lost_callback(|cli: &mut mqtt::AsyncClient| {
+    cli.set_connection_lost_callback(|cli: &mqtt::AsyncClient| {
         println!("Connection lost. Attempting reconnect.");
         thread::sleep(Duration::from_millis(2500));
         cli.reconnect_with_callbacks(on_connect_success, on_connect_failure);
