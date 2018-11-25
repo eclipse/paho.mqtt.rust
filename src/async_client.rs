@@ -1103,3 +1103,37 @@ impl AsyncClientBuilder {
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Makes sure than when a client is moved, the inner struct stayes at
+    // the same address (on the heap) since that inner struct is used as
+    // the context pointer for callbacks
+    // GitHub Issue #17
+    #[test]
+    fn test_context() {
+        let mut cli = AsyncClient::new("tcp://localhost:1883").unwrap();
+        cli.set_message_callback(|_, _| {});
+
+        // Get a context pointer to the inner struct
+        let pctx = {
+            let ctx: &InnerAsyncClient = &cli.inner;
+            ctx as *const _ as *mut c_void
+        };
+
+        // Move the client, then get a context pointer to inner
+        let new_cli = cli;
+        let new_pctx = {
+            let ctx: &InnerAsyncClient = &new_cli.inner;
+            ctx as *const _ as *mut c_void
+        };
+
+        // They should match (inner didn't move)
+        assert_eq!(pctx, new_pctx);
+    }
+
+}
