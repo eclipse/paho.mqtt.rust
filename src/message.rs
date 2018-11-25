@@ -21,7 +21,7 @@
 
 use std::slice;
 use std::ffi::{CString};
-use std::os::raw::{c_void};
+use std::os::raw::{c_void, c_char};
 use std::convert::From;
 use std::borrow::Cow;
 use std::fmt;
@@ -96,8 +96,15 @@ impl Message {
         let len = cmsg.payloadlen as usize;
         let payload =  slice::from_raw_parts(cmsg.payload as *mut u8, len);
 
+        let mut cmsg = cmsg.clone();
+        // TODO: This shouldn't be necessary, but the C lib seems to have a
+        // bug in that the inbound messages have these fields scrambled.
+        // This should be confirmed and then fixed in the underlying C lib.
+        cmsg.struct_id = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'M' as c_char ];
+        cmsg.struct_version = 0;
+
         let msg = Message {
-            cmsg: cmsg.clone(),
+            cmsg,
             topic,
             payload: payload.to_vec(),
         };
