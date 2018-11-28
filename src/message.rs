@@ -97,9 +97,10 @@ impl Message {
         let payload =  slice::from_raw_parts(cmsg.payload as *mut u8, len);
 
         let mut cmsg = cmsg.clone();
+
         // TODO: This shouldn't be necessary, but the C lib seems to have a
-        // bug in that the inbound messages have these fields scrambled.
-        // This should be confirmed and then fixed in the underlying C lib.
+        // bug in which inbound messages have these fields scrambled.
+        // This bug seemd to be in Paho C v1.2.x, but was fixed in v1.3
         cmsg.struct_id = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'M' as c_char ];
         cmsg.struct_version = 0;
 
