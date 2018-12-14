@@ -81,7 +81,7 @@ mod bindings {
         let out_dir = env::var("OUT_DIR").unwrap();
         let out_path = Path::new(&out_dir).join("bindings.rs");
 
-        let bindings = format!("bindings/bindings_paho_mqtt_{}.rs", PAHO_MQTT_C_VERSION);
+        let bindings = format!("bindings/bindings_paho_mqtt_c_{}.rs", PAHO_MQTT_C_VERSION);
         fs::copy(&bindings, out_path)
             .expect("Could not copy bindings to output directory");
     }
