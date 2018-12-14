@@ -36,7 +36,7 @@ extern crate log;
 extern crate env_logger;
 extern crate paho_mqtt as mqtt;
 
-use std::{process, thread};
+use std::{env, process, thread};
 use std::time::Duration;
 
 // The topics to which we subscribe.
@@ -73,8 +73,12 @@ fn main() {
     // Initialize the logger from the environment
     env_logger::init().unwrap();
 
+    let host = env::args().skip(1).next().unwrap_or(
+        "tcp://localhost:1883".to_string()
+    );
+
     // Create the client connection
-    let mut cli = mqtt::AsyncClient::new(("tcp://localhost:1883", "rust-async-sub")).unwrap_or_else(|e| {
+    let mut cli = mqtt::AsyncClient::new((host, "rust-async-sub".to_string())).unwrap_or_else(|e| {
         println!("Error creating the client: {:?}", e);
         process::exit(1);
     });

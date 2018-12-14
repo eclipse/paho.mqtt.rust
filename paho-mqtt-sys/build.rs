@@ -72,7 +72,7 @@ fn link_lib() -> &'static str {
 
 #[cfg(not(feature = "build_bindgen"))]
 mod bindings {
-    const PAHO_MQTT_C_VERSION: &'static str = "1.2.1";
+    const PAHO_MQTT_C_VERSION: &'static str = "1.3.0";
 
     use std::{env, fs};
     use std::path::Path;

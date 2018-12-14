@@ -35,7 +35,7 @@ extern crate log;
 extern crate env_logger;
 extern crate paho_mqtt as mqtt;
 
-use std::{process, thread};
+use std::{env, process, thread};
 use std::time::Duration;
 
 // --------------------------------------------------------------------------
@@ -64,10 +64,14 @@ fn main() {
     // Initialize the logger from the environment
     env_logger::init().unwrap();
 
-    // Create the client. Use an ID for a persisten session.
+    let host = env::args().skip(1).next().unwrap_or(
+        "tcp://localhost:1883".to_string()
+    );
+
+    // Create the client. Use an ID for a persistent session.
     // A real system should try harder to use a unique ID.
     let create_opts = mqtt::CreateOptionsBuilder::new()
-        .server_uri("tcp://localhost:1883")
+        .server_uri(host)
         .client_id("rust_sync_consumer")
         .finalize();
 

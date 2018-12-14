@@ -27,7 +27,7 @@
 #![allow(dead_code)]
 
 use std::ptr;
-use std::os::raw::c_char;
+use std::os::raw::{c_char, c_int};
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
@@ -47,6 +47,7 @@ impl Default for MQTTAsync_createOptions {
 			struct_version: 0,
 			sendWhileDisconnected: 0,
 			maxBufferedMessages: 100,
+            MQTTVersion: MQTTVERSION_DEFAULT as c_int,
 		}
 	}
 }
@@ -80,7 +81,12 @@ impl Default for MQTTAsync_connectOptions {
 			binarypwd: MQTTAsync_connectOptions__bindgen_ty_1 {
 				len: 0,
 				data: ptr::null(),
-			}
+			},
+            cleanstart: 0,
+            connectProperties: ptr::null_mut(),
+            willProperties: ptr::null_mut(),
+            onSuccess5: None,
+            onFailure5: None,
 		}
 	}
 }
@@ -119,8 +125,23 @@ impl Default for MQTTAsync_SSLOptions {
 			sslVersion: 1,
 			verify: 0,
 			CApath: ptr::null(),
+            ssl_error_cb: None,
+            ssl_error_context: ptr::null_mut(),
 		}
 	}
+}
+
+// New for MQTT v5
+impl Default for MQTTSubscribe_options {
+	fn default() -> MQTTSubscribe_options {
+		MQTTSubscribe_options {
+			struct_id: [ b'M' as c_char, b'Q' as c_char, b'S' as c_char, b'O' as c_char ],
+            struct_version: 0,
+            noLocal: 0,
+            retainAsPublished: 0,
+            retainHandling: 0,
+        }
+    }
 }
 
 
@@ -133,9 +154,31 @@ impl Default for MQTTAsync_responseOptions {
 			onFailure: None,
 			context: ptr::null_mut(),
 			token: 0,
+            onSuccess5: None,
+            onFailure5: None,
+            properties: MQTTProperties::default(),
+            subscribeOptions: MQTTSubscribe_options::default(),
+            subscribeOptionsCount: 0,
+            subscribeOptionsList: ptr::null_mut(),
 		}
 	}
 }
+
+/////////////////////////////////////////////////////////////////////////////
+// MQTTProperties (new for v5)
+
+impl Default for MQTTProperties {
+    fn default() -> MQTTProperties {
+        MQTTProperties {
+            count: 0,
+            max_count: 0,
+            length: 0,
+            array: ptr::null_mut(),
+        }
+    }
+}
+
+
 
 /////////////////////////////////////////////////////////////////////////////
 // Messages
@@ -150,7 +193,8 @@ impl Default for MQTTAsync_message {
 			qos: 0,
 			retained: 0,
 			dup: 0,
-			msgid: 0
+			msgid: 0,
+            properties: MQTTProperties::default(),
 		}
 	}	
 }
@@ -167,6 +211,10 @@ impl Default for MQTTAsync_disconnectOptions {
 			onSuccess: None,
 			onFailure: None,
 			context: ptr::null_mut(),
+            properties: MQTTProperties::default(),
+            reasonCode: 0,
+            onSuccess5: None,
+            onFailure5: None,
 		}
 	}
 }

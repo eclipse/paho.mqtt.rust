@@ -4,7 +4,7 @@ This repository contains the source code for the [Eclipse Paho](http://eclipse.o
 
 ## Pre-release notes
 
-The Rust crate is a safe wrapper around the Paho C Library. This version is **specifically matched to Paho C v 1.2.x**, and is currently being tested with version 1.2.1. It will not build against newer versions of the C library, as the C lib expands functionality by extending structures, thus breaking the Rust build.
+The Rust crate is a safe wrapper around the Paho C Library. This version is **specifically matched to Paho C v 1.3.x**, and is currently being tested with version 1.3.0. It will not build against newer versions of the C library, as the C lib expands functionality by extending structures, thus breaking the Rust build.
 
 This is a pre-release version of the library for the development and testing of an MQTT API for the Rust language.
 
@@ -12,19 +12,34 @@ _The API is guaranteed to change repeatedly and often while the code is being de
 
 Initial development is being done on Linux. That is currently the only system known to work.
 
-It is hoped that a full, stable, release should be ready by the end of 2018.
+It is hoped that a full, stable, release should be ready by early 2019.
+
+## Latest News
+
+To keep up with the latest announcements for this project, follow:
+
+**Twitter:** [@eclipsepaho](https://twitter.com/eclipsepaho) and [@fmpagliughi](https://twitter.com/fmpagliughi)
+
+**EMail:** [Eclipse Paho Mailing List](https://accounts.eclipse.org/mailing-list/paho-dev)
+
+Unreleased Features 
+
+- Bundled Paho C Library upgraded to v1.3.0
+- WebSocket support
 
 
 ### Features
 
-The initial version of the library is a wrapper for the Paho C library, similar to the implementation for the current Paho C++ library. It will target MQTT v3.1 and 3.1.1, and will include all of the features available in the C library, including:
+The initial version of the library is a wrapper for the Paho C library, similar to the implementation for the current Paho C++ library. It targets MQTT v3.1 and 3.1.1, and includes all of the features available in the C library for those versions, including:
 
 * Standard TCP support
 * SSL / TLS
+* WebSockets
+* QoS 0, 1, and 2
 * Last Will and Testament (LWT)
 * Message Persistence 
-* File or memory persistence
-* User-defined
+    * File or memory persistence
+    * User-defined persistence
 * Automatic Reconnect
 * Offline Buffering
 * High Availability

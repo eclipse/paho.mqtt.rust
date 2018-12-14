@@ -86,11 +86,28 @@ impl<'a> From<&'a str> for CreateOptions {
 	}
 }
 
+impl From<String> for CreateOptions {
+	fn from(server_uri: String) -> Self {
+		let mut opts = CreateOptions::default();
+		opts.server_uri = server_uri;
+		opts
+	}
+}
+
 impl<'a, 'b> From<(&'a str, &'b str)> for CreateOptions {
 	fn from((server_uri, client_id): (&'a str, &'b str)) -> Self {
 		let mut opts = CreateOptions::default();
 		opts.server_uri = server_uri.to_string();
 		opts.client_id = client_id.to_string();
+		opts
+	}
+}
+
+impl From<(String, String)> for CreateOptions {
+	fn from((server_uri, client_id): (String, String)) -> Self {
+		let mut opts = CreateOptions::default();
+		opts.server_uri = server_uri;
+		opts.client_id = client_id;
 		opts
 	}
 }
