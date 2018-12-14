@@ -77,8 +77,15 @@ fn main() {
         "tcp://localhost:1883".to_string()
     );
 
+    // Create the client. Use an ID for a persistent session.
+    // A real system should try harder to use a unique ID.
+    let create_opts = mqtt::CreateOptionsBuilder::new()
+        .server_uri(host)
+        .client_id("rust_sync_consumer")
+        .finalize();
+
     // Create the client connection
-    let mut cli = mqtt::AsyncClient::new((host, "rust-async-sub".to_string())).unwrap_or_else(|e| {
+    let mut cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|e| {
         println!("Error creating the client: {:?}", e);
         process::exit(1);
     });
