@@ -16,8 +16,8 @@
 //!     $ cd paho.mqtt.c
 //!     $ mosquitto -c test/tls-testing/mosquitto.conf
 //!
-//! Then use the file "test-root-ca.crt" from that directory
-//! (paho.mqtt.c/test/tls-testing/keys) for the trust store for this program.
+//! Then use the files "test-root-ca.crt" and "client.pem" from the directory
+//! (paho.mqtt.c/test/ssl) for the trust and key stores for this program.
 //!
 
 /*******************************************************************************
@@ -49,6 +49,7 @@ fn main() {
     // We use the trust store from the Paho C tls-testing/keys directory,
     // but we assume there's a copy in the current directory.
     const TRUST_STORE: &str = "test-root-ca.crt";
+    const KEY_STORE: &str = "client.pem";
 
     // We assume that we are in a valid directory.
     let mut trust_store = env::current_dir().unwrap();
@@ -56,19 +57,36 @@ fn main() {
 
     if !trust_store.exists() {
         println!("The trust store file does not exist: {:?}", trust_store);
-        println!("  Get a copy from \"paho.mqtt.c/test/tls-testing/keys/test-root-ca.crt\"");
+        println!("  Get a copy from \"paho.mqtt.c/test/ssl/test-root-ca.crt\"");
         process::exit(1);
     }
 
+    let mut key_store = env::current_dir().unwrap();
+    key_store.push(KEY_STORE);
+
+    if !key_store.exists() {
+        println!("The key store file does not exist: {:?}", key_store);
+        println!("  Get a copy from \"paho.mqtt.c/test/ssl/client.pem\"");
+        process::exit(1);
+    }
+
+    // Let the user override the host, but note the "ssl://" protocol.
+    let host = env::args().skip(1).next().unwrap_or(
+        "ssl://localhost:18885".to_string()
+    );
+
+    println!("Connecting to host: '{}'", host);
+
     // Create a client & define connect options
     let cli = mqtt::AsyncClientBuilder::new()
-                    .server_uri("ssl://localhost:18885")
+                    .server_uri(&host)
                     .client_id("ssl_publish_rs")
                     .offline_buffering(true)
                     .finalize();
 
     let ssl_opts = mqtt::SslOptionsBuilder::new()
         .trust_store(trust_store.to_str().unwrap())
+        .key_store(key_store.to_str().unwrap())
         .finalize();
 
     let conn_opts = mqtt::ConnectOptionsBuilder::new()
