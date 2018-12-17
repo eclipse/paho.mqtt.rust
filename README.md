@@ -111,20 +111,21 @@ The crate can generate bindings to a copy of the Paho C library in a different l
 
 The "ssl" feature can be omitted if it is not desired. 
 
-The location of the C library is specified via environment variables:
+The location of the C library is specified through an environment variable:
+
+    PAHO_MQTT_C_DIR= ...path to install directory...
+    
+It's assumed that the headers are in an _include/_ directory below the one specified, and the library is in _lib/_ under it. This would be the case with a normal install.
+
+Alternately, this can be expressed with individual environment variables for each of the header and library directories:
 
     PAHO_MQTT_C_INCLUDE_DIR= ...path to headers...
     PAHO_MQTT_C_LIB_DIR= ...path to library...
 
-Alternately, this can be expressed with the single environment variable:
-
-    PAHO_MQTT_C_DIR= ...path to install directory...
-    
-In this case, it's assumed that the headers are in an _include/_ directory below the one specified, and the library is in _lib/_ under it.
-
+In this case, 
 #### Linking to an installed Paho C library
 
-If the correct version of the Paho C library (v1.2.x) is expected to be installed on the target system, the simplest solution is to use the pre-generated bindings and specify a link to the shared paho C library. 
+If the correct version of the Paho C library is expected to be installed on the target system, the simplest solution is to use the pre-generated bindings and specify a link to the shared paho C library. 
 
     $ cargo build --no-default-features --features "ssl"
 

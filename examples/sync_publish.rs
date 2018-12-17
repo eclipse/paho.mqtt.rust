@@ -30,14 +30,18 @@ extern crate log;
 extern crate env_logger;
 extern crate paho_mqtt as mqtt;
 
-use std::process;
+use std::{env, process};
 
 fn main() {
     // Initialize the logger from the environment
     env_logger::init().unwrap();
 
     // Create a client & define connect options
-    let cli = mqtt::Client::new("tcp://localhost:1883").unwrap_or_else(|e| {
+    let host = env::args().skip(1).next().unwrap_or(
+        "tcp://localhost:1883".to_string()
+    );
+
+    let cli = mqtt::Client::new(host).unwrap_or_else(|e| {
         println!("Error creating the client: {:?}", e);
         process::exit(1);
     });
