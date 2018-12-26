@@ -23,7 +23,8 @@
 
 use std::sync::{Arc};
 
-use async_client::{AsyncClient,DeliveryToken};
+use async_client::{AsyncClient};
+use token::{DeliveryToken};
 use message::Message;
 
 /////////////////////////////////////////////////////////////////////////////
