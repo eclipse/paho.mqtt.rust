@@ -30,7 +30,10 @@
 //! wait for the connection to complete.
 //!
 //! ```
+//! extern crate futures;
 //! extern crate paho_mqtt as mqtt;
+//!
+//! use futures::future::Future;
 //!
 //! let cli = mqtt::AsyncClient::new("tcp://localhost:1883").unwrap();
 //!

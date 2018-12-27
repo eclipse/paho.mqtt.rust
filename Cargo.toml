@@ -1,6 +1,6 @@
 [package]
 name = "paho-mqtt"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Frank Pagliughi <fpagliughi@mindspring.com>"]
 homepage = "https://github.com/eclipse/paho.mqtt.rust"
 repository = "https://github.com/eclipse/paho.mqtt.rust"
@@ -15,8 +15,9 @@ This is a wrapper around the Paho C library.
 [dependencies]
 paho-mqtt-sys = { version = "0.2", path = "paho-mqtt-sys", default-features=false }
 libc = "0.2"
-log = "0.3"
-env_logger = "0.3"
+futures = "0.1"
+log = "0.4"
+env_logger = "0.6"
 
 [features]
 default = ["bundled", "ssl"]

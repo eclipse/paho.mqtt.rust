@@ -26,17 +26,19 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
+extern crate futures;
 extern crate log;
 extern crate env_logger;
 extern crate paho_mqtt as mqtt;
 
 use std::{env, process};
+use futures::Future;
 
 const QOS: i32 = 1;
 
 fn main() {
 	// Initialize the logger from the environment
-	env_logger::init().unwrap();
+	env_logger::init();
 
     let host = env::args().skip(1).next().unwrap_or(
         "tcp://localhost:1883".to_string()

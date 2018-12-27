@@ -32,6 +32,8 @@
 // Temporary
 #![allow(dead_code)]
 
+extern crate futures;
+
 #[macro_use]
 extern crate log;
 

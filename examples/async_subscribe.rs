@@ -71,7 +71,7 @@ fn on_connect_failure(cli: &mqtt::AsyncClient, _msgid: u16, rc: i32) {
 
 fn main() {
     // Initialize the logger from the environment
-    env_logger::init().unwrap();
+    env_logger::init();
 
     let host = env::args().skip(1).next().unwrap_or(
         "tcp://localhost:1883".to_string()

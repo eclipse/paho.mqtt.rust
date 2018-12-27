@@ -62,7 +62,7 @@ fn try_reconnect(cli: &mqtt::Client) -> bool
 
 fn main() {
     // Initialize the logger from the environment
-    env_logger::init().unwrap();
+    env_logger::init();
 
     let host = env::args().skip(1).next().unwrap_or(
         "tcp://localhost:1883".to_string()

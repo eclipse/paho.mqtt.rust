@@ -31,15 +31,20 @@
 
 use std::{str, ptr};
 use std::time::Duration;
-use std::sync::{Arc, Mutex, Condvar};
+use std::sync::{Arc, Mutex};
 use std::ffi::{CStr};
 use std::os::raw::{c_void};
+
+use futures::future::{Future};
+use futures::Async;
+use futures::task;
+use futures::task::Task;
 
 use ffi;
 
 use async_client::AsyncClient;
 use message::Message;
-use errors::{MqttResult, /*MqttError,*/ ErrorKind};
+use errors::{MqttResult, MqttError, ErrorKind};
 
 /////////////////////////////////////////////////////////////////////////////
 // Token
@@ -62,6 +67,8 @@ pub(crate) struct TokenData {
     ret_code: i32,
     /// The error message (if any)
     err_msg: String,
+    /// The future task
+    task: Option<Task>,
 }
 
 impl TokenData {
@@ -85,6 +92,7 @@ impl TokenData {
             msg_id: 0,
             ret_code: rc,
             err_msg: String::from(Token::error_msg(rc)),
+            task: None,
         }
     }
 }
@@ -96,6 +104,7 @@ impl Default for TokenData {
             msg_id: 0,
             ret_code: 0,
             err_msg: "".to_string(),
+            task: None,
         }
     }
 }
@@ -105,8 +114,6 @@ impl Default for TokenData {
 pub(crate) struct TokenInner {
     // Mutex guards: (done, ret, msgid)
     lock: Mutex<TokenData>,
-    // Signal for when the state changes
-    cv: Condvar,
     // Pointer to the client that created the token.
     // This is only guaranteed valid until the end of the callback
     cli: *const AsyncClient,
@@ -163,7 +170,6 @@ impl Default for TokenInner {
     fn default() -> Self {
         TokenInner {
             lock: Mutex::new(TokenData::new()),
-            cv: Condvar::new(),
             cli: ptr::null(),
             on_success: None,
             on_failure: None,
@@ -259,12 +265,9 @@ impl Token {
     // Callback function to update the token when the action completes.
     pub(crate) fn on_complete(&self, msgid: u16, rc: i32, msg: String) {
         debug!("Token completed with code: {}", rc);
-        {
-            let mut retv = self.inner.lock.lock().unwrap();
-            (*retv).complete = true;
-            (*retv).ret_code = rc;
-            (*retv).err_msg = msg;
-        }
+
+        // Fire off any user callbacks
+
         if rc == 0 {
             if let Some(ref cb) = self.inner.on_success {
                 trace!("Invoking Token::on_success callback");
@@ -279,7 +282,18 @@ impl Token {
                 cb(unsafe { &*cli }, msgid, rc);
             }
         }
-        self.inner.cv.notify_all();
+
+        // Signal completion of the token
+
+        let mut data = self.inner.lock.lock().unwrap();
+        data.complete = true;
+        data.ret_code = rc;
+        data.err_msg = msg;
+        // If this is none, it means that no one is waiting on
+        // the future yet, so we don't need to kick it.
+        if let Some(task) = data.task.as_ref() {
+            task.notify();
+        }
     }
 
     // Gets the string associated with the error code from the C lib.
@@ -322,27 +336,11 @@ impl Token {
         (*retv).msg_id = msg_id;
     }
 
-    /// Blocks the caller until the asynchronous operation has completed.
-    pub fn wait(&self) -> MqttResult<()> {
-        let mut retv = self.inner.lock.lock().unwrap();
-
-        // As long as the 'done' value inside the `Mutex` is false, we wait.
-        while !(*retv).complete {
-            retv = self.inner.cv.wait(retv).unwrap();
-        }
-
-        let rc = (*retv).ret_code;
-        debug!("Token completed: {}", rc);
-        if rc != 0 {
-            let msg = Token::error_msg(rc);
-            fail!((ErrorKind::General, rc, "Error", msg));
-        }
-        Ok(())
-    }
-
     /// Blocks the caller a limited amount of time waiting for the
     /// asynchronous operation to complete.
-    pub fn wait_for(&self, dur: Duration) -> MqttResult<()> {
+    pub fn wait_for(&self, _dur: Duration) -> MqttResult<()> {
+        unimplemented!()
+        /*
         let mut retv = self.inner.lock.lock().unwrap();
 
         while !(*retv).complete {
@@ -362,12 +360,35 @@ impl Token {
         }
 
         Ok(())
+        */
     }
 }
 
 impl Clone for Token {
     fn clone(&self) -> Self {
         Token { inner: self.inner.clone() }
+    }
+}
+
+impl Future for Token {
+    type Item = ();
+    type Error = MqttError;
+
+    fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
+        let mut data = self.inner.lock.lock().unwrap();
+        let rc = data.ret_code;
+
+        if !data.complete {
+            data.task = Some(task::current());
+            Ok(Async::NotReady)
+        }
+        else if rc == 0 {
+            Ok(Async::Ready(()))
+        }
+        else {
+            let msg = Token::error_msg(rc);
+            fail!((ErrorKind::General, rc, "Error", msg));
+        }
     }
 }
 

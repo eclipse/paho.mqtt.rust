@@ -28,6 +28,7 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
+extern crate futures;
 #[macro_use]
 extern crate log;
 extern crate env_logger;
@@ -35,6 +36,7 @@ extern crate paho_mqtt as mqtt;
 
 use std::process;
 use std::collections::HashMap;
+use futures::Future;
 
 // Use a non-zero QOS to exercise the persistence store
 const QOS: i32 = 1;
@@ -134,7 +136,7 @@ impl mqtt::ClientPersistence for MemPersistence
 
 fn main() {
     // Initialize the logger from the environment
-    env_logger::init().unwrap();
+    env_logger::init();
 
     // Create a client & define connect options
     println!("Creating the MQTT client.");
