@@ -1,4 +1,3 @@
-
 // paho-mqtt/src/async_client.rs
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 
@@ -47,7 +46,7 @@
 use std::str;
 use std::{ptr, slice, mem};
 use std::time::Duration;
-use std::sync::{Arc, Mutex};
+use std::sync::{Mutex};
 use std::ffi::{CString, CStr};
 use std::os::raw::{c_void, c_char, c_int};
 use std::sync::mpsc::{Sender, Receiver};
@@ -262,29 +261,29 @@ impl AsyncClient {
     ///
     /// * `opts` The connect options
     ///
-    pub fn connect<T>(&self, opt_opts: T) -> Arc<Token>
+    pub fn connect<T>(&self, opt_opts: T) -> Token
         where T: Into<Option<ConnectOptions>>
     {
         if let Some(opts) = opt_opts.into() {
             debug!("Connecting handle: {:?}", self.inner.handle);
             debug!("Connect options: {:?}", opts);
 
-            let tok = Arc::new(Token::new());
+            let tok = Token::new();
             let tokcb = tok.clone();
 
             let mut lkopts = self.inner.opts.lock().unwrap();
             *lkopts = opts;
             (*lkopts).copts.onSuccess = Some(Token::on_success);
             (*lkopts).copts.onFailure = Some(Token::on_failure);
-            (*lkopts).copts.context = Arc::into_raw(tokcb) as *mut c_void;
+            (*lkopts).copts.context = Token::into_raw(tokcb);
 
             let rc = unsafe {
                 ffi::MQTTAsync_connect(self.inner.handle, &(*lkopts).copts)
             };
 
             if rc != 0 {
-                let _ = unsafe { Arc::from_raw((*lkopts).copts.context as *mut Token) };
-                Arc::new(Token::from_error(rc))
+                let _ = unsafe { Token::from_raw((*lkopts).copts.context) };
+                Token::from_error(rc)
             }
             else { tok }
         }
@@ -303,9 +302,9 @@ impl AsyncClient {
     pub fn connect_with_callbacks<FS,FF>(&self,
                                          mut opts: ConnectOptions,
                                          success_cb: FS,
-                                         failure_cb: FF) -> Arc<Token>
-        where FS: FnMut(&AsyncClient,u16) + 'static,
-              FF: FnMut(&AsyncClient,u16,i32) + 'static
+                                         failure_cb: FF) -> Token
+        where FS: Fn(&AsyncClient,u16) + 'static,
+              FF: Fn(&AsyncClient,u16,i32) + 'static
     {
         debug!("Connecting handle: {:?}", self.inner.handle);
         debug!("Connect opts: {:?}", opts);
@@ -315,13 +314,12 @@ impl AsyncClient {
             }
         }
 
-        let t = Token::from_client(self as *const _, success_cb, failure_cb);
-        let tok = Arc::new(t);
+        let tok = Token::from_client(self as *const _, success_cb, failure_cb);
         let tokcb = tok.clone();
 
         opts.copts.onSuccess = Some(Token::on_success);
         opts.copts.onFailure = Some(Token::on_failure);
-        opts.copts.context = Arc::into_raw(tokcb) as *mut c_void;;
+        opts.copts.context = Token::into_raw(tokcb);
         debug!("Connect opts: {:?}", opts);
         {
             let mut lkopts = self.inner.opts.lock().unwrap();
@@ -333,8 +331,8 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Arc::from_raw(opts.copts.context as *mut Token) };
-            Arc::new(Token::from_error(rc))
+            let _ = unsafe { Token::from_raw(opts.copts.context) };
+            Token::from_error(rc)
         }
         else { tok }
     }
@@ -343,7 +341,7 @@ impl AsyncClient {
     /// This can only be called after a connection was initially made or
     /// attempted. It will retry with the same connect options.
     ///
-    pub fn reconnect(&self) -> Arc<Token> {
+    pub fn reconnect(&self) -> Token {
         let connopts = {
             let lkopts = self.inner.opts.lock().unwrap();
             (*lkopts).clone()
@@ -363,9 +361,9 @@ impl AsyncClient {
     ///
     pub fn reconnect_with_callbacks<FS,FF>(&self,
                                            success_cb: FS,
-                                           failure_cb: FF) -> Arc<Token>
-        where FS: FnMut(&AsyncClient,u16) + 'static,
-              FF: FnMut(&AsyncClient,u16,i32) + 'static
+                                           failure_cb: FF) -> Token
+        where FS: Fn(&AsyncClient,u16) + 'static,
+              FF: Fn(&AsyncClient,u16,i32) + 'static
     {
         let connopts = {
             let lkopts = self.inner.opts.lock().unwrap();
@@ -381,26 +379,26 @@ impl AsyncClient {
     /// `opt_opts` Optional disconnect options. Specifying `None` will use
     ///            default of immediate (zero timeout) disconnect.
     ///
-    pub fn disconnect<T>(&self, opt_opts: T) -> Arc<Token>
+    pub fn disconnect<T>(&self, opt_opts: T) -> Token
             where T: Into<Option<DisconnectOptions>>
     {
         if let Some(mut opts) = opt_opts.into() {
             debug!("Disconnecting");
 
-            let tok = Arc::new(Token::new());
+            let tok = Token::new();
             let tokcb = tok.clone();
 
             opts.copts.onSuccess = Some(Token::on_success);
             opts.copts.onFailure = Some(Token::on_failure);
-            opts.copts.context = Arc::into_raw(tokcb) as *mut c_void;
+            opts.copts.context = Token::into_raw(tokcb);
 
             let rc = unsafe {
                 ffi::MQTTAsync_disconnect(self.inner.handle, &opts.copts)
             };
 
             if rc != 0 {
-                let _ = unsafe { Arc::from_raw(opts.copts.context as *mut Token) };
-                Arc::new(Token::from_error(rc))
+                let _ = unsafe { Token::from_raw(opts.copts.context) };
+                Token::from_error(rc)
             }
             else { tok }
         }
@@ -420,7 +418,7 @@ impl AsyncClient {
     /// `timeout` The amount of time to wait for the disconnect. This has
     ///           a resolution in milliseconds.
     ///
-    pub fn disconnect_after(&self, timeout: Duration) -> Arc<Token> {
+    pub fn disconnect_after(&self, timeout: Duration) -> Token {
         let disconn_opts = DisconnectOptionsBuilder::new()
                                 .timeout(timeout).finalize();
         self.disconnect(disconn_opts)
@@ -494,24 +492,24 @@ impl AsyncClient {
     ///
     /// * `msg` The message to publish.
     ///
-    pub fn publish(&self, msg: Message) -> Arc<DeliveryToken> {
+    pub fn publish(&self, msg: Message) -> DeliveryToken {
         debug!("Publish: {:?}", msg);
 
-        let tok = Arc::new(DeliveryToken::from_message(msg));
+        let tok = DeliveryToken::from_message(msg);
         let tokcb = tok.clone();
 
         let mut copts = ffi::MQTTAsync_responseOptions::default();
         copts.onSuccess = Some(Token::on_success);
-        copts.context = Arc::into_raw(tokcb) as *mut c_void;
+        copts.context = Token::into_raw(tokcb);
 
         let rc = unsafe {
-            let msg = tok.msg.as_ref().unwrap();
+            let msg = tok.inner.msg.as_ref().unwrap();
             ffi::MQTTAsync_sendMessage(self.inner.handle, msg.topic.as_ptr(), &msg.cmsg, &mut copts)
         };
 
         if rc != 0 {
-            let _ = unsafe { Arc::from_raw(copts.context as *mut Token) };
-            Arc::new(Token::from_error(rc))
+            let _ = unsafe { Token::from_raw(copts.context) };
+            Token::from_error(rc)
         }
         else {
             tok.set_msgid(copts.token as i16);
@@ -526,15 +524,15 @@ impl AsyncClient {
     /// `topic` The topic name
     /// `qos` The quality of service requested for messages
     ///
-    pub fn subscribe<S>(&self, topic: S, qos: i32) -> Arc<Token>
+    pub fn subscribe<S>(&self, topic: S, qos: i32) -> Token
         where S: Into<String>
     {
-        let tok = Arc::new(DeliveryToken::new());
+        let tok = DeliveryToken::new();
         let tokcb = tok.clone();
 
         let mut copts = ffi::MQTTAsync_responseOptions::default();
         copts.onSuccess = Some(Token::on_success);
-        copts.context = Arc::into_raw(tokcb) as *mut c_void;
+        copts.context = Token::into_raw(tokcb);
 
         let topic = CString::new(topic.into()).unwrap();
 
@@ -545,8 +543,8 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Arc::from_raw(copts.context as *mut Token) };
-            Arc::new(Token::from_error(rc))
+            let _ = unsafe { Token::from_raw(copts.context) };
+            Token::from_error(rc)
         }
         else { tok }
     }
@@ -558,16 +556,16 @@ impl AsyncClient {
     /// `topics` The collection of topic names
     /// `qos` The quality of service requested for messages
     ///
-    pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> Arc<Token>
+    pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> Token
         where T: AsRef<str>
     {
         // TOOD: Make sure topics & qos are same length (or use min)
-        let tok = Arc::new(DeliveryToken::new());
+        let tok = Token::new();
         let tokcb = tok.clone();
 
         let mut copts = ffi::MQTTAsync_responseOptions::default();
         copts.onSuccess = Some(Token::on_success);
-        copts.context = Arc::into_raw(tokcb) as *mut c_void;
+        copts.context = Token::into_raw(tokcb);
 
         let topics = StringCollection::new(topics);
 
@@ -583,8 +581,8 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Arc::from_raw(copts.context as *mut Token) };
-            Arc::new(Token::from_error(rc))
+            let _ = unsafe { Token::from_raw(copts.context) };
+            Token::from_error(rc)
         }
         else { tok }
     }
@@ -596,15 +594,15 @@ impl AsyncClient {
     /// `topic` The topic to unsubscribe. It must match a topic from a
     ///         previous subscribe.
     ///
-    pub fn unsubscribe<S>(&self, topic: S) -> Arc<Token>
+    pub fn unsubscribe<S>(&self, topic: S) -> Token
         where S: Into<String>
     {
-        let tok = Arc::new(DeliveryToken::new());
+        let tok = Token::new();
         let tokcb = tok.clone();
 
         let mut copts = ffi::MQTTAsync_responseOptions::default();
         copts.onSuccess = Some(Token::on_success);
-        copts.context = Arc::into_raw(tokcb) as *mut c_void;
+        copts.context = Token::into_raw(tokcb);
 
         let topic = CString::new(topic.into()).unwrap();
 
@@ -615,8 +613,8 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Arc::from_raw(copts.context as *mut Token) };
-            Arc::new(Token::from_error(rc))
+            let _ = unsafe { Token::from_raw(copts.context) };
+            Token::from_error(rc)
         }
         else { tok }
     }
@@ -628,15 +626,15 @@ impl AsyncClient {
     /// `topic` The topics to unsubscribe. Each must match a topic from a
     ///         previous subscribe.
     ///
-    pub fn unsubscribe_many<T>(&self, topics: &[T]) -> Arc<Token>
+    pub fn unsubscribe_many<T>(&self, topics: &[T]) -> Token
         where T: AsRef<str>
     {
-        let tok = Arc::new(DeliveryToken::new());
+        let tok = Token::new();
         let tokcb = tok.clone();
 
         let mut copts = ffi::MQTTAsync_responseOptions::default();
         copts.onSuccess = Some(Token::on_success);
-        copts.context = Arc::into_raw(tokcb) as *mut c_void;
+        copts.context = Token::into_raw(tokcb);
 
         let topics = StringCollection::new(topics);
 
@@ -650,8 +648,8 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Arc::from_raw(copts.context as *mut Token) };
-            Arc::new(Token::from_error(rc))
+            let _ = unsafe { Token::from_raw(copts.context) };
+            Token::from_error(rc)
         }
         else { tok }
     }
