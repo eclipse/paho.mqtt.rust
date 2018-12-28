@@ -18,6 +18,7 @@ pub fn publish(&self, msg: Message) -> DeliveryToken { ... }
 ```
 - Cloning a `Token` just creates a new `Arc` pointer to the same `TokenInner` struct.
 - `Token` callbacks now implement `Fn` instead of `FnMut`.
+- `Token::wait()` and `Token::wait_for()` now consume the Token (i.e. they take `self` instead of `&self`).
 
 
 ## [v0.5](https://github.com/eclipse/paho.mqtt.rust/compare/v0.4..v0.5) - 2018-12-15

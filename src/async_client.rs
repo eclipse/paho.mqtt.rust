@@ -62,8 +62,9 @@ use connect_options::ConnectOptions;
 use disconnect_options::{DisconnectOptions,DisconnectOptionsBuilder};
 use message::Message;
 use token::{Token, DeliveryToken};
-use client_persistence::{/*ClientPersistence,*/ ClientPersistenceBridge};
-use errors::{MqttResult, /*MqttError,*/ ErrorKind};
+use client_persistence::{ClientPersistenceBridge};
+use errors;
+use errors::{MqttResult, ErrorKind};
 use string_collection::{StringCollection};
 
 /////////////////////////////////////////////////////////////////////////////
@@ -247,7 +248,7 @@ impl AsyncClient {
 
         if rc != 0 {
             warn!("Create result: {}", rc);
-            fail!((ErrorKind::General, rc, Token::error_msg(rc)));
+            fail!((ErrorKind::General, rc, errors::error_message(rc)));
         }
         debug!("AsyncClient handle: {:?}", cli.handle);
 

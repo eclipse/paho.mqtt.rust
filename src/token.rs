@@ -29,11 +29,11 @@
 //! combined with any other Rust futures.
 //!
 
-use std::{str, ptr};
+use std::ptr;
 use std::time::Duration;
 use std::sync::{Arc, Mutex};
-use std::ffi::{CStr};
-use std::os::raw::{c_void};
+use std::ffi::CStr;
+use std::os::raw::c_void;
 
 use futures::{Future, Async};
 use futures::task;
@@ -43,7 +43,8 @@ use ffi;
 
 use async_client::AsyncClient;
 use message::Message;
-use errors::{MqttResult, MqttError, ErrorKind};
+use errors;
+use errors::{MqttResult, MqttError};
 
 /////////////////////////////////////////////////////////////////////////////
 // Token
@@ -64,8 +65,8 @@ pub(crate) struct TokenData {
     msg_id: i16,
     /// The return/error code for the action (zero is success)
     ret_code: i32,
-    /// The error message (if any)
-    err_msg: String,
+    /// Additional detail error message (if any)
+    err_msg: Option<String>,
     /// The future task
     task: Option<Task>,
 }
@@ -90,7 +91,7 @@ impl TokenData {
             complete: true,
             msg_id: 0,
             ret_code: rc,
-            err_msg: String::from(Token::error_msg(rc)),
+            err_msg: Some(String::from(errors::error_message(rc))),
             task: None,
         }
     }
@@ -102,7 +103,7 @@ impl Default for TokenData {
             complete: false,
             msg_id: 0,
             ret_code: 0,
-            err_msg: "".to_string(),
+            err_msg: None,
             task: None,
         }
     }
@@ -139,7 +140,6 @@ impl TokenInner {
             ..TokenInner::default()
         }
     }
-
 
     /// Creates a new, un-signaled Token with callbacks.
     pub fn from_client<FS,FF>(cli: *const AsyncClient,
@@ -225,7 +225,7 @@ impl Token {
         // TODO: Maybe compare this msgid to the one in the token?
         let msgid = if !rsp.is_null() { (*rsp).token as u16 } else { 0 };
 
-        tok.on_complete(msgid, 0, "".to_string());
+        tok.on_complete(msgid, 0, None);
     }
 
     // Callback from the C library when an async operation fails.
@@ -239,30 +239,25 @@ impl Token {
 
         let mut msgid = 0;
         let mut rc = -1;
-        let mut msg = "Error".to_string();
+        let mut err_msg = None;
 
         if !rsp.is_null() {
             msgid = (*rsp).token as u16;
-            rc = if (*rsp).code == 0 { -1i32 } else { (*rsp).code as i32 };
+            rc = if (*rsp).code == 0 { -1 } else { (*rsp).code as i32 };
 
             if !(*rsp).message.is_null() {
                 if let Ok(cmsg) = CStr::from_ptr((*rsp).message).to_str() {
                     debug!("Token failure message: {:?}", cmsg);
-                    msg = cmsg.to_string();
+                    err_msg = Some(cmsg.to_string());
                 }
             }
         }
 
-        if msg.is_empty() {
-            let emsg = Token::error_msg(rc);
-            msg = emsg.to_string();
-        }
-
-        tok.on_complete(msgid, rc, msg);
+        tok.on_complete(msgid, rc, err_msg);
     }
 
     // Callback function to update the token when the action completes.
-    pub(crate) fn on_complete(&self, msgid: u16, rc: i32, msg: String) {
+    pub(crate) fn on_complete(&self, msgid: u16, rc: i32, err_msg: Option<String>) {
         debug!("Token completed with code: {}", rc);
 
         // Fire off any user callbacks
@@ -287,32 +282,12 @@ impl Token {
         let mut data = self.inner.lock.lock().unwrap();
         data.complete = true;
         data.ret_code = rc;
-        data.err_msg = msg;
+        data.err_msg = err_msg;
 
         // If this is none, it means that no one is waiting on
         // the future yet, so we don't need to kick it.
         if let Some(task) = data.task.as_ref() {
             task.notify();
-        }
-    }
-
-    // Gets the string associated with the error code from the C lib.
-    pub(crate) fn error_msg(rc: i32) -> &'static str {
-        match rc {
-            ffi::MQTTASYNC_FAILURE => "General failure",
-            ffi::MQTTASYNC_PERSISTENCE_ERROR /* -2 */ => "Persistence error",
-            ffi::MQTTASYNC_DISCONNECTED => "Client disconnected",
-            ffi::MQTTASYNC_MAX_MESSAGES_INFLIGHT => "Maximum inflight messages",
-            ffi::MQTTASYNC_BAD_UTF8_STRING => "Bad UTF8 string",
-            ffi::MQTTASYNC_NULL_PARAMETER => "NULL Parameter",
-            ffi::MQTTASYNC_TOPICNAME_TRUNCATED => "Topic name truncated",
-            ffi::MQTTASYNC_BAD_STRUCTURE => "Bad structure",
-            ffi::MQTTASYNC_BAD_QOS => "Bad QoS",
-            ffi::MQTTASYNC_NO_MORE_MSGIDS => "No more message ID's",
-            ffi::MQTTASYNC_OPERATION_INCOMPLETE => "Operation incomplete",
-            ffi::MQTTASYNC_MAX_BUFFERED_MESSAGES => "Max buffered messages",
-            ffi::MQTTASYNC_SSL_NOT_SUPPORTED => "SSL not supported by Paho C library",
-             _ => "",
         }
     }
 
@@ -357,6 +332,7 @@ impl Future for Token {
     type Item = ();
     type Error = MqttError;
 
+    /// Poll the token to see if the request has completed yet.
     fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
         let mut data = self.inner.lock.lock().unwrap();
         let rc = data.ret_code;
@@ -369,8 +345,12 @@ impl Future for Token {
             Ok(Async::Ready(()))
         }
         else {
-            let msg = Token::error_msg(rc);
-            fail!((ErrorKind::General, rc, "Error", msg));
+            if let Some(ref err_msg) = data.err_msg {
+                Err(MqttError::from((rc, err_msg.clone())))
+            }
+            else {
+                Err(MqttError::from(rc))
+            }
         }
     }
 }

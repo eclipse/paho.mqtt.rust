@@ -23,6 +23,28 @@ use std::fmt;
 use std::io;
 use std::str::Utf8Error;
 
+use ffi;
+
+// Gets the string associated with the error code from the C lib.
+pub fn error_message(rc: i32) -> &'static str {
+    match rc {
+        ffi::MQTTASYNC_FAILURE => "General failure",
+        ffi::MQTTASYNC_PERSISTENCE_ERROR /* -2 */ => "Persistence error",
+        ffi::MQTTASYNC_DISCONNECTED => "Client disconnected",
+        ffi::MQTTASYNC_MAX_MESSAGES_INFLIGHT => "Maximum inflight messages",
+        ffi::MQTTASYNC_BAD_UTF8_STRING => "Bad UTF8 string",
+        ffi::MQTTASYNC_NULL_PARAMETER => "NULL Parameter",
+        ffi::MQTTASYNC_TOPICNAME_TRUNCATED => "Topic name truncated",
+        ffi::MQTTASYNC_BAD_STRUCTURE => "Bad structure",
+        ffi::MQTTASYNC_BAD_QOS => "Bad QoS",
+        ffi::MQTTASYNC_NO_MORE_MSGIDS => "No more message ID's",
+        ffi::MQTTASYNC_OPERATION_INCOMPLETE => "Operation incomplete",
+        ffi::MQTTASYNC_MAX_BUFFERED_MESSAGES => "Max buffered messages",
+        ffi::MQTTASYNC_SSL_NOT_SUPPORTED => "SSL not supported by Paho C library",
+         _ => "",
+    }
+}
+
 /// The possible errors
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum ErrorKind {
@@ -62,6 +84,24 @@ impl From<Utf8Error> for MqttError {
     fn from(_: Utf8Error) -> MqttError {
         MqttError {
             repr: ErrorRepr::WithDescription(ErrorKind::TypeError, -1, "Invalid UTF-8"),
+        }
+    }
+}
+
+impl From<i32> for MqttError {
+    /// Creates an MqttError from a Paho C return code.
+    fn from(rc: i32) -> MqttError {
+        MqttError {
+            repr: ErrorRepr::WithDescription(ErrorKind::General, rc, error_message(rc)),
+        }
+    }
+}
+
+impl From<(i32,String)> for MqttError {
+    /// Creates an MqttError from a Paho C return code.
+    fn from((rc, detail): (i32,String)) -> MqttError {
+        MqttError {
+            repr: ErrorRepr::WithDescriptionAndDetail(ErrorKind::General, rc, error_message(rc), detail),
         }
     }
 }
@@ -126,10 +166,15 @@ impl fmt::Display for MqttError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self.repr {
             ErrorRepr::WithDescription(_, _err, desc) => desc.fmt(f),
-            ErrorRepr::WithDescriptionAndDetail(_, _err, desc, ref detail) => {
-                desc.fmt(f)?;
-                f.write_str(": ")?;
-                detail.fmt(f)
+            ErrorRepr::WithDescriptionAndDetail(_, err_code, desc, ref detail) => {
+                if err_code == ffi::MQTTASYNC_FAILURE && !detail.is_empty() {
+                    detail.fmt(f)
+                }
+                else {
+                    desc.fmt(f)?;
+                    f.write_str(": ")?;
+                    detail.fmt(f)
+                }
             }
             ErrorRepr::IoError(ref err) => err.fmt(f),
         }
