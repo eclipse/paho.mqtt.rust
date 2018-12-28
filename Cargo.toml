@@ -16,6 +16,7 @@ This is a wrapper around the Paho C library.
 paho-mqtt-sys = { version = "0.2", path = "paho-mqtt-sys", default-features=false }
 libc = "0.2"
 futures = "0.1"
+futures-timer = "0.1"
 log = "0.4"
 env_logger = "0.6"
 

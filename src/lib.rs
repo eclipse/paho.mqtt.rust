@@ -33,6 +33,7 @@
 #![allow(dead_code)]
 
 extern crate futures;
+extern crate futures_timer;
 
 #[macro_use]
 extern crate log;

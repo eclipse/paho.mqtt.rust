@@ -35,8 +35,7 @@ use std::sync::{Arc, Mutex};
 use std::ffi::{CStr};
 use std::os::raw::{c_void};
 
-use futures::future::{Future};
-use futures::Async;
+use futures::{Future, Async};
 use futures::task;
 use futures::task::Task;
 
@@ -289,6 +288,7 @@ impl Token {
         data.complete = true;
         data.ret_code = rc;
         data.err_msg = msg;
+
         // If this is none, it means that no one is waiting on
         // the future yet, so we don't need to kick it.
         if let Some(task) = data.task.as_ref() {
@@ -338,33 +338,16 @@ impl Token {
 
     /// Blocks the caller a limited amount of time waiting for the
     /// asynchronous operation to complete.
-    pub fn wait_for(&self, _dur: Duration) -> MqttResult<()> {
-        unimplemented!()
-        /*
-        let mut retv = self.inner.lock.lock().unwrap();
-
-        while !(*retv).complete {
-            let result = self.inner.cv.wait_timeout(retv, dur).unwrap();
-
-            if result.1.timed_out() {
-                fail!(::std::io::Error::new(::std::io::ErrorKind::TimedOut, "Timed out"));
-            }
-            retv = result.0;
-        }
-
-        let rc = (*retv).ret_code;
-        debug!("Timed token completed: {}", rc);
-        if rc != 0 {
-            let msg = Token::error_msg(rc);
-            fail!((ErrorKind::General, rc, "Error", msg));
-        }
-
-        Ok(())
-        */
+    pub fn wait_for(self, dur: Duration) -> MqttResult<()> {
+        use futures_timer::FutureExt;
+        let tok = self.timeout(dur);
+        tok.wait()
     }
 }
 
 impl Clone for Token {
+    /// Cloning a Token creates another Arc reference to
+    /// the inner data on the heap.
     fn clone(&self) -> Self {
         Token { inner: self.inner.clone() }
     }
