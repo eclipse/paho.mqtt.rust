@@ -45,7 +45,14 @@ pub fn error_message(rc: i32) -> &'static str {
     }
 }
 
-/// The possible errors
+/////////////////////////////////////////////////////////////////////////////
+
+/// An MQTT Error
+pub struct MqttError {
+    repr: ErrorRepr,
+}
+
+/// The possible error types
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum ErrorKind {
     /// General Failure
@@ -60,11 +67,7 @@ pub enum ErrorKind {
     IoError,
 }
 
-/// An MQTT Error
-pub struct MqttError {
-    repr: ErrorRepr,
-}
-
+/// The internal representations of the error
 #[derive(Debug)]
 enum ErrorRepr {
     WithDescription(ErrorKind, i32, &'static str),
@@ -73,6 +76,7 @@ enum ErrorRepr {
 }
 
 impl From<io::Error> for MqttError {
+    /// Create an MqttError from an I/O error
     fn from(err: io::Error) -> MqttError {
         MqttError {
             repr: ErrorRepr::IoError(err),
@@ -81,6 +85,7 @@ impl From<io::Error> for MqttError {
 }
 
 impl From<Utf8Error> for MqttError {
+    /// Create an MqttError from a UTF error
     fn from(_: Utf8Error) -> MqttError {
         MqttError {
             repr: ErrorRepr::WithDescription(ErrorKind::TypeError, -1, "Invalid UTF-8"),
@@ -98,7 +103,7 @@ impl From<i32> for MqttError {
 }
 
 impl From<(i32,String)> for MqttError {
-    /// Creates an MqttError from a Paho C return code.
+    /// Creates an MqttError from a Paho C return code and additional detail string.
     fn from((rc, detail): (i32,String)) -> MqttError {
         MqttError {
             repr: ErrorRepr::WithDescriptionAndDetail(ErrorKind::General, rc, error_message(rc), detail),
@@ -131,8 +136,7 @@ impl From<(ErrorKind, &'static str, String)> for MqttError {
 }
 
 impl<S> From<(ErrorKind, i32, &'static str, S)> for MqttError
-where
-    S: Into<String>,
+    where S: Into<String>,
 {
     fn from((kind, err, desc, detail): (ErrorKind, i32, &'static str, S)) -> MqttError {
         MqttError {
