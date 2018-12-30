@@ -99,9 +99,11 @@ fn main() {
         process::exit(1);
     };
 
-    // Initialize the consumer & subscribe to topics
-    println!("Subscribing to topics...");
+    // Initialize the consumer before subscribing to topics
     let rx = cli.start_consuming();
+
+    // Register subscriptions on the server
+    println!("Subscribing to topics...");
 
     let subscriptions = [ "test", "hello" ];
     let qos = [1, 1];

@@ -102,11 +102,13 @@ impl From<i32> for MqttError {
     }
 }
 
-impl From<(i32,String)> for MqttError {
+impl<S> From<(i32,S)> for MqttError
+    where S: Into<String>
+{
     /// Creates an MqttError from a Paho C return code and additional detail string.
-    fn from((rc, detail): (i32,String)) -> MqttError {
+    fn from((rc, detail): (i32,S)) -> MqttError {
         MqttError {
-            repr: ErrorRepr::WithDescriptionAndDetail(ErrorKind::General, rc, error_message(rc), detail),
+            repr: ErrorRepr::WithDescriptionAndDetail(ErrorKind::General, rc, error_message(rc), detail.into()),
         }
     }
 }

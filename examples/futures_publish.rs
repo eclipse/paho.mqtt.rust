@@ -48,13 +48,13 @@ fn main() {
     });
 
     // Connect, send a message, and disconnect
-    if let Err(err) = cli.connect(None)
-            .and_then(|_| {
-                println!("Publishing a message on the 'test' topic");
-                let msg = mqtt::Message::new("test", "Hello world!", 0);
-                cli.publish(msg)
-            })
-            .and_then(|_| cli.disconnect(None)).wait() {
-        println!("Error: {}", err);
-    }
+    cli.connect(None)
+        .and_then(|_| {
+            println!("Publishing a message on the 'test' topic");
+            let msg = mqtt::Message::new("test", "Hello futures world!", 0);
+            cli.publish(msg)
+        })
+        .and_then(|_| cli.disconnect(None)).wait().unwrap_or_else(|err| {
+            println!("Error: {}", err);
+        });
 }

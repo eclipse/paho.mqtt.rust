@@ -52,8 +52,6 @@ use std::time::Duration;
 use std::sync::{Mutex};
 use std::ffi::{CString, CStr};
 use std::os::raw::{c_void, c_char, c_int};
-use std::sync::mpsc::{Sender, Receiver};
-use std::sync::mpsc;
 
 use ffi;
 
@@ -666,7 +664,10 @@ impl AsyncClient {
     /// should be called before subscribing to any topics, otherwise messages
     /// can be lost.
     //
-    pub fn start_consuming(&mut self) -> mpsc::Receiver<Option<Message>> {
+    pub fn start_consuming(&mut self) -> std::sync::mpsc::Receiver<Option<Message>> {
+        use std::sync::mpsc;
+        use std::sync::mpsc::{Sender, Receiver};
+
         let (tx, rx): (Sender<Option<Message>>, Receiver<Option<Message>>) = mpsc::channel();
 
         self.set_message_callback(move |_,msg| {
@@ -679,6 +680,27 @@ impl AsyncClient {
     /// Stops the client from consuming messages.
     pub fn stop_consuming(&self) {
         unimplemented!();
+    }
+
+    /// Creates a futures stream for consuming messages.
+    pub fn get_stream(&mut self, buffer_sz: usize) -> futures::sync::mpsc::Receiver<Option<Message>> {
+        use futures::sync::mpsc;
+
+        let (mut tx, rx) = mpsc::channel(buffer_sz);
+
+        self.set_message_callback(move |_,msg| {
+            if let Err(err) = tx.try_send(msg) {
+                if err.is_full() {
+                    warn!("Stream losing messages");
+                }
+                else {
+                    error!("Stream error: {:?}", err);
+                    // TODO: Can we do anything here?
+                }
+            }
+        });
+
+        rx
     }
 }
 
@@ -874,5 +896,5 @@ mod tests {
         // They should match (inner didn't move)
         assert_eq!(pctx, new_pctx);
     }
-
 }
+

@@ -22,37 +22,41 @@ To keep up with the latest announcements for this project, follow:
 
 **EMail:** [Eclipse Paho Mailing List](https://accounts.eclipse.org/mailing-list/paho-dev)
 
-Unreleased Features 
+### Unreleased Features (in this branch) 
 
-- Bundled Paho C Library upgraded to v1.3.0
-- WebSocket support
+- **Futures support:**
+    - Compatible with the [Rust Futures](https://docs.rs/futures/0.1.25/futures/) library v0.1
+    - The `Token` object, which is returned by asynchronous calls, now implements the `Futures` trait, which is _mostly_ compatible with the previous implementation.
+    - Incoming messages can be obtained through a `Stream` from the client, implemented with a futures channel.
+    - New examples of a publisher and subscriber implemented with futures.
 
 
 ### Features
 
 The initial version of the library is a wrapper for the Paho C library, similar to the implementation for the current Paho C++ library. It targets MQTT v3.1 and 3.1.1, and includes all of the features available in the C library for those versions, including:
 
-* Standard TCP support
-* SSL / TLS
-* WebSockets
-* QoS 0, 1, and 2
-* Last Will and Testament (LWT)
-* Message Persistence 
-    * File or memory persistence
-    * User-defined persistence
-* Automatic Reconnect
-* Offline Buffering
-* High Availability
-* Asynchronous (Non-blocking) API
-* Synchronous (Blocking)  API
+- Standard TCP support
+- SSL / TLS
+- WebSockets
+- QoS 0, 1, and 2
+- Last Will and Testament (LWT)
+- Message Persistence 
+    - File or memory persistence
+    - User-defined persistence
+- Automatic Reconnect
+- Offline Buffering
+- High Availability
+- Rust Futures and Streams for asynchronous operations.
+- Traditional asynchronous API
+- Synchronous/blocking  API
 
-### Future Release
+Supports Paho C v1.3.0
 
-This crate was initially started with the intention of being a quick re-write of the Paho C++ crate, which was used as a template for a rough API and implementation. The hope was more to introduce Rust to the the MQTT community than the other way around. Thus, this initial version lacks tight integration into some of the de facto libraries used in Rust for this type of library, such as *futures* and *tokio*.
+### Upcoming Release(s)
 
-This will, hopefully, be remidied very soon.
+As soon as the current version is stabilized and released, work will immediately begin to bring in support for MQTT v5.
 
-As soon as the current version is stabilized and released, work will immediately begin on a version to wrap the recently-released Paho C v1.3 to bring in support for MQTT v5 and WebSockets. At that time, we will also introduce integration with futures and optional *tokio* support.
+Prior to that, the plan is to allow the Futures support to settle, improve error handling and reporting, and clean up the internal implementation.
 
 ## Building the Crate
 
