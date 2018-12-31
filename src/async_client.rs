@@ -870,6 +870,8 @@ impl AsyncClientBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use create_options::{CreateOptionsBuilder};
+    use futures::Future;
 
     // Makes sure than when a client is moved, the inner struct stayes at
     // the same address (on the heap) since that inner struct is used as
@@ -896,13 +898,6 @@ mod tests {
         // They should match (inner didn't move)
         assert_eq!(pctx, new_pctx);
     }
-}
-
-#[cfg(test)]
-mod tests {
-
-    use super::*; 
-    use create_options::{CreateOptionsBuilder};
     
     #[test]
     fn test_create_async_client() {
