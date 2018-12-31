@@ -34,7 +34,7 @@ use std::{env, process};
 
 fn main() {
     // Initialize the logger from the environment
-    env_logger::init().unwrap();
+    env_logger::init();
 
     // Create a client & define connect options
     let host = env::args().skip(1).next().unwrap_or(

@@ -21,9 +21,8 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::sync::{Arc};
-
-use async_client::{AsyncClient,DeliveryToken};
+use async_client::{AsyncClient};
+use token::{DeliveryToken};
 use message::Message;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -90,7 +89,7 @@ impl<'a> Topic<'a>
     ///
     /// `payload` The payload of the message
     ///
-    pub fn publish<V>(&self, payload: V) -> Arc<DeliveryToken>
+    pub fn publish<V>(&self, payload: V) -> DeliveryToken
         where V: Into<Vec<u8>>
     {
         // OPTIMIZE: This could be more efficient.

@@ -62,7 +62,7 @@ fn try_reconnect(cli: &mqtt::Client) -> bool
 
 fn main() {
     // Initialize the logger from the environment
-    env_logger::init().unwrap();
+    env_logger::init();
 
     let host = env::args().skip(1).next().unwrap_or(
         "tcp://localhost:1883".to_string()
@@ -99,9 +99,11 @@ fn main() {
         process::exit(1);
     };
 
-    // Initialize the consumer & subscribe to topics
-    println!("Subscribing to topics...");
+    // Initialize the consumer before subscribing to topics
     let rx = cli.start_consuming();
+
+    // Register subscriptions on the server
+    println!("Subscribing to topics...");
 
     let subscriptions = [ "test", "hello" ];
     let qos = [1, 1];

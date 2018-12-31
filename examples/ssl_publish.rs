@@ -36,15 +36,17 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
+extern crate futures;
 extern crate log;
 extern crate env_logger;
 extern crate paho_mqtt as mqtt;
 
 use std::{time, env, process};
+use futures::Future;
 
 fn main() {
     // Initialize the logger from the environment
-    env_logger::init().unwrap();
+    env_logger::init();
 
     // We use the trust store from the Paho C tls-testing/keys directory,
     // but we assume there's a copy in the current directory.

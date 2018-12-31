@@ -32,6 +32,9 @@
 // Temporary
 #![allow(dead_code)]
 
+extern crate futures;
+extern crate futures_timer;
+
 #[macro_use]
 extern crate log;
 
@@ -45,6 +48,7 @@ pub use will_options::*;        //{WillOptions, WillOptionsBuilder};
 pub use ssl_options::*;         //{SslOptions, SslOptionsBuilder};
 pub use disconnect_options::*;  //{DisconnectOptions, DisconnectOptionsBuilder};
 pub use message::*;             //{Message, MessageBuilder};
+pub use token::*;               //{Token}
 pub use topic::*;               //{Topic}
 pub use client_persistence::*;
 pub use errors::*;              //{MqttResult, MqttError, ErrorKind};
@@ -75,6 +79,9 @@ pub mod disconnect_options;
 
 /// The message object
 pub mod message;
+
+/// Tokens to monitor asynchronous operations
+pub mod token;
 
 /// Options for creating topic objects that are associated with a
 /// particular server.
