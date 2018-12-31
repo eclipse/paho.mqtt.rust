@@ -220,6 +220,24 @@ impl Default for MQTTAsync_disconnectOptions {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+
+impl Default for MQTTClient_persistence {
+    fn default() -> Self {
+        MQTTClient_persistence {
+            context: ptr::null_mut(),
+            popen: None,
+            pclose: None,
+            pput: None,
+            pget: None,
+            premove: None,
+            pkeys: None,
+            pclear: None,
+            pcontainskey: None,
+        }
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // Unit Tests
 
 #[cfg(test)]

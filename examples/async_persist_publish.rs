@@ -143,6 +143,7 @@ fn main() {
     let create_opts = mqtt::CreateOptionsBuilder::new()
             .server_uri("tcp://localhost:1883")
             .user_persistence(MemPersistence::new())
+            .client_id("rust_async_persist_publish")
             .finalize();
 
     let cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|e| {

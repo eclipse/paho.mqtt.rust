@@ -27,74 +27,90 @@ use std::os::raw::{c_void, c_char, c_int};
 
 use ffi;
 
-use errors::{MqttResult, /*MqttError,*/};
+use errors::MqttResult;
 
 // TODO: Should we have a specific PersistenceResult/Error?
 
 const PERSISTENCE_SUCCESS: c_int = ffi::MQTTASYNC_SUCCESS as c_int;
 const PERSISTENCE_ERROR: c_int = ffi::MQTTCLIENT_PERSISTENCE_ERROR;
 
-/**
- * Trait to implement custom persistence in the client.
- */
+
+/// Trait to implement custom persistence in the client.
 pub trait ClientPersistence {
-    /**
-     * Open and initialize the persistent store.
-     * @param client_id The unique client identifier.
-     * @param server_uri The address of the server to which the client is
-     *                   connected.
-     */
+    /// Open and initialize the persistent store.
+    /// `client_id` The unique client identifier.
+    /// `server_uri` The address of the server to which the client is
+    ///              connected.
     fn open(&mut self, client_id: &str, server_uri: &str) -> MqttResult<()>;
-    /**
-     * Close the persistence store.
-     */
+
+    /// Close the persistence store.
     fn close(&mut self) -> MqttResult<()>;
-    /**
-     * Put data into the persistence store.
-     * @param key The key to the data.
-     * @param The data to place into the store.
-     */
+
+    /// Put data into the persistence store.
+    /// `key` The key to the data.
+    /// `buffers` The data to place into the store. Note that these can be
+    ///           concatenated into a single, contiguous unit if helpful.
     fn put(&mut self, key: &str, buffers: Vec<&[u8]>) -> MqttResult<()>;
-    /**
-     * Gets data from the persistence store.
-     * @param key They key for the desired data.
-     */
+
+    /// Gets data from the persistence store.
+    /// `key` They key for the desired data.
     fn get(&self, key: &str) -> MqttResult<Vec<u8>>;
-    /**
-     * Removes data for the specified key.
-     * @param key The key for the data to remove.
-     */
+
+    /// Removes data for the specified key.
+    /// `key` The key for the data to remove.
     fn remove(&mut self, key: &str) -> MqttResult<()>;
-    /**
-     * Gets the keys that are currently in the persistence store
-     */
+
+    /// Gets the keys that are currently in the persistence store
     fn keys(&self) -> MqttResult<Vec<String>>;
-    /**
-     * Clear the persistence store so that it no longer contains any data.
-     */
+
+    /// Clear the persistence store so that it no longer contains any data.
     fn clear(&mut self) -> MqttResult<()>;
-    /**
-     * Determines if the persistence store contains the key.
-     * @param key The key
-     * @return _true_ if the key is found in the store, _false_ otherwise.
-     */
+
+    /// Determines if the persistence store contains the key.
+    /// `key` The key to look for.
     fn contains_key(&self, key: &str) -> bool;
 }
 
 /////////////////////////////////////////////////////////////////////////////
+
+/// A struct to wrap the user-defined client persistence objects for the
+/// C library, including the callback funtions from the C library.
+/// These functions receive the persistence callbacks from the C library and
+/// then pass them on to the user-supplied struct which implements the
+/// ClientPersistence trait.
 ///
+/// Note that the C library _does not_ keep a copy of the
+/// MQTTClient_persistence object, so the client must keep one and keep it
+/// at a consistent address. Thus it should be kept in a box on the heap.
+pub struct UserPersistence {
+    /// The underlying struct for the C library
+    pub(crate) copts: ffi::MQTTClient_persistence,
+    // The user-supplied persistence object
+    persistence: Box<Box<ClientPersistence>>,
+}
 
-/**
- * An empty struct used to collect the persistence callback funtions from 
- * the C library.
- * These functions receive the persistence callbacks from the C library and
- * then pass them on to the user-supplied struct which implements the 
- * ClientPersistence trait.
- */
-pub struct ClientPersistenceBridge;
-
-impl ClientPersistenceBridge
+impl UserPersistence
 {
+    /// Creates a new user persistence object.
+    pub fn new(mut persistence: Box<Box<ClientPersistence>>) -> UserPersistence {
+        let context = &mut *persistence as *mut Box<ClientPersistence> as _;
+
+        UserPersistence {
+            copts: ffi::MQTTClient_persistence {
+                context,
+                popen: Some(UserPersistence::on_open),
+                pclose: Some(UserPersistence::on_close),
+                pput: Some(UserPersistence::on_put),
+                pget: Some(UserPersistence::on_get),
+                premove: Some(UserPersistence::on_remove),
+                pkeys: Some(UserPersistence::on_keys),
+                pclear: Some(UserPersistence::on_clear),
+                pcontainskey: Some(UserPersistence::on_contains_key),
+            },
+            persistence,
+        }
+    }
+
     // Callback from the C library to open the persistence store.
     // On entry, the 'context' has the address of the user's persistence
     // object which is reassigned to the 'handle'.
@@ -103,7 +119,7 @@ impl ClientPersistenceBridge
                                      client_id: *const c_char,
                                      server_uri: *const c_char,
                                      context: *mut c_void) -> c_int {
-        trace!("ClientPersistenceBridge::on_open");
+        trace!("UserPersistence::on_open");
         if !handle.is_null() && !client_id.is_null() && !server_uri.is_null() && !context.is_null() {
             let client_id = CStr::from_ptr(client_id).to_str().unwrap();
             let server_uri = CStr::from_ptr(server_uri).to_str().unwrap();
@@ -120,7 +136,7 @@ impl ClientPersistenceBridge
 
     /// Callback from the C library to close the persistence store.
     pub unsafe extern "C" fn on_close(handle: *mut c_void) -> c_int {
-        trace!("ClientPersistenceBridge::on_close");
+        trace!("UserPersistence::on_close");
         if handle.is_null() {
             return PERSISTENCE_ERROR;
         }
@@ -139,7 +155,7 @@ impl ClientPersistenceBridge
                                     bufcount: c_int,
                                     buffers: *mut *mut c_char,
                                     buflens: *mut c_int) -> c_int {
-        trace!("ClientPersistenceBridge::on_put");
+        trace!("UserPersistence::on_put");
         if handle.is_null() || key.is_null() ||
                 buffers.is_null() || buflens.is_null() {
             return PERSISTENCE_ERROR;
@@ -169,7 +185,7 @@ impl ClientPersistenceBridge
                                     key: *mut c_char,
                                     buffer: *mut *mut c_char,
                                     buflen: *mut c_int) -> c_int {
-        trace!("ClientPersistenceBridge::on_get");
+        trace!("UserPersistence::on_get");
         if handle.is_null() || key.is_null() ||
                 buffer.is_null() || buflen.is_null() {
             return PERSISTENCE_ERROR;
@@ -194,7 +210,7 @@ impl ClientPersistenceBridge
     /// persistence store.
     pub unsafe extern "C" fn on_remove(handle: *mut c_void,
                                        key: *mut c_char) -> c_int {
-        trace!("ClientPersistenceBridge::on_remove");
+        trace!("UserPersistence::on_remove");
         if handle.is_null() || key.is_null() {
             return PERSISTENCE_ERROR;
         }
@@ -212,7 +228,7 @@ impl ClientPersistenceBridge
     pub unsafe extern "C" fn on_keys(handle: *mut c_void,
                                      keys: *mut *mut *mut c_char,
                                      nkeys: *mut c_int) -> c_int {
-        trace!("ClientPersistenceBridge::on_keys");
+        trace!("UserPersistence::on_keys");
         if handle.is_null() || keys.is_null() || nkeys.is_null() {
             return PERSISTENCE_ERROR;
         }
@@ -249,7 +265,7 @@ impl ClientPersistenceBridge
     /// Callback from the C library to remove all the data from the
     /// persistence store.
     pub unsafe extern "C" fn on_clear(handle: *mut c_void) -> c_int {
-        trace!("ClientPersistenceBridge::on_clear");
+        trace!("UserPersistence::on_clear");
         if handle.is_null() {
             return PERSISTENCE_ERROR;
         }
@@ -265,7 +281,7 @@ impl ClientPersistenceBridge
     /// the specified key.
     pub unsafe extern "C" fn on_contains_key(handle: *mut c_void,
                                              key: *mut c_char) -> c_int {
-        trace!("ClientPersistenceBridge::on_contains_key");
+        trace!("UserPersistence::on_contains_key");
         if handle.is_null() || key.is_null() {
             return PERSISTENCE_ERROR;
         }
