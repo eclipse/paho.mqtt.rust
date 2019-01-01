@@ -30,6 +30,7 @@ use std::time::Duration;
 use std::ffi::CString;
 use std::os::raw::c_int;
 
+use token::Token;
 use message::Message;
 use will_options::WillOptions;
 use ssl_options::SslOptions;
@@ -125,6 +126,16 @@ impl ConnectOptions {
     /// resumes the previous session.
     pub fn set_clean_session(&mut self, clean: bool) {
         self.copts.cleansession = if clean { 1 } else { 0 }
+    }
+
+    /// Sets the token to ber used for connect completion callbacks.
+    /// Note that we leak the token to give to the C lib. When we're
+    /// done with it, we must recover and drop it (i.e. in the completion
+    /// callback).
+    pub fn set_token(&mut self, tok: Token) {
+        self.copts.onSuccess = Some(Token::on_success);
+        self.copts.onFailure = Some(Token::on_failure);
+        self.copts.context = Token::into_raw(tok);
     }
 }
 

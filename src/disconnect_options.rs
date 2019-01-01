@@ -28,6 +28,8 @@
 use ffi;
 use std::time::Duration;
 
+use token::Token;
+
 /// The collection of options for disconnecting from the client.
 #[derive(Debug)]
 pub struct DisconnectOptions {
@@ -39,6 +41,17 @@ impl DisconnectOptions {
     /// Create a new `DisconnectOptions`
     pub fn new() -> DisconnectOptions {
         DisconnectOptions::default()
+    }
+
+
+    /// Sets the token to ber used for connect completion callbacks.
+    /// Note that we leak the token to give to the C lib. When we're
+    /// done with it, we must recover and drop it (i.e. in the completion
+    /// callback).
+    pub fn set_token(&mut self, tok: Token) {
+        self.copts.onSuccess = Some(Token::on_success);
+        self.copts.onFailure = Some(Token::on_failure);
+        self.copts.context = Token::into_raw(tok);
     }
 }
 

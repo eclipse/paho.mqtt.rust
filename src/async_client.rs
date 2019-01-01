@@ -58,6 +58,7 @@ use ffi;
 use create_options::{CreateOptions,PersistenceType};
 use connect_options::ConnectOptions;
 use disconnect_options::{DisconnectOptions,DisconnectOptionsBuilder};
+use response_options::ResponseOptions;
 use message::Message;
 use token::{Token, DeliveryToken};
 use client_persistence::UserPersistence;
@@ -127,12 +128,12 @@ impl AsyncClient {
             {
                 let mut cbctx = cli.inner.callback_context.lock().unwrap();
 
-                if let Some(ref mut cb) = (*cbctx).on_message_arrived {
+                if let Some(ref mut cb) = cbctx.on_message_arrived {
                     trace!("Invoking disconnect message callback");
                     cb(&cli, None);
                 }
 
-                if let Some(ref mut cb) = (*cbctx).on_connection_lost {
+                if let Some(ref mut cb) = cbctx.on_connection_lost {
                     trace!("Invoking connection lost callback");
                     cb(&cli);
                 }
@@ -156,13 +157,14 @@ impl AsyncClient {
             {
                 let mut cbctx = cli.inner.callback_context.lock().unwrap();
 
-                if let Some(ref mut cb) = (*cbctx).on_message_arrived {
+                if let Some(ref mut cb) = cbctx.on_message_arrived {
                     let len = topic_len as usize;
                     let topic = if len == 0 {
-                        info!("Got a zero-length topic");
+                        // Zero-len topic means it's a NUL-terminated C string
                         CStr::from_ptr(topic_name).to_owned()
                     }
                     else {
+                        // If we get a len for the topic, then there's no NUL terminator.
                         // TODO: Handle UTF-8 error(s)
                         let tp = str::from_utf8(slice::from_raw_parts(topic_name as *mut u8, len)).unwrap();
                         CString::new(tp).unwrap()
@@ -176,7 +178,7 @@ impl AsyncClient {
             let _ = Box::into_raw(cli.inner);
         }
 
-        ffi::MQTTAsync_freeMessage(&mut cmsg);  // as *mut *mut ffi::MQTTAsync_message);
+        ffi::MQTTAsync_freeMessage(&mut cmsg);
         ffi::MQTTAsync_free(topic_name as *mut c_void);
         1
     }
@@ -255,20 +257,17 @@ impl AsyncClient {
             debug!("Connect options: {:?}", opts);
 
             let tok = Token::new();
-            let tokcb = tok.clone();
 
             let mut lkopts = self.inner.opts.lock().unwrap();
             *lkopts = opts;
-            (*lkopts).copts.onSuccess = Some(Token::on_success);
-            (*lkopts).copts.onFailure = Some(Token::on_failure);
-            (*lkopts).copts.context = Token::into_raw(tokcb);
+            lkopts.set_token(tok.clone());
 
             let rc = unsafe {
-                ffi::MQTTAsync_connect(self.inner.handle, &(*lkopts).copts)
+                ffi::MQTTAsync_connect(self.inner.handle, &lkopts.copts)
             };
 
             if rc != 0 {
-                let _ = unsafe { Token::from_raw((*lkopts).copts.context) };
+                let _ = unsafe { Token::from_raw(lkopts.copts.context) };
                 Token::from_error(rc)
             }
             else { tok }
@@ -301,11 +300,8 @@ impl AsyncClient {
         }
 
         let tok = Token::from_client(self as *const _, success_cb, failure_cb);
-        let tokcb = tok.clone();
+        opts.set_token(tok.clone());
 
-        opts.copts.onSuccess = Some(Token::on_success);
-        opts.copts.onFailure = Some(Token::on_failure);
-        opts.copts.context = Token::into_raw(tokcb);
         debug!("Connect opts: {:?}", opts);
         {
             let mut lkopts = self.inner.opts.lock().unwrap();
@@ -372,11 +368,7 @@ impl AsyncClient {
             debug!("Disconnecting");
 
             let tok = Token::new();
-            let tokcb = tok.clone();
-
-            opts.copts.onSuccess = Some(Token::on_success);
-            opts.copts.onFailure = Some(Token::on_failure);
-            opts.copts.context = Token::into_raw(tokcb);
+            opts.set_token(tok.clone());
 
             let rc = unsafe {
                 ffi::MQTTAsync_disconnect(self.inner.handle, &opts.copts)
@@ -482,23 +474,20 @@ impl AsyncClient {
         debug!("Publish: {:?}", msg);
 
         let tok = DeliveryToken::from_message(msg);
-        let tokcb = tok.clone();
-
-        let mut copts = ffi::MQTTAsync_responseOptions::default();
-        copts.onSuccess = Some(Token::on_success);
-        copts.context = Token::into_raw(tokcb);
+        let mut rsp_opts = ResponseOptions::new(&tok);
 
         let rc = unsafe {
             let msg = tok.inner.msg.as_ref().unwrap();
-            ffi::MQTTAsync_sendMessage(self.inner.handle, msg.topic.as_ptr(), &msg.cmsg, &mut copts)
+            ffi::MQTTAsync_sendMessage(self.inner.handle, msg.topic.as_ptr(),
+                                       &msg.cmsg, &mut rsp_opts.copts)
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(copts.context) };
+            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
             Token::from_error(rc)
         }
         else {
-            tok.set_msgid(copts.token as i16);
+            tok.set_msgid(rsp_opts.copts.token as i16);
             tok
         }
     }
@@ -514,22 +503,17 @@ impl AsyncClient {
         where S: Into<String>
     {
         let tok = DeliveryToken::new();
-        let tokcb = tok.clone();
-
-        let mut copts = ffi::MQTTAsync_responseOptions::default();
-        copts.onSuccess = Some(Token::on_success);
-        copts.context = Token::into_raw(tokcb);
-
+        let mut rsp_opts = ResponseOptions::new(&tok);
         let topic = CString::new(topic.into()).unwrap();
 
         debug!("Subscribe to '{:?}' @ QOS {}", topic, qos);
 
         let rc = unsafe {
-            ffi::MQTTAsync_subscribe(self.inner.handle, topic.as_ptr(), qos, &mut copts)
+            ffi::MQTTAsync_subscribe(self.inner.handle, topic.as_ptr(), qos, &mut rsp_opts.copts)
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(copts.context) };
+            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
             Token::from_error(rc)
         }
         else { tok }
@@ -547,12 +531,7 @@ impl AsyncClient {
     {
         // TOOD: Make sure topics & qos are same length (or use min)
         let tok = Token::new();
-        let tokcb = tok.clone();
-
-        let mut copts = ffi::MQTTAsync_responseOptions::default();
-        copts.onSuccess = Some(Token::on_success);
-        copts.context = Token::into_raw(tokcb);
-
+        let mut rsp_opts = ResponseOptions::new(&tok);
         let topics = StringCollection::new(topics);
 
         debug!("Subscribe to '{:?}' @ QOS {:?}", topics, qos);
@@ -563,11 +542,11 @@ impl AsyncClient {
                                          topics.as_c_arr_mut_ptr(),
                                          // C lib takes mutable QoS ptr, but doesn't mutate
                                          mem::transmute(qos.as_ptr()),
-                                         &mut copts)
+                                         &mut rsp_opts.copts)
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(copts.context) };
+            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
             Token::from_error(rc)
         }
         else { tok }
@@ -584,22 +563,18 @@ impl AsyncClient {
         where S: Into<String>
     {
         let tok = Token::new();
-        let tokcb = tok.clone();
-
-        let mut copts = ffi::MQTTAsync_responseOptions::default();
-        copts.onSuccess = Some(Token::on_success);
-        copts.context = Token::into_raw(tokcb);
-
+        let mut rsp_opts = ResponseOptions::new(&tok);
         let topic = CString::new(topic.into()).unwrap();
 
         debug!("Unsubscribe from '{:?}'", topic);
 
         let rc = unsafe {
-            ffi::MQTTAsync_unsubscribe(self.inner.handle, topic.as_ptr(), &mut copts)
+            ffi::MQTTAsync_unsubscribe(self.inner.handle, topic.as_ptr(),
+                                       &mut rsp_opts.copts)
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(copts.context) };
+            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
             Token::from_error(rc)
         }
         else { tok }
@@ -616,12 +591,7 @@ impl AsyncClient {
         where T: AsRef<str>
     {
         let tok = Token::new();
-        let tokcb = tok.clone();
-
-        let mut copts = ffi::MQTTAsync_responseOptions::default();
-        copts.onSuccess = Some(Token::on_success);
-        copts.context = Token::into_raw(tokcb);
-
+        let mut rsp_opts = ResponseOptions::new(&tok);
         let topics = StringCollection::new(topics);
 
         debug!("Unsubscribe from '{:?}'", topics);
@@ -630,11 +600,11 @@ impl AsyncClient {
             ffi::MQTTAsync_unsubscribeMany(self.inner.handle,
                                            topics.len() as c_int,
                                            topics.as_c_arr_mut_ptr(),
-                                           &mut copts)
+                                           &mut rsp_opts.copts)
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(copts.context) };
+            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
             Token::from_error(rc)
         }
         else { tok }

@@ -47,6 +47,7 @@ pub use connect_options::*;     //{ConnectOptions, ConnectOptionsBuilder, MQTT_V
 pub use will_options::*;        //{WillOptions, WillOptionsBuilder};
 pub use ssl_options::*;         //{SslOptions, SslOptionsBuilder};
 pub use disconnect_options::*;  //{DisconnectOptions, DisconnectOptionsBuilder};
+pub use response_options::*;    //{ResponseOptions};
 pub use message::*;             //{Message, MessageBuilder};
 pub use token::*;               //{Token}
 pub use topic::*;               //{Topic}
@@ -76,6 +77,9 @@ pub mod ssl_options;
 
 /// Options for disconnecting from the server.
 pub mod disconnect_options;
+
+/// Options for responses coming back from the C lib.
+pub mod response_options;
 
 /// The message object
 pub mod message;
