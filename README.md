@@ -22,7 +22,9 @@ To keep up with the latest announcements for this project, follow:
 
 **EMail:** [Eclipse Paho Mailing List](https://accounts.eclipse.org/mailing-list/paho-dev)
 
-### Unreleased Features (in this branch) 
+### Unreleased Features (in this branch)
+
+Development is proceeding to add support for Futures and clean up the internal implementation of the library. The following is already checked into this branch:
 
 - **Futures support:**
     - Compatible with the [Rust Futures](https://docs.rs/futures/0.1.25/futures/) library v0.1
@@ -30,6 +32,11 @@ To keep up with the latest announcements for this project, follow:
     - Incoming messages can be obtained through a `Stream` from the client, implemented with a futures channel.
     - New examples of a publisher and subscriber implemented with futures.
 
+- **Internal Cleanup**
+    - Moved `Tokens` into their own source file.
+    - Consolidated persistence internals into `UserPersistence` struct.
+    - Created a new `ResponseOptions` struct to manage the details of the C `MQTTAsync_responseOptions` objects.
+    - Cleanup of the `AsyncClient` implementation.
 
 ### Features
 
