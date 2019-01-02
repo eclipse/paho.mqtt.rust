@@ -58,6 +58,7 @@ pub type FailureCallback = Fn(&AsyncClient, u16, i32) + 'static;
 /// The result data for the token.
 /// This is the guarded elements in the token which are updated by the
 /// C library callback when the operation completes.
+#[derive(Debug)]
 pub(crate) struct TokenData {
     /// Whether the async action has completed
     complete: bool,
@@ -89,10 +90,9 @@ impl TokenData {
     pub fn from_error(rc: i32) -> TokenData {
         TokenData {
             complete: true,
-            msg_id: 0,
             ret_code: rc,
             err_msg: Some(String::from(errors::error_message(rc))),
-            task: None,
+            ..TokenData::default()
         }
     }
 }
@@ -111,6 +111,7 @@ impl Default for TokenData {
 
 /////////////////////////////////////////////////////////////////////////////
 
+//#[derive(Debug)]
 pub(crate) struct TokenInner {
     // Mutex guards: (done, ret, msgid)
     lock: Mutex<TokenData>,
@@ -182,6 +183,7 @@ impl Default for TokenInner {
 
 /// A `Token` is a mechanism for tracking the progress of an asynchronous
 /// operation.
+//#[derive(Debug)]
 pub struct Token {
     pub(crate) inner: Arc<TokenInner>,
 }
@@ -219,8 +221,6 @@ impl Token {
         if context.is_null() { return }
 
         let tok = Token::from_raw(context);
-        // We don't need to complete if no one else is waiting
-        if Arc::strong_count(&tok.inner) == 1 { return }
 
         // TODO: Maybe compare this msgid to the one in the token?
         let msgid = if !rsp.is_null() { (*rsp).token as u16 } else { 0 };
@@ -234,19 +234,17 @@ impl Token {
         if context.is_null() { return }
 
         let tok = Token::from_raw(context);
-        // We don't need to complete if no one else is waiting
-        if Arc::strong_count(&tok.inner) == 1 { return }
 
         let mut msgid = 0;
         let mut rc = -1;
         let mut err_msg = None;
 
-        if !rsp.is_null() {
-            msgid = (*rsp).token as u16;
-            rc = if (*rsp).code == 0 { -1 } else { (*rsp).code as i32 };
+        if let Some(rsp) = rsp.as_ref() {
+            msgid = rsp.token as u16;
+            rc = if rsp.code == 0 { -1 } else { rsp.code as i32 };
 
-            if !(*rsp).message.is_null() {
-                if let Ok(cmsg) = CStr::from_ptr((*rsp).message).to_str() {
+            if !rsp.message.is_null() {
+                if let Ok(cmsg) = CStr::from_ptr(rsp.message).to_str() {
                     debug!("Token failure message: {:?}", cmsg);
                     err_msg = Some(cmsg.to_string());
                 }
@@ -308,7 +306,7 @@ impl Token {
     /// Sets the message ID for the token
     pub(crate) fn set_msgid(&self, msg_id: i16) {
         let mut retv = self.inner.lock.lock().unwrap();
-        (*retv).msg_id = msg_id;
+        retv.msg_id = msg_id;
     }
 
     /// Blocks the caller a limited amount of time waiting for the
@@ -366,11 +364,54 @@ pub type DeliveryToken = Token;
 
 #[cfg(test)]
 mod tests {
-    //use super::*;
+    use super::*;
 
     #[test]
-    fn test_ok() {
-        assert!(true);
+    fn test_new() {
+        let tok = Token::new();
+        let data = tok.inner.lock.lock().unwrap();
+        assert!(!data.complete);
+    }
+
+    #[test]
+    fn test_from_message() {
+        const MSG_ID: i16 = 42;
+        let mut msg = Message::new("hello", "Hi there", 1);
+        msg.cmsg.msgid = MSG_ID as i32;
+
+        let tok = Token::from_message(msg);
+        let data = tok.inner.lock.lock().unwrap();
+        assert!(!data.complete);
+        assert_eq!(MSG_ID, data.msg_id);
+    }
+
+    // Created from an error code, should be complete with the right return code.
+    #[test]
+    fn test_from_error() {
+        const ERR_CODE: i32 = -42;
+
+        let tok = Token::from_error(ERR_CODE);
+        let data = tok.inner.lock.lock().unwrap();
+
+        assert!(data.complete);
+        assert_eq!(ERR_CODE, data.ret_code);
+    }
+
+    // Cloned tokens should have the same (inner) raw address.
+    #[test]
+    fn test_token_clones() {
+        let tok1 = Token::new();
+        let tok2 = tok1.clone();
+
+        let p1 = Token::into_raw(tok1);
+        let p2 = Token::into_raw(tok2);
+
+        assert_eq!(p1, p2);
+
+        unsafe {
+            let _ = Token::from_raw(p1);
+            let _ = Token::from_raw(p2);
+        }
     }
 }
 

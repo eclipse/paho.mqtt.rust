@@ -474,7 +474,7 @@ impl AsyncClient {
         debug!("Publish: {:?}", msg);
 
         let tok = DeliveryToken::from_message(msg);
-        let mut rsp_opts = ResponseOptions::new(&tok);
+        let mut rsp_opts = ResponseOptions::new(tok.clone());
 
         let rc = unsafe {
             let msg = tok.inner.msg.as_ref().unwrap();
@@ -503,7 +503,7 @@ impl AsyncClient {
         where S: Into<String>
     {
         let tok = DeliveryToken::new();
-        let mut rsp_opts = ResponseOptions::new(&tok);
+        let mut rsp_opts = ResponseOptions::new(tok.clone());
         let topic = CString::new(topic.into()).unwrap();
 
         debug!("Subscribe to '{:?}' @ QOS {}", topic, qos);
@@ -531,7 +531,7 @@ impl AsyncClient {
     {
         // TOOD: Make sure topics & qos are same length (or use min)
         let tok = Token::new();
-        let mut rsp_opts = ResponseOptions::new(&tok);
+        let mut rsp_opts = ResponseOptions::new(tok.clone());
         let topics = StringCollection::new(topics);
 
         debug!("Subscribe to '{:?}' @ QOS {:?}", topics, qos);
@@ -563,7 +563,7 @@ impl AsyncClient {
         where S: Into<String>
     {
         let tok = Token::new();
-        let mut rsp_opts = ResponseOptions::new(&tok);
+        let mut rsp_opts = ResponseOptions::new(tok.clone());
         let topic = CString::new(topic.into()).unwrap();
 
         debug!("Unsubscribe from '{:?}'", topic);
@@ -591,7 +591,7 @@ impl AsyncClient {
         where T: AsRef<str>
     {
         let tok = Token::new();
-        let mut rsp_opts = ResponseOptions::new(&tok);
+        let mut rsp_opts = ResponseOptions::new(tok.clone());
         let topics = StringCollection::new(topics);
 
         debug!("Unsubscribe from '{:?}'", topics);
