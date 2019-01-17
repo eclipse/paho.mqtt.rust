@@ -152,8 +152,15 @@ mod build {
             .build();
 
         // We check if the target library was compiled.
-        let cmk_out_dir = cmk.clone();
-        let cmk_out_dir = Path::new(&cmk_out_dir).join("lib");
+        let mut cmk_out_dir = cmk.clone();
+        let mut lib_path = "lib";
+
+        if cmk_out_dir.join(lib_path).exists() {
+            cmk_out_dir = cmk_out_dir.join(lib_path);
+        } else if cmk_out_dir.join("lib64").exists() {
+            cmk_out_dir = cmk_out_dir.join("lib64");
+            lib_path = "lib64";
+        }
 
         let link_lib = link_lib();
         let link_file = format!("lib{}.a", link_lib);
@@ -172,7 +179,7 @@ mod build {
 
 
         // we add the folder where all the libraries are built to the path search
-        cmk.push("lib");
+        cmk.push(lib_path);
 
         if cfg!(feature = "ssl") {
             println!("cargo:rustc-link-lib=ssl");
