@@ -31,6 +31,7 @@ extern crate env_logger;
 extern crate paho_mqtt as mqtt;
 
 use std::{env, process};
+use std::time::Duration;
 
 fn main() {
     // Initialize the logger from the environment
@@ -41,10 +42,13 @@ fn main() {
         "tcp://localhost:1883".to_string()
     );
 
-    let cli = mqtt::Client::new(host).unwrap_or_else(|e| {
+    let mut cli = mqtt::Client::new(host).unwrap_or_else(|e| {
         println!("Error creating the client: {:?}", e);
         process::exit(1);
     });
+
+    // Use 5sec timeouts for sync calls.
+    cli.set_timeout(Duration::from_secs(5));
 
     // Connect and wait for it to complete or fail
     if let Err(e) = cli.connect(None) {

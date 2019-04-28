@@ -1,9 +1,9 @@
-// sync_client.rs
+// paho-mqtt/src/client.rs
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2019 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -24,6 +24,8 @@
 //! This is a simple convenience wrapper around the asynchronous API in which
 //! each function calls the underlying async function, and then blocks waiting
 //! for it to complete.
+//!
+//! The synchronous calls use a default timeout
 
 use std::time::Duration;
 use std::sync::mpsc;
@@ -42,9 +44,9 @@ use errors::MqttResult;
 /// This is simply a convenience wrapper around the asynchronous API,
 /// providing blocking calls with timeouts.
 pub struct Client {
-    /// The nuderlying asynchronous client.
+    /// The underlying asynchronous client.
     cli: Box<AsyncClient>,
-    ///
+    /// The default timeout for synchronous calls.
     timeout: Duration,
 }
 
@@ -61,6 +63,22 @@ impl Client {
         };
         //cli.start_consuming();
         Ok(cli)
+    }
+
+    /// Gets the default timeout used for synchronous operations.
+    pub fn timeout(&self) -> Duration {
+        self.timeout
+    }
+
+    /// Sets the default timeout used for synchronous operations.
+    ///
+    /// ## Arguments
+    ///
+    ///  `timeout` The timeout to use for synchronous calls, like
+    ///     connect(), disconnect(), publish(), etc.
+    ///
+    pub fn set_timeout(&mut self, timeout: Duration) {
+        self.timeout = timeout
     }
 
     /// Connects to an MQTT broker using the specified connect options.
@@ -173,6 +191,48 @@ impl Client {
     //
     pub fn start_consuming(&mut self) -> mpsc::Receiver<Option<Message>> {
         self.cli.start_consuming()
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+//                              Unit Tests
+/////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::thread;
+    use std::sync::Arc;
+
+    // Determine that a client can be sent across threads and signaled.
+    // As long as it compiles, this indicates that Client implements the
+    // Send trait.
+    #[test]
+    fn test_send() {
+        let cli = Client::new("tcp://localhost:1883").unwrap();
+        let thr = thread::spawn(move || {
+            assert!(!cli.is_connected());
+        });
+        let _ = thr.join().unwrap();
+    }
+
+    // Determine that a client can be shared across threads using an Arc.
+    // As long as it compiles, this indicates that Client implements the
+    // Send trait.
+    // This is a bit redundant with the previous test, but explicitly
+    // addresses GitHub Issue #31.
+    #[test]
+    fn test_send_arc() {
+        let cli = Client::new("tcp://localhost:1883").unwrap();
+
+        let cli = Arc::new(cli);
+        let cli2 = cli.clone();
+
+        let thr = thread::spawn(move || {
+            assert!(!cli.is_connected());
+        });
+        assert!(!cli2.is_connected());
+        let _ = thr.join().unwrap();
     }
 }
 

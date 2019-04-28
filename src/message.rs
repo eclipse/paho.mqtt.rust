@@ -1,5 +1,5 @@
 // message.rs
-// 
+//
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 //
 
@@ -28,7 +28,7 @@ use std::fmt;
 
 use ffi;
 
-/// A `Message` represents all the information passed in an MQTT PUBLISH 
+/// A `Message` represents all the information passed in an MQTT PUBLISH
 /// packet.
 /// This is the primary data transfer mechanism.
 #[derive(Debug)]
@@ -169,6 +169,9 @@ impl Clone for Message {
     }
 }
 
+unsafe impl Send for Message {}
+unsafe impl Sync for Message {}
+
 impl<'a, 'b> From<(&'a str, &'b [u8])> for Message {
     fn from((topic, payload): (&'a str, &'b [u8])) -> Self {
         let msg = Message {
@@ -294,6 +297,7 @@ impl MessageBuilder
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread;
     use std::os::raw::c_char;
 
     const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'M' as c_char ];
@@ -475,5 +479,19 @@ mod tests {
         assert!(msg.cmsg.retained != 0);
     }
 
+    // Determine that a message can be sent across threads.
+    // As long as it compiles, this indicates that Message implements
+    // the Send trait.
+    #[test]
+    fn test_message_send() {
+        let msg = Message::new(TOPIC, PAYLOAD, QOS);
+
+        let thr = thread::spawn(move || {
+            assert_eq!(TOPIC, msg.topic.to_str().unwrap());
+            assert_eq!(PAYLOAD, msg.payload.as_slice());
+            assert_eq!(QOS, msg.qos());
+        });
+        let _ = thr.join().unwrap();
+    }
 }
 

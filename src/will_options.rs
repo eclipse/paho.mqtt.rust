@@ -3,7 +3,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2019 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -178,6 +178,9 @@ impl Clone for WillOptions {
     }
 }
 
+unsafe impl Send for WillOptions {}
+unsafe impl Sync for WillOptions {}
+
 impl From<Message> for WillOptions {
     /// Create `WillOptions` from a `Message`
     fn from(msg: Message) -> Self {
@@ -193,6 +196,7 @@ impl From<Message> for WillOptions {
         WillOptions::fixup(will)
     }
 }
+
 
 /////////////////////////////////////////////////////////////////////////////
 //                                  Unit Tests

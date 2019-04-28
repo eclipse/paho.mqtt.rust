@@ -2,7 +2,7 @@
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 
 /*******************************************************************************
- * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2019 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -20,7 +20,7 @@
 //! The Asynchronous client module for the Paho MQTT Rust client library.
 //!
 //! This presents an asynchronous API that is similar to the other Paho MQTT
-//! clients, but but uses Token objects that implement the Futures trait, so
+//! clients, but uses Token objects that implement the Futures trait, so
 //! can be used in much more flexible ways than the other language clients.
 //!
 //! Asynchronous operations return a `Token` that is a type of future. It
@@ -502,7 +502,7 @@ impl AsyncClient {
     pub fn subscribe<S>(&self, topic: S, qos: i32) -> Token
         where S: Into<String>
     {
-        let tok = DeliveryToken::new();
+        let tok = Token::new();
         let mut rsp_opts = ResponseOptions::new(tok.clone());
         let topic = CString::new(topic.into()).unwrap();
 
@@ -657,6 +657,9 @@ impl AsyncClient {
         rx
     }
 }
+
+unsafe impl Send for AsyncClient {}
+unsafe impl Sync for AsyncClient {}
 
 impl Drop for InnerAsyncClient {
     /// Drops the client by closing dpen all the underlying, dependent objects
@@ -813,10 +816,14 @@ impl AsyncClientBuilder {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+//                              Unit Tests
+/////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread;
+    use std::sync::Arc;
     use create_options::{CreateOptionsBuilder};
     use futures::Future;
 
@@ -845,15 +852,15 @@ mod tests {
         // They should match (inner didn't move)
         assert_eq!(pctx, new_pctx);
     }
-    
+
     #[test]
-    fn test_create_async_client() {
+    fn test_create() {
         let client = AsyncClient::new("tcp://localhost:1883");
         assert!(client.is_ok(), "Error in creating simple async client, do you have a running MQTT server on localhost:1883?");
     }
 
     #[test]
-    fn test_async_client_with_client_id() {
+    fn test_with_client_id() {
         println!("With client id");
         let options = CreateOptionsBuilder::new().client_id("test1").finalize();
         let client = AsyncClient::new(options);
@@ -864,5 +871,38 @@ mod tests {
             Err(e) => println!("(Error) {}", e)
         }
     }
+
+    // Determine that a client can be sent across threads.
+    // As long as it compiles, this indicates that AsyncClient implements
+    // the Send trait.
+    #[test]
+    fn test_send() {
+
+        let cli = AsyncClient::new("tcp://localhost:1883").unwrap();
+        let thr = thread::spawn(move || {
+            assert!(!cli.is_connected());
+        });
+        let _ = thr.join().unwrap();
+    }
+
+    // Determine that a client can be shared across threads using an Arc.
+    // As long as it compiles, this indicates that AsyncClient implements the
+    // Send trait.
+    // This is a bit redundant with the previous test, but explicitly
+    // addresses GitHub Issue #31.
+    #[test]
+    fn test_send_arc() {
+        let cli = AsyncClient::new("tcp://localhost:1883").unwrap();
+
+        let cli = Arc::new(cli);
+        let cli2 = cli.clone();
+
+        let thr = thread::spawn(move || {
+            assert!(!cli.is_connected());
+        });
+        assert!(!cli2.is_connected());
+        let _ = thr.join().unwrap();
+    }
+
 }
 

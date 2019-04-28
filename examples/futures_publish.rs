@@ -54,7 +54,8 @@ fn main() {
             let msg = mqtt::Message::new("test", "Hello futures world!", 0);
             cli.publish(msg)
         })
-        .and_then(|_| cli.disconnect(None)).wait().unwrap_or_else(|err| {
+        .and_then(|_| cli.disconnect(None))
+        .wait().unwrap_or_else(|err| {
             println!("Error: {}", err);
         });
 }

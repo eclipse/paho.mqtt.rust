@@ -1,11 +1,11 @@
 // connect_options.rs
-// 
+//
 // The set of options for connecting to an MQTT client.
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2019 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -50,7 +50,7 @@ pub const MQTT_VERSION_3_1_1: u32 = ffi::MQTTVERSION_3_1_1;
 // Connections
 
 /// The collection of options for connecting to a broker.
-/// This can be constructed using a 
+/// This can be constructed using a
 /// [ConnectOptionsBuilder](struct.ConnectOptionsBuilder.html).
 #[derive(Debug)]
 pub struct ConnectOptions {
@@ -154,7 +154,7 @@ impl Default for ConnectOptions {
 }
 
 impl Clone for ConnectOptions {
-    fn clone(&self) -> ConnectOptions { 
+    fn clone(&self) -> ConnectOptions {
         let opts = ConnectOptions {
             copts: self.copts.clone(),
             will: self.will.clone(),
@@ -166,6 +166,10 @@ impl Clone for ConnectOptions {
         ConnectOptions::fixup(opts)
     }
 }
+
+unsafe impl Send for ConnectOptions {}
+unsafe impl Sync for ConnectOptions {}
+
 
 /////////////////////////////////////////////////////////////////////////////
 //                              Builder
@@ -398,6 +402,7 @@ impl ConnectOptionsBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread;
     use std::ffi::{CStr};
     use ssl_options::SslOptionsBuilder;
     use std::os::raw::c_char;
@@ -524,7 +529,7 @@ mod tests {
 
 
         let org_opts = ConnectOptionsBuilder::new()
-        .keep_alive_interval(Duration::new(KEEP_ALIVE_SECS,0))
+            .keep_alive_interval(Duration::new(KEEP_ALIVE_SECS,0))
             .clean_session(false)
             .max_inflight(MAX_INFLIGHT)
             .user_name(USER_NAME)
@@ -575,5 +580,19 @@ mod tests {
         assert_eq!(TRUST_STORE, ts.to_str().unwrap());
     }
 */
+
+    // Determine that the options can be sent across threads.
+    // As long as it compiles, this indicates that ConnectOptions implements
+    // the Send trait.
+    #[test]
+    fn test_send() {
+        let opts = ConnectOptions::new();
+
+        // TODO: Fill in some values and check them.
+        let thr = thread::spawn(move || {
+            assert_eq!(STRUCT_ID, opts.copts.struct_id);
+        });
+        let _ = thr.join().unwrap();
+    }
 }
 

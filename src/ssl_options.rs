@@ -4,7 +4,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2019 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -113,6 +113,13 @@ impl Clone for SslOptions {
     }
 }
 
+unsafe impl Send for SslOptions {}
+unsafe impl Sync for SslOptions {}
+
+
+/////////////////////////////////////////////////////////////////////////////
+//                              Builder
+/////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug)]
 pub struct SslOptionsBuilder {
@@ -176,7 +183,8 @@ impl SslOptionsBuilder {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Unit Tests
+//                              Unit Tests
+/////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod tests {

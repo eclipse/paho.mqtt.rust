@@ -2,7 +2,7 @@
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 
 /*******************************************************************************
- * Copyright (c) 2018 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2018-2019 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -318,6 +318,8 @@ impl Token {
     }
 }
 
+unsafe impl Send for Token {}
+
 impl Clone for Token {
     /// Cloning a Token creates another Arc reference to
     /// the inner data on the heap.
@@ -365,6 +367,7 @@ pub type DeliveryToken = Token;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread;
 
     #[test]
     fn test_new() {
@@ -413,5 +416,24 @@ mod tests {
             let _ = Token::from_raw(p2);
         }
     }
+
+    // Determine that a token can be sent across threads and signaled.
+    // As long as it compiles, this indicates that Token implements the Send
+    // trait. 
+    // TODO: This would likely deadlock on an error. Consider something that
+    // would timeout on error, instead of hanging forever.
+    #[test]
+    fn test_token_send() {
+        let tok = Token::new();
+        let tok2 = tok.clone();
+
+        let thr = thread::spawn(move || {
+            tok.wait()
+        });
+
+        tok2.on_complete(0, 0, None);
+        let _ = thr.join().unwrap();
+    }
+
 }
 

@@ -4,7 +4,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2019 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -43,7 +43,6 @@ impl DisconnectOptions {
         DisconnectOptions::default()
     }
 
-
     /// Sets the token to ber used for connect completion callbacks.
     /// Note that we leak the token to give to the C lib. When we're
     /// done with it, we must recover and drop it (i.e. in the completion
@@ -62,6 +61,10 @@ impl Default for DisconnectOptions {
         }
     }
 }
+
+unsafe impl Send for DisconnectOptions {}
+unsafe impl Sync for DisconnectOptions {}
+
 
 /////////////////////////////////////////////////////////////////////////////
 //                              Builder
@@ -108,6 +111,7 @@ impl DisconnectOptionsBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread;
     use std::os::raw::c_char;
 
     // Identifier fo a C disconnect options struct
@@ -119,6 +123,17 @@ mod tests {
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
         assert_eq!(0, opts.copts.struct_version);
+    }
+
+    #[test]
+    fn test_send() {
+        let opts = DisconnectOptions::new();
+
+        let thr = thread::spawn(move || {
+            assert_eq!(STRUCT_ID, opts.copts.struct_id);
+            assert_eq!(0, opts.copts.struct_version);
+        });
+        let _ = thr.join().unwrap();
     }
 
 }
