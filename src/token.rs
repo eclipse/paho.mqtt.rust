@@ -41,13 +41,13 @@ use futures::task::Task;
 
 use ffi;
 
-use async_client::AsyncClient;
+use async_client::{AsyncClient, InnerAsyncClient};
 use message::Message;
 use errors;
 use errors::{MqttResult, MqttError};
 
 /////////////////////////////////////////////////////////////////////////////
-// Token
+// TokenData
 
 /// Callback for the token on successful completion
 pub type SuccessCallback = Fn(&AsyncClient, u16) + 'static;
@@ -56,8 +56,8 @@ pub type SuccessCallback = Fn(&AsyncClient, u16) + 'static;
 pub type FailureCallback = Fn(&AsyncClient, u16, i32) + 'static;
 
 /// The result data for the token.
-/// This is the guarded elements in the token which are updated by the
-/// C library callback when the operation completes.
+/// This contains the guarded elements in the token which are updated by
+/// the C library callback when the asynchronous operation completes.
 #[derive(Debug)]
 pub(crate) struct TokenData {
     /// Whether the async action has completed
@@ -68,7 +68,7 @@ pub(crate) struct TokenData {
     ret_code: i32,
     /// Additional detail error message (if any)
     err_msg: Option<String>,
-    /// The future task
+    /// The futures task
     task: Option<Task>,
 }
 
@@ -110,14 +110,22 @@ impl Default for TokenData {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// TokenInner
 
+/// The actual data structure for an asynchronous token.
+/// Instances of this are passed as the context pointer to the C library
+/// to track asynchronous operations. They are kept on the heap, via Arc
+/// pointers so that their addresses don't change in memory. The internal
+/// `TokenData` is thread-protected by a mutex as it is updated by the
+/// async callback in a thread originating in the C lib. The other fields
+/// are set at creation and remain static.
 //#[derive(Debug)]
 pub(crate) struct TokenInner {
     // Mutex guards: (done, ret, msgid)
     lock: Mutex<TokenData>,
     // Pointer to the client that created the token.
     // This is only guaranteed valid until the end of the callback
-    cli: *const AsyncClient,
+    cli: *const InnerAsyncClient,
     // User callback for successful completion of the async action
     on_success: Option<Box<SuccessCallback>>,
     // User callback for failed completion of the async action
@@ -143,14 +151,17 @@ impl TokenInner {
     }
 
     /// Creates a new, un-signaled Token with callbacks.
-    pub fn from_client<FS,FF>(cli: *const AsyncClient,
+    pub fn from_client<FS,FF>(cli: &AsyncClient,
                               success_cb: FS,
                               failure_cb: FF) -> TokenInner
         where FS: Fn(&AsyncClient, u16) + 'static,
               FF: Fn(&AsyncClient, u16,i32) + 'static
     {
+        // A pointer to the inner client will serve as the client pointer
+        let pcli: &InnerAsyncClient = &cli.inner;
+
         TokenInner {
-            cli: cli,
+            cli: pcli /*as *const InnerAsyncClient*/,
             on_success: Some(Box::new(success_cb)),
             on_failure: Some(Box::new(failure_cb)),
             ..TokenInner::default()
@@ -180,6 +191,7 @@ impl Default for TokenInner {
 
 
 /////////////////////////////////////////////////////////////////////////////
+// Token
 
 /// A `Token` is a mechanism for tracking the progress of an asynchronous
 /// operation.
@@ -201,7 +213,7 @@ impl Token {
     }
 
     /// Creates a new, un-signaled Token with callbacks.
-    pub fn from_client<FS,FF>(cli: *const AsyncClient,
+    pub fn from_client<FS,FF>(cli: &AsyncClient,
                               success_cb: FS,
                               failure_cb: FF) -> Token
         where FS: Fn(&AsyncClient,u16) + 'static,
@@ -260,20 +272,23 @@ impl Token {
 
         // Fire off any user callbacks
 
+        let pcli: Box<InnerAsyncClient> = unsafe { Box::from_raw(self.inner.cli as *mut _) };
+        let cli = AsyncClient { inner: pcli };
+
         if rc == 0 {
             if let Some(ref cb) = self.inner.on_success {
                 trace!("Invoking Token::on_success callback");
-                let cli = self.inner.cli;
-                cb(unsafe { &*cli }, msgid);
+                cb(&cli, msgid);
             }
         }
         else {
             if let Some(ref cb) = self.inner.on_failure {
                 trace!("Invoking Token::on_failure callback");
-                let cli = self.inner.cli;
-                cb(unsafe { &*cli }, msgid, rc);
+                cb(&cli, msgid, rc);
             }
         }
+
+        let _ = Box::into_raw(cli.inner);
 
         // Signal completion of the token
 
@@ -419,7 +434,7 @@ mod tests {
 
     // Determine that a token can be sent across threads and signaled.
     // As long as it compiles, this indicates that Token implements the Send
-    // trait. 
+    // trait.
     // TODO: This would likely deadlock on an error. Consider something that
     // would timeout on error, instead of hanging forever.
     #[test]

@@ -89,7 +89,7 @@ struct CallbackContext
 }
 
 /// An asynchronous MQTT connection client.
-struct InnerAsyncClient {
+pub(crate) struct InnerAsyncClient {
     // The handle to the Paho C client
     handle: ffi::MQTTAsync,
     // The options for connecting to the broker
@@ -106,7 +106,7 @@ struct InnerAsyncClient {
 
 /// An asynchronous MQTT connection client.
 pub struct AsyncClient {
-    inner: Box<InnerAsyncClient>,
+    pub(crate) inner: Box<InnerAsyncClient>,
 }
 
 impl AsyncClient {
@@ -299,7 +299,7 @@ impl AsyncClient {
             }
         }
 
-        let tok = Token::from_client(self as *const _, success_cb, failure_cb);
+        let tok = Token::from_client(self, success_cb, failure_cb);
         opts.set_token(tok.clone());
 
         debug!("Connect opts: {:?}", opts);
