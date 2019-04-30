@@ -60,7 +60,7 @@ use connect_options::ConnectOptions;
 use disconnect_options::{DisconnectOptions,DisconnectOptionsBuilder};
 use response_options::ResponseOptions;
 use message::Message;
-use token::{Token, DeliveryToken};
+use token::{Token, DeliveryToken, ServerRequest};
 use client_persistence::UserPersistence;
 use errors;
 use errors::{MqttResult, ErrorKind};
@@ -256,7 +256,7 @@ impl AsyncClient {
             debug!("Connecting handle: {:?}", self.inner.handle);
             debug!("Connect options: {:?}", opts);
 
-            let tok = Token::new();
+            let tok = Token::from_request(ServerRequest::Connect);
 
             let mut lkopts = self.inner.opts.lock().unwrap();
             *lkopts = opts;
@@ -299,7 +299,8 @@ impl AsyncClient {
             }
         }
 
-        let tok = Token::from_client(self, success_cb, failure_cb);
+        let tok = Token::from_client(self, ServerRequest::Connect,
+                                     success_cb, failure_cb);
         opts.set_token(tok.clone());
 
         debug!("Connect opts: {:?}", opts);
@@ -502,7 +503,7 @@ impl AsyncClient {
     pub fn subscribe<S>(&self, topic: S, qos: i32) -> Token
         where S: Into<String>
     {
-        let tok = Token::new();
+        let tok = Token::from_request(ServerRequest::Subscribe);
         let mut rsp_opts = ResponseOptions::new(tok.clone());
         let topic = CString::new(topic.into()).unwrap();
 
@@ -529,8 +530,10 @@ impl AsyncClient {
     pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> Token
         where T: AsRef<str>
     {
+        let n = topics.len();
+
         // TOOD: Make sure topics & qos are same length (or use min)
-        let tok = Token::new();
+        let tok = Token::from_request(ServerRequest::SubscribeMany(n));
         let mut rsp_opts = ResponseOptions::new(tok.clone());
         let topics = StringCollection::new(topics);
 
@@ -538,7 +541,7 @@ impl AsyncClient {
 
         let rc = unsafe {
             ffi::MQTTAsync_subscribeMany(self.inner.handle,
-                                         topics.len() as c_int,
+                                         n as c_int,
                                          topics.as_c_arr_mut_ptr(),
                                          // C lib takes mutable QoS ptr, but doesn't mutate
                                          mem::transmute(qos.as_ptr()),

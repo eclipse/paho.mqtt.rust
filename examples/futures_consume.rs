@@ -91,14 +91,29 @@ fn main() {
 
     // Make the connection to the broker
     println!("Connecting to the MQTT server...");
-    cli.connect(conn_opts).wait().unwrap_or_else(|err| {
-        println!("Error: {}", err);
-        process::exit(2);
-    });
-
-    // Subscribe to multiple topics
-    println!("Subscribing to topics: {:?}", TOPICS);
-    cli.subscribe_many(TOPICS, QOS);
+    cli.connect(conn_opts)
+        .and_then(|rsp| {
+            if let mqtt::ServerResponse::Connect(server_uri, ver, session_present) = rsp {
+                println!("Connected to: '{}' with MQTT version {}", server_uri, ver);
+                if !session_present {
+                    // Subscribe to multiple topics
+                    println!("Subscribing to topics: {:?}", TOPICS);
+                    cli.subscribe_many(TOPICS, QOS)
+                }
+                else {
+                    mqtt::Token::from_success()
+                }
+            }
+            else {
+                // This should never happen
+                println!("Unknown server response from connect: {:?}", rsp);
+                process::exit(2);
+            }
+        })
+        .wait().unwrap_or_else(|err| {
+            println!("Error: {}", err);
+            process::exit(2);
+        });
 
     // Just wait for incoming messages by running the receiver stream
     // in this thread.

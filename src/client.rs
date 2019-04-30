@@ -35,6 +35,7 @@ use create_options::CreateOptions;
 use connect_options::ConnectOptions;
 use disconnect_options::DisconnectOptions;
 use message::Message;
+use token::ServerResponse;
 use errors::MqttResult;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -82,7 +83,7 @@ impl Client {
     }
 
     /// Connects to an MQTT broker using the specified connect options.
-    pub fn connect<T>(&self, opt_opts:T) -> MqttResult<()>
+    pub fn connect<T>(&self, opt_opts:T) -> MqttResult<ServerResponse>
         where T: Into<Option<ConnectOptions>>
     {
         self.cli.connect(opt_opts).wait_for(self.timeout)
@@ -98,7 +99,8 @@ impl Client {
     pub fn disconnect<T>(&self, opt_opts:T) -> MqttResult<()>
         where T: Into<Option<DisconnectOptions>>
     {
-        self.cli.disconnect(opt_opts).wait_for(self.timeout)
+        self.cli.disconnect(opt_opts).wait_for(self.timeout)?;
+        Ok(())
     }
 
     /// Disconnect from the MQTT broker with a timeout.
@@ -113,13 +115,14 @@ impl Client {
     ///           a resolution in milliseconds.
     ///
     pub fn disconnect_after(&self, timeout: Duration) -> MqttResult<()> {
-        self.cli.disconnect_after(timeout).wait_for(self.timeout)
+        self.cli.disconnect_after(timeout).wait_for(self.timeout)?;
+        Ok(())
     }
 
     /// Attempts to reconnect to the broker.
     /// This can only be called after a connection was initially made or
     /// attempted. It will retry with the same connect options.
-    pub fn reconnect(&self) -> MqttResult<()> {
+    pub fn reconnect(&self) -> MqttResult<ServerResponse> {
         self.cli.reconnect().wait_for(self.timeout)
     }
 
@@ -129,7 +132,7 @@ impl Client {
     }
 
     /// Publishes a message to an MQTT broker
-    pub fn publish(&self, msg: Message) -> MqttResult<()> {
+    pub fn publish(&self, msg: Message) -> MqttResult<ServerResponse> {
         self.cli.publish(msg).wait_for(self.timeout)
     }
 
@@ -140,7 +143,7 @@ impl Client {
     /// `topic` The topic name
     /// `qos` The quality of service requested for messages
     ///
-    pub fn subscribe(&self, topic: &str, qos: i32) -> MqttResult<()> {
+    pub fn subscribe(&self, topic: &str, qos: i32) -> MqttResult<ServerResponse> {
         self.cli.subscribe(topic, qos).wait_for(self.timeout)
     }
 
@@ -151,7 +154,7 @@ impl Client {
     /// `topic` The topic name
     /// `qos` The quality of service requested for messages
     ///
-    pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> MqttResult<()>
+    pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> MqttResult<ServerResponse>
         where T: AsRef<str>
     {
         self.cli.subscribe_many(topics, qos).wait_for(self.timeout)
@@ -165,7 +168,8 @@ impl Client {
     ///         previous subscribe.
     ///
     pub fn unsubscribe(&self, topic: &str) -> MqttResult<()> {
-        self.cli.unsubscribe(topic).wait_for(self.timeout)
+        self.cli.unsubscribe(topic).wait_for(self.timeout)?;
+        Ok(())
     }
 
     /// Unsubscribes from multiple topics simultaneously.
@@ -178,7 +182,8 @@ impl Client {
     pub fn unsubscribe_many<T>(&self, topics: &[T]) -> MqttResult<()>
         where T: AsRef<str>
     {
-        self.cli.unsubscribe_many(topics).wait_for(self.timeout)
+        self.cli.unsubscribe_many(topics).wait_for(self.timeout)?;
+        Ok(())
     }
 
     /// Starts the client consuming messages.

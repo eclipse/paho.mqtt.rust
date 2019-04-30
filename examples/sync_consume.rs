@@ -39,7 +39,7 @@ use std::{env, process, thread};
 use std::time::Duration;
 
 // --------------------------------------------------------------------------
-// This will attempt to reconnect to the broker. It can be called after 
+// This will attempt to reconnect to the broker. It can be called after
 // connection is lost. In this example, we try to reconnect several times,
 // with a few second pause between each attempt. A real system might keep
 // trying indefinitely, with a backoff, or something like that.
@@ -80,6 +80,9 @@ fn main() {
         process::exit(1);
     });
 
+    // Initialize the consumer before connecting
+    let rx = cli.start_consuming();
+
     // Define the set of options for the connection
     let lwt = mqtt::MessageBuilder::new()
         .topic("test")
@@ -92,26 +95,33 @@ fn main() {
         .will_message(lwt)
         .finalize();
 
-    // Make the connection to the broker
-    println!("Connecting to the MQTT broker...");
-    if let Err(e) = cli.connect(conn_opts) {
-        println!("Error connecting to the broker: {:?}", e);
-        process::exit(1);
-    };
-
-    // Initialize the consumer before subscribing to topics
-    let rx = cli.start_consuming();
-
-    // Register subscriptions on the server
-    println!("Subscribing to topics...");
-
     let subscriptions = [ "test", "hello" ];
     let qos = [1, 1];
 
-    if let Err(e) = cli.subscribe_many(&subscriptions, &qos) {
-        println!("Error subscribing to topics: {:?}", e);
-        cli.disconnect(None).unwrap();
-        process::exit(1);
+    // Make the connection to the broker
+    println!("Connecting to the MQTT broker...");
+    match cli.connect(conn_opts) {
+        Ok(mqtt::ServerResponse::Connect(server_uri, ver, session_present)) => {
+            println!("Connected to: '{}' with MQTT version {}", server_uri, ver);
+            if !session_present {
+                // Register subscriptions on the server
+                println!("Subscribing to topics...");
+
+                if let Err(e) = cli.subscribe_many(&subscriptions, &qos) {
+                    println!("Error subscribing to topics: {:?}", e);
+                    cli.disconnect(None).unwrap();
+                    process::exit(1);
+                }
+            }
+        },
+        Ok(rsp) => {
+            println!("Unexpected response from the server: {:?}", rsp);
+            process::exit(2);
+        },
+        Err(e) => {
+            println!("Error connecting to the broker: {:?}", e);
+            process::exit(1);
+        }
     }
 
     // Just loop on incoming messages.
