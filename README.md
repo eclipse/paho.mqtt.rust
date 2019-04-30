@@ -32,11 +32,22 @@ Development is proceeding to add support for Futures and clean up the internal i
     - Incoming messages can be obtained through a `Stream` from the client, implemented with a futures channel.
     - New examples of a publisher and subscriber implemented with futures.
 
+- **Send and Sync Traits**
+    - The clients are now marked as _Send_ and _Sync_
+    - The _Token_ type is _Send_
+    - Most of the option types are _Send_ and _Sync_
+    
+- **Server Responses**
+    - There's  a new _ServerResponse_ enum that can hold the response from the server for several different requests (connect, publish, subscribe).
+    - Tokens now track the type of request and get the _ServerResponse_ upon completion. This is the Futures _Item_ type for the token.
+    - In particular this is useful for connecting subscribers. The app can now determine if a persistent session is already present, and only needs to subscribe if not.
+    
 - **Internal Cleanup**
     - Moved `Tokens` into their own source file.
     - Consolidated persistence internals into `UserPersistence` struct.
     - Created a new `ResponseOptions` struct to manage the details of the C `MQTTAsync_responseOptions` objects.
     - Cleanup of the `AsyncClient` implementation.
+    - A bad reconnect bug is fixed (Issue #33)
 
 ### Features
 
