@@ -108,11 +108,6 @@ pub(crate) struct TokenData {
 }
 
 impl TokenData {
-    /// Creates new, default token data
-    pub fn new() -> TokenData {
-        TokenData::default()
-    }
-
     /// Creates token data for a specific message
     pub fn from_message_id(msg_id: i16) -> TokenData {
         TokenData {
@@ -172,65 +167,10 @@ pub(crate) struct TokenInner {
     pub(crate) msg: Option<Message>,
 }
 
-impl TokenInner {
-    /// Creates a new, unsignaled token.
-    pub fn new() -> TokenInner {
-        TokenInner::default()
-    }
-
-    /*
-    /// Creates a token for a specific request type
-    pub fn from_request(rsp: ServerResponse) -> TokenInner {
-        TokenInner {
-            lock: Mutex::new(TokenData::from_srvr_req(rsp)),
-            ..TokenInner::default()
-        }
-    }
-    */
-
-    /// Creates a new, un-signaled delivery token.
-    /// This is a token which tracks delivery of a message.
-    pub fn from_message(msg: Message) -> TokenInner {
-        TokenInner {
-            lock: Mutex::new(TokenData::from_message_id(msg.cmsg.msgid as i16)),
-            msg: Some(msg),
-            ..TokenInner::default()
-        }
-    }
-
-    /// Creates a new, un-signaled Token with callbacks.
-    pub fn from_client<FS,FF>(cli: &AsyncClient,
-                              req: ServerRequest,
-                              success_cb: FS,
-                              failure_cb: FF) -> TokenInner
-        where FS: Fn(&AsyncClient, u16) + 'static,
-              FF: Fn(&AsyncClient, u16,i32) + 'static
-    {
-        // A pointer to the inner client will serve as the client pointer
-        let pcli: &InnerAsyncClient = &cli.inner;
-
-        TokenInner {
-            cli: pcli,
-            req,
-            on_success: Some(Box::new(success_cb)),
-            on_failure: Some(Box::new(failure_cb)),
-            ..TokenInner::default()
-        }
-    }
-
-    /// Creates a new token that is already signaled with an error.
-    pub fn from_error(rc: i32) -> TokenInner {
-        TokenInner {
-            lock: Mutex::new(TokenData::from_error(rc)),
-            ..TokenInner::default()
-        }
-    }
-}
-
 impl Default for TokenInner {
     fn default() -> Self {
         TokenInner {
-            lock: Mutex::new(TokenData::new()),
+            lock: Mutex::new(TokenData::default()),
             cli: ptr::null(),
             req: ServerRequest::None,
             on_success: None,
@@ -254,7 +194,7 @@ pub struct Token {
 impl Token {
     /// Creates a new, unsignaled Token.
     pub fn new() -> Token {
-        Token { inner: Arc::new(TokenInner::new()) }
+        Token { inner: Arc::new(TokenInner::default()) }
     }
 
     /// Creates a token for a specific request type
@@ -270,7 +210,13 @@ impl Token {
     /// Creates a new, un-signaled delivery Token.
     /// This is a token which tracks delivery of a message.
     pub fn from_message(msg: Message) -> Token {
-        Token { inner: Arc::new(TokenInner::from_message(msg)) }
+        Token { inner: Arc::new(
+            TokenInner {
+                lock: Mutex::new(TokenData::from_message_id(msg.cmsg.msgid as i16)),
+                msg: Some(msg),
+                ..TokenInner::default()
+            })
+        }
     }
 
     /// Creates a new, un-signaled Token with callbacks.
@@ -281,17 +227,33 @@ impl Token {
         where FS: Fn(&AsyncClient,u16) + 'static,
               FF: Fn(&AsyncClient,u16,i32) + 'static
     {
-        Token { inner: Arc::new(TokenInner::from_client(cli, req, success_cb, failure_cb)) }
+        // A pointer to the inner client will serve as the client pointer
+        let pcli: &InnerAsyncClient = &cli.inner;
+
+        Token { inner: Arc::new(
+            TokenInner {
+                cli: pcli,
+                req,
+                on_success: Some(Box::new(success_cb)),
+                on_failure: Some(Box::new(failure_cb)),
+                ..TokenInner::default()
+            })
+        }
     }
 
     /// Creates a new Token signaled with an error.
     pub fn from_error(rc: i32) -> Token {
-        Token { inner: Arc::new(TokenInner::from_error(rc)) }
+        Token { inner: Arc::new(
+            TokenInner {
+                lock: Mutex::new(TokenData::from_error(rc)),
+                ..TokenInner::default()
+            })
+        }
     }
 
     /// Creates a new Token signaled with an error.
     pub fn from_success() -> Token {
-        Token { inner: Arc::new(TokenInner::from_error(0)) }
+        Token::from_error(0)
     }
 
     // Callback from the C library for when an async operation succeeds.
@@ -539,7 +501,7 @@ mod tests {
             tok.wait()
         });
 
-        tok2.on_complete(0, 0, None);
+        tok2.on_complete(0, 0, None, ptr::null_mut());
         let _ = thr.join().unwrap();
     }
 
