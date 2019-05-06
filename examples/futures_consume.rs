@@ -9,6 +9,7 @@
 //! The sample demonstrates:
 //!   - Futures stream for receiving messages
 //!   - Connecting to an MQTT server/broker.
+//!   - Checking server responses
 //!   - Subscribing to multiple topics
 //!   - Using automatic reconnect to let the underlying library reconnect to
 //!     the server on lost connections
@@ -42,7 +43,7 @@ use std::{env, process};
 use std::time::Duration;
 
 use futures::{Future, Stream};
-use futures::future::ok;
+use futures::future::{Either, ok};
 
 // The topics to which we subscribe.
 const TOPICS: &[&str] = &[ "test", "hello" ];
@@ -92,28 +93,28 @@ fn main() {
     // Make the connection to the broker
     println!("Connecting to the MQTT server...");
     cli.connect(conn_opts)
-        .and_then(|rsp| {
-            if let mqtt::ServerResponse::Connect(server_uri, ver, session_present) = rsp {
-                println!("Connected to: '{}' with MQTT version {}", server_uri, ver);
-                if !session_present {
-                    // Subscribe to multiple topics
-                    println!("Subscribing to topics: {:?}", TOPICS);
-                    cli.subscribe_many(TOPICS, QOS)
-                }
-                else {
-                    mqtt::Token::from_success()
-                }
+        .and_then(|(server_uri, ver, session_present)| {
+            println!("Connected to: '{}' with MQTT version {}", server_uri, ver);
+            if !session_present {
+                // Subscribe to multiple topics
+                println!("Subscribing to topics: {:?}", TOPICS);
+                Either::A(cli.subscribe_many(TOPICS, QOS))
             }
             else {
-                // This should never happen
-                println!("Unknown server response from connect: {:?}", rsp);
-                process::exit(2);
+                Either::B(ok(vec![]))
             }
+        })
+        .and_then(|qos| {
+            if qos.len() > 0 {
+                println!("QoS granted: {:?}", qos);
+            }
+            mqtt::Token::from_success()
         })
         .wait().unwrap_or_else(|err| {
             println!("Error: {}", err);
             process::exit(2);
         });
+
 
     // Just wait for incoming messages by running the receiver stream
     // in this thread.

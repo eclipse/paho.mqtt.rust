@@ -28,7 +28,7 @@
 use ffi;
 use std::time::Duration;
 
-use token::Token;
+use token::{Token, TokenPointer, TokenInner};
 
 /// The collection of options for disconnecting from the client.
 #[derive(Debug)]
@@ -48,8 +48,8 @@ impl DisconnectOptions {
     /// done with it, we must recover and drop it (i.e. in the completion
     /// callback).
     pub fn set_token(&mut self, tok: Token) {
-        self.copts.onSuccess = Some(Token::on_success);
-        self.copts.onFailure = Some(Token::on_failure);
+        self.copts.onSuccess = Some(TokenInner::on_success);
+        self.copts.onFailure = Some(TokenInner::on_failure);
         self.copts.context = Token::into_raw(tok);
     }
 }

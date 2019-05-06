@@ -38,6 +38,7 @@ use std::os::raw::c_void;
 use futures::{Future, Async};
 use futures::task;
 use futures::task::Task;
+use futures_timer::FutureExt;
 
 use ffi;
 
@@ -125,6 +126,36 @@ impl TokenData {
             ..TokenData::default()
         }
     }
+
+    /// Creates a new token that is already signaled with sucess.
+    pub fn from_success() -> TokenData {
+        TokenData {
+            complete: true,
+            ..TokenData::default()
+        }
+    }
+
+    /// Poll the data to see if the request has completed yet.
+    fn poll(&mut self) -> Result<Async<ServerResponse>, MqttError> {
+        let rc = self.ret_code;
+
+        if !self.complete {
+            self.task = Some(task::current());
+            Ok(Async::NotReady)
+        }
+        else if rc == 0 {
+            Ok(Async::Ready(self.srvr_rsp.clone()))
+        }
+        else {
+            if let Some(ref err_msg) = self.err_msg {
+                Err(MqttError::from((rc, err_msg.clone())))
+            }
+            else {
+                Err(MqttError::from(rc))
+            }
+        }
+    }
+
 }
 
 impl Default for TokenData {
@@ -167,93 +198,74 @@ pub(crate) struct TokenInner {
     pub(crate) msg: Option<Message>,
 }
 
-impl Default for TokenInner {
-    fn default() -> Self {
-        TokenInner {
-            lock: Mutex::new(TokenData::default()),
-            cli: ptr::null(),
-            req: ServerRequest::None,
-            on_success: None,
-            on_failure: None,
-            msg: None
-        }
-    }
-}
-
-
-/////////////////////////////////////////////////////////////////////////////
-// Token
-
-/// A `Token` is a mechanism for tracking the progress of an asynchronous
-/// operation.
-//#[derive(Debug)]
-pub struct Token {
-    pub(crate) inner: Arc<TokenInner>,
-}
-
-impl Token {
+impl TokenInner {
     /// Creates a new, unsignaled Token.
-    pub fn new() -> Token {
-        Token { inner: Arc::new(TokenInner::default()) }
+    pub fn new() -> Arc<TokenInner> {
+        Arc::new(TokenInner::default())
     }
 
     /// Creates a token for a specific request type
-    pub fn from_request(req: ServerRequest) -> Token {
-        Token { inner: Arc::new(
+    pub fn from_request(req: ServerRequest) -> Arc<TokenInner> {
+        Arc::new(
             TokenInner {
                 req,
                 ..TokenInner::default()
-            }),
-        }
+            }
+        )
     }
 
     /// Creates a new, un-signaled delivery Token.
     /// This is a token which tracks delivery of a message.
-    pub fn from_message(msg: Message) -> Token {
-        Token { inner: Arc::new(
+    pub fn from_message(msg: Message) -> Arc<TokenInner> {
+        Arc::new(
             TokenInner {
                 lock: Mutex::new(TokenData::from_message_id(msg.cmsg.msgid as i16)),
                 msg: Some(msg),
                 ..TokenInner::default()
-            })
-        }
+            }
+        )
     }
 
     /// Creates a new, un-signaled Token with callbacks.
     pub fn from_client<FS,FF>(cli: &AsyncClient,
                               req: ServerRequest,
                               success_cb: FS,
-                              failure_cb: FF) -> Token
+                              failure_cb: FF) -> Arc<TokenInner>
         where FS: Fn(&AsyncClient,u16) + 'static,
               FF: Fn(&AsyncClient,u16,i32) + 'static
     {
         // A pointer to the inner client will serve as the client pointer
         let pcli: &InnerAsyncClient = &cli.inner;
 
-        Token { inner: Arc::new(
+        Arc::new(
             TokenInner {
                 cli: pcli,
                 req,
                 on_success: Some(Box::new(success_cb)),
                 on_failure: Some(Box::new(failure_cb)),
                 ..TokenInner::default()
-            })
-        }
+            }
+        )
     }
 
     /// Creates a new Token signaled with an error.
-    pub fn from_error(rc: i32) -> Token {
-        Token { inner: Arc::new(
+    pub fn from_error(rc: i32) -> Arc<TokenInner> {
+        Arc::new(
             TokenInner {
                 lock: Mutex::new(TokenData::from_error(rc)),
                 ..TokenInner::default()
-            })
-        }
+            }
+        )
     }
 
-    /// Creates a new Token signaled with an error.
-    pub fn from_success() -> Token {
-        Token::from_error(0)
+    /// Creates a new Token signaled with success
+    pub fn from_success() -> Arc<TokenInner> {
+        Arc::new(
+            TokenInner {
+                lock: Mutex::new(TokenData::from_success()),
+                ..TokenInner::default()
+            }
+        )
     }
 
     // Callback from the C library for when an async operation succeeds.
@@ -266,7 +278,7 @@ impl Token {
         // TODO: Maybe compare this msgid to the one in the token?
         let msgid = if !rsp.is_null() { (*rsp).token as u16 } else { 0 };
 
-        tok.on_complete(msgid, 0, None, rsp);
+        tok.inner.on_complete(msgid, 0, None, rsp);
     }
 
     // Callback from the C library when an async operation fails.
@@ -292,7 +304,7 @@ impl Token {
             }
         }
 
-        tok.on_complete(msgid, rc, err_msg, ptr::null_mut());
+        tok.inner.on_complete(msgid, rc, err_msg, ptr::null_mut());
     }
 
     // Callback function to update the token when the action completes.
@@ -302,18 +314,18 @@ impl Token {
 
         // Fire off any user callbacks
 
-        let pcli: Box<InnerAsyncClient> = unsafe { Box::from_raw(self.inner.cli as *mut _) };
+        let pcli: Box<InnerAsyncClient> = unsafe { Box::from_raw(self.cli as *mut _) };
         let cli = AsyncClient { inner: pcli };
 
         if rc == 0 {
-            if let Some(ref cb) = self.inner.on_success {
-                trace!("Invoking Token::on_success callback");
+            if let Some(ref cb) = self.on_success {
+                trace!("Invoking TokenInner::on_success callback");
                 cb(&cli, msgid);
             }
         }
         else {
-            if let Some(ref cb) = self.inner.on_failure {
-                trace!("Invoking Token::on_failure callback");
+            if let Some(ref cb) = self.on_failure {
+                trace!("Invoking TokenInner::on_failure callback");
                 cb(&cli, msgid, rc);
             }
         }
@@ -322,22 +334,23 @@ impl Token {
 
         // Signal completion of the token
 
-        let mut data = self.inner.lock.lock().unwrap();
+        let mut data = self.lock.lock().unwrap();
         data.complete = true;
         data.ret_code = rc;
         data.err_msg = err_msg;
 
         // Get the response from the server, if any.
         if !rsp.is_null() {
-            debug!("Expected server response for: {:?}", self.inner.req);
+            debug!("Expected server response for: {:?}", self.req);
             unsafe {
-                data.srvr_rsp = match self.inner.req {
+                data.srvr_rsp = match self.req {
                     ServerRequest::Subscribe => ServerResponse::Subscribe((*rsp).alt.qos),
                     ServerRequest::SubscribeMany(n) => {
                         let mut qosv = Vec::new();
                         for i in 0..n {
                             qosv.push(*(*rsp).alt.qosList.offset(i as isize));
                         }
+                        debug!("Subscribed to {} topics w/ Qos: {:?}", qosv.len(), qosv);
                         ServerResponse::SubscribeMany(qosv)
                     },
                     ServerRequest::Connect => {
@@ -358,33 +371,95 @@ impl Token {
             task.notify();
         }
     }
+}
 
+impl Default for TokenInner {
+    fn default() -> Self {
+        TokenInner {
+            lock: Mutex::new(TokenData::default()),
+            cli: ptr::null(),
+            req: ServerRequest::None,
+            on_success: None,
+            on_failure: None,
+            msg: None
+        }
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Token
+
+pub trait TokenPointer {
     /// Consumes the `Token`, returning the inner wrapped value.
     /// This is how we generate a context pointer to send to the C lib.
-    pub fn into_raw(this: Token) -> *mut c_void {
+    fn into_raw(this: Self) -> *mut c_void;
+
+    /// Constructs a Token from a raw pointer to the inner structure.
+    /// This is how a token is normally reconstructed from a context
+    /// pointer coming back from the C lib.
+    unsafe fn from_raw(ptr: *mut c_void) -> Self;
+}
+
+
+/// A `Token` is a mechanism for tracking the progress of an asynchronous
+/// operation.
+//#[derive(Debug)]
+pub struct Token {
+    pub(crate) inner: Arc<TokenInner>,
+}
+
+impl Token {
+    /// Creates a new, unsignaled Token.
+    pub fn new() -> Token {
+        Token { inner: TokenInner::new() }
+    }
+
+    /// Creates a token for a specific request type
+    pub fn from_request(req: ServerRequest) -> Token {
+        Token { inner: TokenInner::from_request(req) }
+    }
+
+    /// Creates a new, un-signaled Token with callbacks.
+    pub fn from_client<FS,FF>(cli: &AsyncClient,
+                              req: ServerRequest,
+                              success_cb: FS,
+                              failure_cb: FF) -> Token
+        where FS: Fn(&AsyncClient,u16) + 'static,
+              FF: Fn(&AsyncClient,u16,i32) + 'static
+    {
+        Token { inner: TokenInner::from_client(cli, req, success_cb, failure_cb) }
+    }
+
+    /// Creates a new Token signaled with an error.
+    pub fn from_error(rc: i32) -> Token {
+        Token { inner: TokenInner::from_error(rc) }
+    }
+
+    /// Creates a new Token signaled with success
+    pub fn from_success() -> Token {
+        Token { inner: TokenInner::from_success() }
+    }
+
+    /// Blocks the caller a limited amount of time waiting for the
+    /// asynchronous operation to complete.
+    pub fn wait_for(self, dur: Duration) -> MqttResult<ServerResponse> {
+        self.timeout(dur).wait()
+    }
+}
+
+impl TokenPointer for Token {
+    /// Consumes the `Token`, returning the inner wrapped value.
+    /// This is how we generate a context pointer to send to the C lib.
+    fn into_raw(this: Token) -> *mut c_void {
         Arc::into_raw(this.inner) as *mut c_void
     }
 
     /// Constructs a Token from a raw pointer to the inner structure.
     /// This is how a token is normally reconstructed from a context
     /// pointer coming back from the C lib.
-    pub unsafe fn from_raw(ptr: *mut c_void) -> Token {
+    unsafe fn from_raw(ptr: *mut c_void) -> Token {
         let inner = Arc::from_raw(ptr as *mut TokenInner);
         Token { inner, }
-    }
-
-    /// Sets the message ID for the token
-    pub(crate) fn set_msgid(&self, msg_id: i16) {
-        let mut retv = self.inner.lock.lock().unwrap();
-        retv.msg_id = msg_id;
-    }
-
-    /// Blocks the caller a limited amount of time waiting for the
-    /// asynchronous operation to complete.
-    pub fn wait_for(self, dur: Duration) -> MqttResult<ServerResponse> {
-        use futures_timer::FutureExt;
-        let tok = self.timeout(dur);
-        tok.wait()
     }
 }
 
@@ -426,11 +501,351 @@ impl Future for Token {
 }
 
 
-/// `Token` specificly for a message delivery operation.
-/// Originally this was a distinct object, but the implementation was
-/// absorbed into a standard `Token`.
-pub type DeliveryToken = Token;
+/////////////////////////////////////////////////////////////////////////////
+// ConnectToken
 
+/// A `ConnectToken` is a mechanism for tracking the progress of an
+/// asynchronous connect operation.
+//#[derive(Debug)]
+pub struct ConnectToken {
+    pub(crate) inner: Arc<TokenInner>,
+}
+
+impl ConnectToken {
+    /// Creates a new, unsignaled Token.
+    pub fn new() -> ConnectToken {
+        ConnectToken { inner: TokenInner::from_request(ServerRequest::Connect) }
+    }
+
+    /// Creates a new, un-signaled Token with callbacks.
+    pub fn from_client<FS,FF>(cli: &AsyncClient,
+                              success_cb: FS,
+                              failure_cb: FF) -> ConnectToken
+        where FS: Fn(&AsyncClient,u16) + 'static,
+              FF: Fn(&AsyncClient,u16,i32) + 'static
+    {
+        ConnectToken {
+            inner: TokenInner::from_client(cli, ServerRequest::Connect,
+                                           success_cb, failure_cb)
+        }
+    }
+
+    /// Creates a new Token signaled with an error.
+    pub fn from_error(rc: i32) -> ConnectToken {
+        ConnectToken { inner: TokenInner::from_error(rc) }
+    }
+
+    /// Creates a new Token signaled with success
+    pub fn from_success() -> ConnectToken {
+        ConnectToken { inner: TokenInner::from_success() }
+    }
+
+    /// Consumes the `Token`, returning the inner wrapped value.
+    /// This is how we generate a context pointer to send to the C lib.
+    pub fn into_raw(this: ConnectToken) -> *mut c_void {
+        Arc::into_raw(this.inner) as *mut c_void
+    }
+
+    /// Constructs a Token from a raw pointer to the inner structure.
+    /// This is how a token is normally reconstructed from a context
+    /// pointer coming back from the C lib.
+    pub unsafe fn from_raw(ptr: *mut c_void) -> Token {
+        let inner = Arc::from_raw(ptr as *mut TokenInner);
+        Token { inner, }
+    }
+
+    /// Blocks the caller a limited amount of time waiting for the
+    /// asynchronous operation to complete.
+    pub fn wait_for(self, dur: Duration) -> MqttResult<(String, i32, bool)> {
+        self.timeout(dur).wait()
+    }
+}
+
+unsafe impl Send for ConnectToken {}
+
+impl Clone for ConnectToken {
+    /// Cloning a Token creates another Arc reference to
+    /// the inner data on the heap.
+    fn clone(&self) -> Self {
+        ConnectToken { inner: self.inner.clone() }
+    }
+}
+
+impl Future for ConnectToken {
+    type Item = (String, i32, bool);
+    type Error = MqttError;
+
+    /// Poll the token to see if the request has completed yet.
+    fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
+        let mut data = self.inner.lock.lock().unwrap();
+        match data.poll() {
+            Ok(Async::Ready(ServerResponse::Connect(server_uri, ver, session_present))) =>
+                Ok(Async::Ready((server_uri, ver, session_present))),
+            Ok(Async::NotReady) => Ok(Async::NotReady),
+            Ok(x) => {
+                println!("Got: {:?}", x);
+                Err(MqttError::from((-1, "Bad server response".to_string())))
+            },
+            Err(e) => Err(e),
+        }
+    }
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
+// DeliveryToken
+
+/// A `DeliveryToken` is a mechanism for tracking the progress of an
+/// asynchronous connect operation.
+//#[derive(Debug)]
+pub struct DeliveryToken {
+    pub(crate) inner: Arc<TokenInner>,
+}
+
+impl DeliveryToken {
+    /// Creates a new, unsignaled Token.
+    pub fn new() -> DeliveryToken {
+        DeliveryToken { inner: TokenInner::from_request(ServerRequest::Publish) }
+    }
+
+    /// Creates a new, un-signaled delivery Token.
+    /// This is a token which tracks delivery of a message.
+    pub fn from_message(msg: Message) -> DeliveryToken {
+        DeliveryToken { inner: TokenInner::from_message(msg) }
+    }
+
+    /// Creates a new Token signaled with an error.
+    pub fn from_error(rc: i32) -> DeliveryToken {
+        DeliveryToken { inner: TokenInner::from_error(rc) }
+    }
+
+    /// Creates a new Token signaled with success
+    pub fn from_success() -> DeliveryToken {
+        DeliveryToken { inner: TokenInner::from_success() }
+    }
+
+    /// Consumes the `Token`, returning the inner wrapped value.
+    /// This is how we generate a context pointer to send to the C lib.
+    pub fn into_raw(this: DeliveryToken) -> *mut c_void {
+        Arc::into_raw(this.inner) as *mut c_void
+    }
+
+    /// Constructs a Token from a raw pointer to the inner structure.
+    /// This is how a token is normally reconstructed from a context
+    /// pointer coming back from the C lib.
+    pub unsafe fn from_raw(ptr: *mut c_void) -> DeliveryToken {
+        let inner = Arc::from_raw(ptr as *mut TokenInner);
+        DeliveryToken { inner, }
+    }
+
+    /// Sets the message ID for the token
+    pub(crate) fn set_msgid(&self, msg_id: i16) {
+        let mut retv = self.inner.lock.lock().unwrap();
+        retv.msg_id = msg_id;
+    }
+
+    /// Blocks the caller a limited amount of time waiting for the
+    /// asynchronous operation to complete.
+    pub fn wait_for(self, dur: Duration) -> MqttResult<String> {
+        self.timeout(dur).wait()
+    }
+}
+
+impl TokenPointer for DeliveryToken {
+    /// Consumes the `Token`, returning the inner wrapped value.
+    /// This is how we generate a context pointer to send to the C lib.
+    fn into_raw(this: DeliveryToken) -> *mut c_void {
+        Arc::into_raw(this.inner) as *mut c_void
+    }
+
+    /// Constructs a Token from a raw pointer to the inner structure.
+    /// This is how a token is normally reconstructed from a context
+    /// pointer coming back from the C lib.
+    unsafe fn from_raw(ptr: *mut c_void) -> DeliveryToken {
+        let inner = Arc::from_raw(ptr as *mut TokenInner);
+        DeliveryToken { inner, }
+    }
+}
+
+unsafe impl Send for DeliveryToken {}
+
+impl Clone for DeliveryToken {
+    /// Cloning a Token creates another Arc reference to
+    /// the inner data on the heap.
+    fn clone(&self) -> Self {
+        DeliveryToken { inner: self.inner.clone() }
+    }
+}
+
+impl Future for DeliveryToken {
+    type Item = String;
+    type Error = MqttError;
+
+    /// Poll the token to see if the request has completed yet.
+    fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
+        let mut data = self.inner.lock.lock().unwrap();
+        match data.poll() {
+            Ok(Async::Ready(ServerResponse::Publish(destination))) =>
+                Ok(Async::Ready(destination)),
+            Ok(Async::NotReady) => Ok(Async::NotReady),
+            Ok(x) => {
+                println!("Got: {:?}", x);
+                Err(MqttError::from((-1, "Bad server response".to_string())))
+            },
+            Err(e) => Err(e),
+        }
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// SubscribeToken
+
+/// A `SubscribeToken` is a mechanism for tracking the progress of an
+/// asynchronous connect operation.
+//#[derive(Debug)]
+pub struct SubscribeToken {
+    pub(crate) inner: Arc<TokenInner>,
+}
+
+impl SubscribeToken {
+    /// Creates a new, unsignaled Token.
+    pub fn new() -> SubscribeToken {
+        SubscribeToken { inner: TokenInner::from_request(ServerRequest::Subscribe) }
+    }
+
+    /// Creates a new Token signaled with an error.
+    pub fn from_error(rc: i32) -> SubscribeToken {
+        SubscribeToken { inner: TokenInner::from_error(rc) }
+    }
+
+    /// Creates a new Token signaled with success
+    pub fn from_success() -> SubscribeToken {
+        SubscribeToken { inner: TokenInner::from_success() }
+    }
+
+    /// Blocks the caller a limited amount of time waiting for the
+    /// asynchronous operation to complete.
+    pub fn wait_for(self, dur: Duration) -> MqttResult<i32> {
+        self.timeout(dur).wait()
+    }
+}
+
+impl TokenPointer for SubscribeToken {
+    /// Consumes the `Token`, returning the inner wrapped value.
+    /// This is how we generate a context pointer to send to the C lib.
+    fn into_raw(this: SubscribeToken) -> *mut c_void {
+        Arc::into_raw(this.inner) as *mut c_void
+    }
+
+    /// Constructs a Token from a raw pointer to the inner structure.
+    /// This is how a token is normally reconstructed from a context
+    /// pointer coming back from the C lib.
+    unsafe fn from_raw(ptr: *mut c_void) -> SubscribeToken {
+        let inner = Arc::from_raw(ptr as *mut TokenInner);
+        SubscribeToken { inner, }
+    }
+}
+
+unsafe impl Send for SubscribeToken {}
+
+impl Clone for SubscribeToken {
+    /// Cloning a Token creates another Arc reference to
+    /// the inner data on the heap.
+    fn clone(&self) -> Self {
+        SubscribeToken { inner: self.inner.clone() }
+    }
+}
+
+impl Future for SubscribeToken {
+    type Item = i32;
+    type Error = MqttError;
+
+    /// Poll the token to see if the request has completed yet.
+    fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
+        let mut data = self.inner.lock.lock().unwrap();
+        match data.poll() {
+            Ok(Async::Ready(ServerResponse::Subscribe(qos))) => Ok(Async::Ready(qos)),
+            Ok(Async::NotReady) => Ok(Async::NotReady),
+            Ok(_) => { Err(MqttError::from((-1, "Bad server response".to_string()))) },
+            Err(e) => Err(e),
+        }
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// SubscribeToken
+
+/// A `SubscribeToken` is a mechanism for tracking the progress of an
+/// asynchronous connect operation.
+//#[derive(Debug)]
+pub struct SubscribeManyToken {
+    pub(crate) inner: Arc<TokenInner>,
+}
+
+impl SubscribeManyToken {
+    /// Creates a new, unsignaled Token.
+    pub fn new(n: usize) -> SubscribeManyToken {
+        SubscribeManyToken { inner: TokenInner::from_request(ServerRequest::SubscribeMany(n)) }
+    }
+
+    /// Creates a new Token signaled with an error.
+    pub fn from_error(rc: i32) -> SubscribeManyToken {
+        SubscribeManyToken { inner: TokenInner::from_error(rc) }
+    }
+
+    /// Creates a new Token signaled with success
+    pub fn from_success() -> SubscribeManyToken {
+        SubscribeManyToken { inner: TokenInner::from_success() }
+    }
+
+    /// Blocks the caller a limited amount of time waiting for the
+    /// asynchronous operation to complete.
+    pub fn wait_for(self, dur: Duration) -> MqttResult<Vec<i32>> {
+        self.timeout(dur).wait()
+    }
+}
+
+impl TokenPointer for SubscribeManyToken {
+    /// Consumes the `Token`, returning the inner wrapped value.
+    /// This is how we generate a context pointer to send to the C lib.
+    fn into_raw(this: SubscribeManyToken) -> *mut c_void {
+        Arc::into_raw(this.inner) as *mut c_void
+    }
+
+    /// Constructs a Token from a raw pointer to the inner structure.
+    /// This is how a token is normally reconstructed from a context
+    /// pointer coming back from the C lib.
+    unsafe fn from_raw(ptr: *mut c_void) -> SubscribeManyToken {
+        let inner = Arc::from_raw(ptr as *mut TokenInner);
+        SubscribeManyToken { inner, }
+    }
+}
+
+unsafe impl Send for SubscribeManyToken {}
+
+impl Clone for SubscribeManyToken {
+    /// Cloning a Token creates another Arc reference to
+    /// the inner data on the heap.
+    fn clone(&self) -> Self {
+        SubscribeManyToken { inner: self.inner.clone() }
+    }
+}
+
+impl Future for SubscribeManyToken {
+    type Item = Vec<i32>;
+    type Error = MqttError;
+
+    /// Poll the token to see if the request has completed yet.
+    fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
+        let mut data = self.inner.lock.lock().unwrap();
+        match data.poll() {
+            Ok(Async::Ready(ServerResponse::SubscribeMany(qos))) => Ok(Async::Ready(qos)),
+            Ok(Async::NotReady) => Ok(Async::NotReady),
+            Ok(_) => { Err(MqttError::from((-1, "Bad server response".to_string()))) },
+            Err(e) => Err(e),
+        }
+    }
+}
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -452,7 +867,7 @@ mod tests {
         let mut msg = Message::new("hello", "Hi there", 1);
         msg.cmsg.msgid = MSG_ID as i32;
 
-        let tok = Token::from_message(msg);
+        let tok = DeliveryToken::from_message(msg);
         let data = tok.inner.lock.lock().unwrap();
         assert!(!data.complete);
         assert_eq!(MSG_ID, data.msg_id);
@@ -501,9 +916,8 @@ mod tests {
             tok.wait()
         });
 
-        tok2.on_complete(0, 0, None, ptr::null_mut());
+        tok2.inner.on_complete(0, 0, None, ptr::null_mut());
         let _ = thr.join().unwrap();
     }
-
 }
 

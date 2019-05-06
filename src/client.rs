@@ -35,7 +35,6 @@ use create_options::CreateOptions;
 use connect_options::ConnectOptions;
 use disconnect_options::DisconnectOptions;
 use message::Message;
-use token::ServerResponse;
 use errors::MqttResult;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -83,7 +82,7 @@ impl Client {
     }
 
     /// Connects to an MQTT broker using the specified connect options.
-    pub fn connect<T>(&self, opt_opts:T) -> MqttResult<ServerResponse>
+    pub fn connect<T>(&self, opt_opts:T) -> MqttResult<(String, i32, bool)>
         where T: Into<Option<ConnectOptions>>
     {
         self.cli.connect(opt_opts).wait_for(self.timeout)
@@ -122,7 +121,7 @@ impl Client {
     /// Attempts to reconnect to the broker.
     /// This can only be called after a connection was initially made or
     /// attempted. It will retry with the same connect options.
-    pub fn reconnect(&self) -> MqttResult<ServerResponse> {
+    pub fn reconnect(&self) -> MqttResult<(String, i32, bool)> {
         self.cli.reconnect().wait_for(self.timeout)
     }
 
@@ -132,7 +131,7 @@ impl Client {
     }
 
     /// Publishes a message to an MQTT broker
-    pub fn publish(&self, msg: Message) -> MqttResult<ServerResponse> {
+    pub fn publish(&self, msg: Message) -> MqttResult<String> {
         self.cli.publish(msg).wait_for(self.timeout)
     }
 
@@ -143,7 +142,7 @@ impl Client {
     /// `topic` The topic name
     /// `qos` The quality of service requested for messages
     ///
-    pub fn subscribe(&self, topic: &str, qos: i32) -> MqttResult<ServerResponse> {
+    pub fn subscribe(&self, topic: &str, qos: i32) -> MqttResult<i32> {
         self.cli.subscribe(topic, qos).wait_for(self.timeout)
     }
 
@@ -154,7 +153,7 @@ impl Client {
     /// `topic` The topic name
     /// `qos` The quality of service requested for messages
     ///
-    pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> MqttResult<ServerResponse>
+    pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> MqttResult<Vec<i32>>
         where T: AsRef<str>
     {
         self.cli.subscribe_many(topics, qos).wait_for(self.timeout)

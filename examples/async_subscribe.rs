@@ -17,7 +17,7 @@
 //!
 
 /*******************************************************************************
- * Copyright (c) 2017 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2019 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -48,7 +48,6 @@ const QOS: &[i32] = &[1, 1];
 fn on_connect_success(cli: &mqtt::AsyncClient, _msgid: u16) {
     println!("Connection succeeded");
     // Subscribe to the desired topic(s).
-    //cli.subscribe_many(TOPICS, vec!(1, 1));
     cli.subscribe_many(TOPICS, QOS);
     println!("Subscribing to topics: {:?}", TOPICS);
     // TODO: This doesn't yet handle a failed subscription.
