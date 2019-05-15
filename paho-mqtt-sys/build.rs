@@ -130,6 +130,7 @@ mod build {
     use std::{/*env, fs,*/ process};
     use std::path::Path;
     use std::process::Command;
+    use std::env;
 
     pub fn main() {
         // we rerun the build if the `build.rs` file is changed.
@@ -146,10 +147,16 @@ mod build {
         // Use cmake to build the C lib
         let ssl = if cfg!(feature = "ssl") { "on" } else { "off" };
 
-        let mut cmk = cmake::Config::new("paho.mqtt.c/")
+        let mut cmkc = cmake::Config::new("paho.mqtt.c/");
+        cmkc
             .define("PAHO_BUILD_STATIC", "on")
-            .define("PAHO_WITH_SSL", ssl)
-            .build();
+            .define("PAHO_WITH_SSL", ssl);
+
+        if let Ok(ssl_sp) = env::var("OPENSSL_SEARCH_PATH") {
+            cmkc.define("OPENSSL_SEARCH_PATH", format!("{}", ssl_sp));
+        }
+
+        let mut cmk = cmkc.build();
 
         // We check if the target library was compiled.
         let mut cmk_out_dir = cmk.clone();
