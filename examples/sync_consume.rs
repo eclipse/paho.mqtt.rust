@@ -7,6 +7,7 @@
 //!
 //! The sample demonstrates:
 //!   - Connecting to an MQTT server/broker
+//!   - Checking server responses
 //!   - Subscribing to multiple topics
 //!   - Receiving messages through the queueing consumer API
 //!   - Recieving and acting upon commands via MQTT topics
@@ -101,22 +102,21 @@ fn main() {
     // Make the connection to the broker
     println!("Connecting to the MQTT broker...");
     match cli.connect(conn_opts) {
-        Ok(mqtt::ServerResponse::Connect(server_uri, ver, session_present)) => {
+        Ok((server_uri, ver, session_present)) => {
             println!("Connected to: '{}' with MQTT version {}", server_uri, ver);
             if !session_present {
                 // Register subscriptions on the server
-                println!("Subscribing to topics...");
+                println!("Subscribing to topics, with requested Qos: {:?}...", qos);
 
-                if let Err(e) = cli.subscribe_many(&subscriptions, &qos) {
-                    println!("Error subscribing to topics: {:?}", e);
-                    cli.disconnect(None).unwrap();
-                    process::exit(1);
+                match cli.subscribe_many(&subscriptions, &qos) {
+                    Ok(qosv) => println!("QoS granted: {:?}", qosv),
+                    Err(e) => {
+                        println!("Error subscribing to topics: {:?}", e);
+                        cli.disconnect(None).unwrap();
+                        process::exit(1);
+                    }
                 }
             }
-        },
-        Ok(rsp) => {
-            println!("Unexpected response from the server: {:?}", rsp);
-            process::exit(2);
         },
         Err(e) => {
             println!("Error connecting to the broker: {:?}", e);

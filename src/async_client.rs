@@ -60,7 +60,7 @@ use connect_options::ConnectOptions;
 use disconnect_options::{DisconnectOptions,DisconnectOptionsBuilder};
 use response_options::ResponseOptions;
 use message::Message;
-use token::{Token, DeliveryToken, ServerRequest};
+use token::{Token, ConnectToken, DeliveryToken, SubscribeToken, SubscribeManyToken};
 use client_persistence::UserPersistence;
 use errors;
 use errors::{MqttResult, ErrorKind};
@@ -249,14 +249,14 @@ impl AsyncClient {
     ///
     /// * `opts` The connect options
     ///
-    pub fn connect<T>(&self, opt_opts: T) -> Token
+    pub fn connect<T>(&self, opt_opts: T) -> ConnectToken
         where T: Into<Option<ConnectOptions>>
     {
         if let Some(opts) = opt_opts.into() {
             debug!("Connecting handle: {:?}", self.inner.handle);
             debug!("Connect options: {:?}", opts);
 
-            let tok = Token::from_request(ServerRequest::Connect);
+            let tok = ConnectToken::new();
 
             let mut lkopts = self.inner.opts.lock().unwrap();
             *lkopts = opts;
@@ -268,7 +268,7 @@ impl AsyncClient {
 
             if rc != 0 {
                 let _ = unsafe { Token::from_raw(lkopts.copts.context) };
-                Token::from_error(rc)
+                ConnectToken::from_error(rc)
             }
             else { tok }
         }
@@ -276,7 +276,6 @@ impl AsyncClient {
             self.connect(Some(ConnectOptions::default()))
         }
     }
-
 
     /// Connects to an MQTT broker using the specified connect options.
     ///
@@ -287,7 +286,7 @@ impl AsyncClient {
     pub fn connect_with_callbacks<FS,FF>(&self,
                                          mut opts: ConnectOptions,
                                          success_cb: FS,
-                                         failure_cb: FF) -> Token
+                                         failure_cb: FF) -> ConnectToken
         where FS: Fn(&AsyncClient,u16) + 'static,
               FF: Fn(&AsyncClient,u16,i32) + 'static
     {
@@ -299,8 +298,7 @@ impl AsyncClient {
             }
         }
 
-        let tok = Token::from_client(self, ServerRequest::Connect,
-                                     success_cb, failure_cb);
+        let tok = ConnectToken::from_client(self, success_cb, failure_cb);
         opts.set_token(tok.clone());
 
         debug!("Connect opts: {:?}", opts);
@@ -315,7 +313,7 @@ impl AsyncClient {
 
         if rc != 0 {
             let _ = unsafe { Token::from_raw(opts.copts.context) };
-            Token::from_error(rc)
+            ConnectToken::from_error(rc)
         }
         else { tok }
     }
@@ -324,7 +322,7 @@ impl AsyncClient {
     /// This can only be called after a connection was initially made or
     /// attempted. It will retry with the same connect options.
     ///
-    pub fn reconnect(&self) -> Token {
+    pub fn reconnect(&self) -> ConnectToken {
         let connopts = {
             let lkopts = self.inner.opts.lock().unwrap();
             (*lkopts).clone()
@@ -344,7 +342,7 @@ impl AsyncClient {
     ///
     pub fn reconnect_with_callbacks<FS,FF>(&self,
                                            success_cb: FS,
-                                           failure_cb: FF) -> Token
+                                           failure_cb: FF) -> ConnectToken
         where FS: Fn(&AsyncClient,u16) + 'static,
               FF: Fn(&AsyncClient,u16,i32) + 'static
     {
@@ -474,18 +472,19 @@ impl AsyncClient {
     pub fn publish(&self, msg: Message) -> DeliveryToken {
         debug!("Publish: {:?}", msg);
 
-        let tok = DeliveryToken::from_message(msg);
+        let tok = DeliveryToken::new(msg);
         let mut rsp_opts = ResponseOptions::new(tok.clone());
 
         let rc = unsafe {
-            let msg = tok.inner.msg.as_ref().unwrap();
+            let msg = tok.message();
             ffi::MQTTAsync_sendMessage(self.inner.handle, msg.topic.as_ptr(),
                                        &msg.cmsg, &mut rsp_opts.copts)
         };
 
         if rc != 0 {
             let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
-            Token::from_error(rc)
+            let msg: Message = tok.into();
+            DeliveryToken::from_error(msg, rc)
         }
         else {
             tok.set_msgid(rsp_opts.copts.token as i16);
@@ -500,10 +499,10 @@ impl AsyncClient {
     /// `topic` The topic name
     /// `qos` The quality of service requested for messages
     ///
-    pub fn subscribe<S>(&self, topic: S, qos: i32) -> Token
+    pub fn subscribe<S>(&self, topic: S, qos: i32) -> SubscribeToken
         where S: Into<String>
     {
-        let tok = Token::from_request(ServerRequest::Subscribe);
+        let tok = SubscribeToken::new();
         let mut rsp_opts = ResponseOptions::new(tok.clone());
         let topic = CString::new(topic.into()).unwrap();
 
@@ -515,7 +514,7 @@ impl AsyncClient {
 
         if rc != 0 {
             let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
-            Token::from_error(rc)
+            SubscribeToken::from_error(rc)
         }
         else { tok }
     }
@@ -527,13 +526,13 @@ impl AsyncClient {
     /// `topics` The collection of topic names
     /// `qos` The quality of service requested for messages
     ///
-    pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> Token
+    pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> SubscribeManyToken
         where T: AsRef<str>
     {
         let n = topics.len();
 
         // TOOD: Make sure topics & qos are same length (or use min)
-        let tok = Token::from_request(ServerRequest::SubscribeMany(n));
+        let tok = SubscribeManyToken::new(n);
         let mut rsp_opts = ResponseOptions::new(tok.clone());
         let topics = StringCollection::new(topics);
 
@@ -550,7 +549,7 @@ impl AsyncClient {
 
         if rc != 0 {
             let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
-            Token::from_error(rc)
+            SubscribeManyToken::from_error(rc)
         }
         else { tok }
     }
@@ -906,6 +905,5 @@ mod tests {
         assert!(!cli2.is_connected());
         let _ = thr.join().unwrap();
     }
-
 }
 

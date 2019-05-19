@@ -23,8 +23,7 @@
 //! Response options for the Paho MQTT Rust client library.
 
 use ffi;
-
-use token::Token;
+use token::{Token, TokenInner};
 
 /// The collection of options for responses coming back to the client.
 #[derive(Debug)]
@@ -41,12 +40,15 @@ impl ResponseOptions {
     /// structure to act as the context pointer for the callback. It is
     /// up to the callback (or calling function) to recapture and release
     /// this token.
-    pub fn new(tok: Token) -> Self {
+    pub(crate) fn new<T>(tok: T) -> Self
+        where T: Into<Token>
+    {
+        let tok = tok.into();
         ResponseOptions {
             copts: ffi::MQTTAsync_responseOptions {
-                onSuccess: Some(Token::on_success),
-                onFailure: Some(Token::on_failure),
-                context: Token::into_raw(tok),
+                onSuccess: Some(TokenInner::on_success),
+                onFailure: Some(TokenInner::on_failure),
+                context: tok.into_raw(),
                 ..ffi::MQTTAsync_responseOptions::default()
             }
         }
@@ -61,6 +63,7 @@ impl ResponseOptions {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use token::{Token};
 
     #[test]
     fn test_new() {
