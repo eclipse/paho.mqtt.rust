@@ -60,7 +60,7 @@ use connect_options::ConnectOptions;
 use disconnect_options::{DisconnectOptions,DisconnectOptionsBuilder};
 use response_options::ResponseOptions;
 use message::Message;
-use token::{Token, TokenPointer, ConnectToken, DeliveryToken, SubscribeToken, SubscribeManyToken};
+use token::{Token, ConnectToken, DeliveryToken, SubscribeToken, SubscribeManyToken};
 use client_persistence::UserPersistence;
 use errors;
 use errors::{MqttResult, ErrorKind};
@@ -267,7 +267,7 @@ impl AsyncClient {
             };
 
             if rc != 0 {
-                let _ = unsafe { ConnectToken::from_raw(lkopts.copts.context) };
+                let _ = unsafe { Token::from_raw(lkopts.copts.context) };
                 ConnectToken::from_error(rc)
             }
             else { tok }
@@ -276,7 +276,6 @@ impl AsyncClient {
             self.connect(Some(ConnectOptions::default()))
         }
     }
-
 
     /// Connects to an MQTT broker using the specified connect options.
     ///
@@ -473,18 +472,19 @@ impl AsyncClient {
     pub fn publish(&self, msg: Message) -> DeliveryToken {
         debug!("Publish: {:?}", msg);
 
-        let tok = DeliveryToken::from_message(msg);
+        let tok = DeliveryToken::new(msg);
         let mut rsp_opts = ResponseOptions::new(tok.clone());
 
         let rc = unsafe {
-            let msg = tok.inner.msg.as_ref().unwrap();
+            let msg = tok.message();
             ffi::MQTTAsync_sendMessage(self.inner.handle, msg.topic.as_ptr(),
                                        &msg.cmsg, &mut rsp_opts.copts)
         };
 
         if rc != 0 {
             let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
-            DeliveryToken::from_error(rc)
+            let msg: Message = tok.into();
+            DeliveryToken::from_error(msg, rc)
         }
         else {
             tok.set_msgid(rsp_opts.copts.token as i16);
@@ -905,6 +905,5 @@ mod tests {
         assert!(!cli2.is_connected());
         let _ = thr.join().unwrap();
     }
-
 }
 

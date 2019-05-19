@@ -131,7 +131,7 @@ impl Client {
     }
 
     /// Publishes a message to an MQTT broker
-    pub fn publish(&self, msg: Message) -> MqttResult<String> {
+    pub fn publish(&self, msg: Message) -> MqttResult<()> {
         self.cli.publish(msg).wait_for(self.timeout)
     }
 

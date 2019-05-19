@@ -30,7 +30,7 @@ use std::time::Duration;
 use std::ffi::CString;
 use std::os::raw::c_int;
 
-use token::{ConnectToken, TokenInner};
+use token::{ConnectToken, Token, TokenInner};
 use message::Message;
 use will_options::WillOptions;
 use ssl_options::SslOptions;
@@ -133,9 +133,10 @@ impl ConnectOptions {
     /// done with it, we must recover and drop it (i.e. in the completion
     /// callback).
     pub fn set_token(&mut self, tok: ConnectToken) {
+        let tok: Token = tok.into();
         self.copts.onSuccess = Some(TokenInner::on_success);
         self.copts.onFailure = Some(TokenInner::on_failure);
-        self.copts.context = ConnectToken::into_raw(tok);
+        self.copts.context = tok.into_raw();
     }
 }
 
