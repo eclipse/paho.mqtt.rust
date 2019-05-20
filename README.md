@@ -2,17 +2,15 @@
 
 This repository contains the source code for the [Eclipse Paho](http://eclipse.org/paho) MQTT Rust client library on memory-managed operating systems such as Linux/Posix and Windows.
 
-## Pre-release notes
+## Release notes
 
 The Rust crate is a safe wrapper around the Paho C Library. This version is **specifically matched to Paho C v 1.3.x**, and is currently being tested with version 1.3.0. It will not build against newer versions of the C library, as the C lib expands functionality by extending structures, thus breaking the Rust build.
 
-This is a pre-release version of the library for the development and testing of an MQTT API for the Rust language.
+This is a pre-release version of the library, but has good feature coverage for an MQTT 3.1.1 library, and doesn't have a lot of outstanding issues.
 
-_The API is guaranteed to change repeatedly and often while the code is being developed prior to a formal release. Use it with caution._
+The API is still under development, and there will likely be some minor breaking changes in the next few releases, but major redevelopment of the API is slowing down and approaching stability/
 
-Initial development is being done on Linux. That is currently the only system known to work.
-
-It is hoped that a full, stable, release should be ready by early 2019.
+Most development and deployment has being done on Linux. Please let us know about any success or failure on other systems.
 
 ## Latest News
 
@@ -22,25 +20,27 @@ To keep up with the latest announcements for this project, follow:
 
 **EMail:** [Eclipse Paho Mailing List](https://accounts.eclipse.org/mailing-list/paho-dev)
 
+**Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
+
 ### Unreleased Features (in this branch)
 
 Development is proceeding to add support for Futures and clean up the internal implementation of the library. The following is already checked into this branch:
 
 - **Futures support:**
     - Compatible with the [Rust Futures](https://docs.rs/futures/0.1.25/futures/) library v0.1
-    - The `Token` object, which is returned by asynchronous calls, now implements the `Futures` trait, which is _mostly_ compatible with the previous implementation.
+    - The `Token` objects, which are returned by asynchronous calls, now implements the `Futures` trait, which is _mostly_ compatible with the previous implementation.
     - Incoming messages can be obtained through a `Stream` from the client, implemented with a futures channel.
     - New examples of a publisher and subscriber implemented with futures.
 
+- **Server Responses**
+    - There are now several different types of tokens corresponding to different requests for which the server can return a response: _ConnectToken_, _DeliveryToken_, _SubscribeToken_, etc. 
+    - Tokens now track the type of request and get the server response upon completion. This is the Futures _Item_ type for the token.
+    - In particular this is useful for connecting subscribers. The app can now determine if a persistent session is already present, and only needs to subscribe if not.
+    
 - **Send and Sync Traits**
     - The clients are now marked as _Send_ and _Sync_
-    - The _Token_ type is _Send_
+    - The _Token_ types are _Send_
     - Most of the option types are _Send_ and _Sync_
-    
-- **Server Responses**
-    - There's  a new _ServerResponse_ enum that can hold the response from the server for several different requests (connect, publish, subscribe).
-    - Tokens now track the type of request and get the _ServerResponse_ upon completion. This is the Futures _Item_ type for the token.
-    - In particular this is useful for connecting subscribers. The app can now determine if a persistent session is already present, and only needs to subscribe if not.
     
 - **Internal Cleanup**
     - Moved `Tokens` into their own source file.
