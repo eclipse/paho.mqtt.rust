@@ -44,11 +44,14 @@ impl ResponseOptions {
         where T: Into<Token>
     {
         let tok = tok.into();
+        let context = tok.into_raw();
+        debug!("Created response for token at: {:?}", context);
+
         ResponseOptions {
             copts: ffi::MQTTAsync_responseOptions {
                 onSuccess: Some(TokenInner::on_success),
                 onFailure: Some(TokenInner::on_failure),
-                context: tok.into_raw(),
+                context,
                 ..ffi::MQTTAsync_responseOptions::default()
             }
         }
