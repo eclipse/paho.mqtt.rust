@@ -49,7 +49,7 @@
 use std::str;
 use std::{ptr, slice, mem};
 use std::time::Duration;
-use std::sync::{Mutex};
+use std::sync::{Arc, Mutex};
 use std::ffi::{CString, CStr};
 use std::os::raw::{c_void, c_char, c_int};
 
@@ -105,84 +105,12 @@ pub(crate) struct InnerAsyncClient {
 }
 
 /// An asynchronous MQTT connection client.
+#[derive(Clone)]
 pub struct AsyncClient {
-    pub(crate) inner: Box<InnerAsyncClient>,
+    pub(crate) inner: Arc<InnerAsyncClient>,
 }
 
 impl AsyncClient {
-    // Low-level callback from the C library when the client is connected.
-    // We currently don't use this for anything. Rather connection
-    // completion is tracked through a token.
-    unsafe extern "C" fn on_connected(context: *mut c_void, rsp: *mut ffi::MQTTAsync_successData) {
-        debug!("Connected! {:?}, {:?}", context, rsp);
-    }
-
-    // Low-level callback from the C library when the connection is lost.
-    // We pass the call on to the handler registered with the client, if any.
-    unsafe extern "C" fn on_connection_lost(context: *mut c_void,
-                                            _cause: *mut c_char) {
-        warn!("Connection lost. Context: {:?}", context);
-        if !context.is_null() {
-            let pcli: Box<InnerAsyncClient> = Box::from_raw(context as *mut _);
-            let cli = AsyncClient { inner: pcli };
-            {
-                let mut cbctx = cli.inner.callback_context.lock().unwrap();
-
-                if let Some(ref mut cb) = cbctx.on_message_arrived {
-                    trace!("Invoking disconnect message callback");
-                    cb(&cli, None);
-                }
-
-                if let Some(ref mut cb) = cbctx.on_connection_lost {
-                    trace!("Invoking connection lost callback");
-                    cb(&cli);
-                }
-            }
-            let _ = Box::into_raw(cli.inner);
-        }
-    }
-
-    // Low-level callback from the C library when a message arrives from the broker.
-    // We pass the call on to the handler registered with the client, if any.
-    unsafe extern "C" fn on_message_arrived(context: *mut c_void,
-                                            topic_name: *mut c_char,
-                                            topic_len: c_int,
-                                            mut cmsg: *mut ffi::MQTTAsync_message) -> c_int {
-        debug!("Message arrived. Context: {:?}, topic: {:?} len {:?} cmsg: {:?}: {:?}",
-               context, topic_name, topic_len, cmsg, *cmsg);
-
-        if !context.is_null() {
-            let pcli: Box<InnerAsyncClient> = Box::from_raw(context as *mut _);
-            let cli = AsyncClient { inner: pcli };
-            {
-                let mut cbctx = cli.inner.callback_context.lock().unwrap();
-
-                if let Some(ref mut cb) = cbctx.on_message_arrived {
-                    let len = topic_len as usize;
-                    let topic = if len == 0 {
-                        // Zero-len topic means it's a NUL-terminated C string
-                        CStr::from_ptr(topic_name).to_owned()
-                    }
-                    else {
-                        // If we get a len for the topic, then there's no NUL terminator.
-                        // TODO: Handle UTF-8 error(s)
-                        let tp = str::from_utf8(slice::from_raw_parts(topic_name as *mut u8, len)).unwrap();
-                        CString::new(tp).unwrap()
-                    };
-                    let msg = Message::from_c_parts(topic, &*cmsg);
-
-                    trace!("Invoking message callback");
-                    cb(&cli, Some(msg));
-                }
-            }
-            let _ = Box::into_raw(cli.inner);
-        }
-
-        ffi::MQTTAsync_freeMessage(&mut cmsg);
-        ffi::MQTTAsync_free(topic_name as *mut c_void);
-        1
-    }
-
     /// Creates a new MQTT client which can connect to an MQTT broker.
     ///
     /// # Arguments
@@ -237,10 +165,100 @@ impl AsyncClient {
         debug!("AsyncClient handle: {:?}", cli.handle);
 
         let cli = AsyncClient {
-            inner: Box::new(cli),
+            inner: Arc::new(cli),
         };
 
         Ok(cli)
+    }
+
+    /// Constructs a client from a raw pointer to the inner structure.
+    /// This is how the client is normally reconstructed from a context
+    /// pointer coming back from the C lib.
+    pub(crate) unsafe fn from_raw(ptr: *mut c_void) -> AsyncClient {
+        AsyncClient { inner: Arc::from_raw(ptr as *mut InnerAsyncClient) }
+    }
+
+    /// Consumes the client, returning the inner wrapped value.
+    /// This is how a client can be passed to the C lib as a context pointer.
+    pub(crate) fn into_raw(self) -> *mut c_void {
+        Arc::into_raw(self.inner) as *mut c_void
+    }
+
+    // Low-level callback from the C library when the client is connected.
+    // We currently don't use this for anything. Rather connection
+    // completion is tracked through a token.
+    unsafe extern "C" fn on_connected(context: *mut c_void, rsp: *mut ffi::MQTTAsync_successData) {
+        debug!("Connected! {:?}, {:?}", context, rsp);
+    }
+
+    // Low-level callback from the C library when the connection is lost.
+    // We pass the call on to the handler registered with the client, if any.
+    unsafe extern "C" fn on_connection_lost(context: *mut c_void,
+                                            _cause: *mut c_char) {
+        warn!("Connection lost. Context: {:?}", context);
+        if context.is_null() {
+            error!("Connection lost callback received a null context.");
+            return;
+        }
+
+        let cli = AsyncClient::from_raw(context);
+        {
+            let mut cbctx = cli.inner.callback_context.lock().unwrap();
+
+            if let Some(ref mut cb) = cbctx.on_message_arrived {
+                trace!("Invoking disconnect message callback");
+                cb(&cli, None);
+            }
+
+            if let Some(ref mut cb) = cbctx.on_connection_lost {
+                trace!("Invoking connection lost callback");
+                cb(&cli);
+            }
+        }
+        let _ = cli.into_raw();
+    }
+
+    // Low-level callback from the C library when a message arrives from the broker.
+    // We pass the call on to the handler registered with the client, if any.
+    unsafe extern "C" fn on_message_arrived(context: *mut c_void,
+                                            topic_name: *mut c_char,
+                                            topic_len: c_int,
+                                            mut cmsg: *mut ffi::MQTTAsync_message) -> c_int {
+        debug!("Message arrived. Context: {:?}, topic: {:?} len {:?} cmsg: {:?}: {:?}",
+               context, topic_name, topic_len, cmsg, *cmsg);
+
+        if context.is_null() {
+            error!("Connection lost callback received a null context.");
+        }
+        else {
+            let cli = AsyncClient::from_raw(context);
+            {
+                let mut cbctx = cli.inner.callback_context.lock().unwrap();
+
+                if let Some(ref mut cb) = cbctx.on_message_arrived {
+                    let len = topic_len as usize;
+                    let topic = if len == 0 {
+                        // Zero-len topic means it's a NUL-terminated C string
+                        CStr::from_ptr(topic_name).to_owned()
+                    }
+                    else {
+                        // If we get a len for the topic, then there's no NUL terminator.
+                        // TODO: Handle UTF-8 error(s)
+                        let tp = str::from_utf8(slice::from_raw_parts(topic_name as *mut u8, len)).unwrap();
+                        CString::new(tp).unwrap()
+                    };
+                    let msg = Message::from_c_parts(topic, &*cmsg);
+
+                    trace!("Invoking message callback");
+                    cb(&cli, Some(msg));
+                }
+            }
+            let _ = cli.into_raw();
+        }
+
+        ffi::MQTTAsync_freeMessage(&mut cmsg);
+        ffi::MQTTAsync_free(topic_name as *mut c_void);
+        1
     }
 
     /// Connects to an MQTT broker using the specified connect options.
@@ -812,7 +830,7 @@ impl AsyncClientBuilder {
 
         // TODO: This can fail. We should return a Result<AsyncClient>
         AsyncClient {
-            inner: Box::new(cli),
+            inner: Arc::new(cli),
         }
     }
 }
