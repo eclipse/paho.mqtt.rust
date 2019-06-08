@@ -45,7 +45,7 @@ use errors::MqttResult;
 /// providing blocking calls with timeouts.
 pub struct Client {
     /// The underlying asynchronous client.
-    cli: Box<AsyncClient>,
+    cli: AsyncClient,
     /// The default timeout for synchronous calls.
     timeout: Duration,
 }
@@ -58,7 +58,7 @@ impl Client {
         let async_cli = AsyncClient::new(opts)?;
 
         let cli = Client {
-            cli: Box::new(async_cli),
+            cli: async_cli,
             timeout: Duration::from_secs(5*60),
         };
         //cli.start_consuming();

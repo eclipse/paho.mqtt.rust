@@ -43,7 +43,7 @@ use futures_timer::FutureExt;
 
 use ffi;
 
-use async_client::{AsyncClient, InnerAsyncClient};
+use async_client::{AsyncClient};
 use message::Message;
 use errors;
 use errors::{MqttResult, MqttError};
@@ -171,9 +171,8 @@ impl TokenData {
 pub(crate) struct TokenInner {
     /// Mutex guards: (done, ret, msgid)
     lock: Mutex<TokenData>,
-    /// Pointer to the client that created the token.
-    /// This is only guaranteed valid until the end of the callback
-    cli: *const InnerAsyncClient,
+    /// The client that created the token.
+    cli: Option<AsyncClient>,
     /// The type of request the token is tracking
     req: ServerRequest,
     /// User callback for successful completion of the async action
@@ -217,12 +216,9 @@ impl TokenInner {
         where FS: Fn(&AsyncClient,u16) + 'static,
               FF: Fn(&AsyncClient,u16,i32) + 'static
     {
-        // A pointer to the inner client will serve as the client pointer
-        let pcli: &InnerAsyncClient = &cli.inner;
-
         Arc::new(
             TokenInner {
-                cli: pcli,
+                cli: Some(cli.clone()),
                 req,
                 on_success: Some(Box::new(success_cb)),
                 on_failure: Some(Box::new(failure_cb)),
@@ -287,23 +283,20 @@ impl TokenInner {
 
         // Fire off any user callbacks
 
-        let pcli: Box<InnerAsyncClient> = unsafe { Box::from_raw(self.cli as *mut _) };
-        let cli = AsyncClient { inner: pcli };
-
-        if rc == 0 {
-            if let Some(ref cb) = self.on_success {
-                trace!("Invoking TokenInner::on_success callback");
-                cb(&cli, msgid);
+        if let Some(ref cli) = self.cli {
+            if rc == 0 {
+                if let Some(ref cb) = self.on_success {
+                    trace!("Invoking TokenInner::on_success callback");
+                    cb(cli, msgid);
+                }
+            }
+            else {
+                if let Some(ref cb) = self.on_failure {
+                    trace!("Invoking TokenInner::on_failure callback");
+                    cb(cli, msgid, rc);
+                }
             }
         }
-        else {
-            if let Some(ref cb) = self.on_failure {
-                trace!("Invoking TokenInner::on_failure callback");
-                cb(&cli, msgid, rc);
-            }
-        }
-
-        let _ = Box::into_raw(cli.inner);
 
         // Signal completion of the token
 
@@ -350,7 +343,7 @@ impl Default for TokenInner {
     fn default() -> Self {
         TokenInner {
             lock: Mutex::new(TokenData::default()),
-            cli: ptr::null(),
+            cli: None,
             req: ServerRequest::None,
             on_success: None,
             on_failure: None,
