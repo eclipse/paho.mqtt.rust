@@ -2,13 +2,11 @@
 
 This repository contains the source code for the [Eclipse Paho](http://eclipse.org/paho) MQTT Rust client library on memory-managed operating systems such as Linux/Posix and Windows.
 
-## Release notes
-
-The Rust crate is a safe wrapper around the Paho C Library. This version is **specifically matched to Paho C v 1.3.x**, and is currently being tested with version 1.3.0. It will not build against newer versions of the C library, as the C lib expands functionality by extending structures, thus breaking the Rust build.
+The Rust crate is a safe wrapper around the Paho C Library. 
 
 This is a pre-release version of the library, but has good feature coverage for an MQTT 3.1.1 library, and doesn't have a lot of outstanding issues.
 
-The API is still under development, and there will likely be some minor breaking changes in the next few releases, but major redevelopment of the API is slowing down and approaching stability/
+The API is still under development, and there will likely be some minor breaking changes in the next few releases, but major redevelopment of the API is slowing down and approaching stability.
 
 Most development and deployment has being done on Linux. Please let us know about any success or failure on other systems.
 
@@ -22,12 +20,13 @@ To keep up with the latest announcements for this project, follow:
 
 **Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
 
-### Unreleased Features (in this branch)
+### New Features in v0.6
 
 Development is proceeding to add support for Futures and clean up the internal implementation of the library. The following is already checked into this branch:
 
 - **Futures support:**
     - Compatible with the [Rust Futures](https://docs.rs/futures/0.1.25/futures/) library v0.1
+    - Now depends on the crates"futures" (v0.1) and "futures-timer" (v0.1).
     - The `Token` objects, which are returned by asynchronous calls, now implements the `Futures` trait, which is _mostly_ compatible with the previous implementation.
     - Incoming messages can be obtained through a `Stream` from the client, implemented with a futures channel.
     - New examples of a publisher and subscriber implemented with futures.
@@ -41,6 +40,7 @@ Development is proceeding to add support for Futures and clean up the internal i
     - The clients are now marked as _Send_ and _Sync_
     - The _Token_ types are _Send_
     - Most of the option types are _Send_ and _Sync_
+    - _AsyncClient_ and _Token_ objects are now just _Arc_ wrappers around inner structs making it easy to clone and pass references around.
     
 - **Internal Cleanup**
     - Moved `Tokens` into their own source file.
@@ -72,9 +72,7 @@ Supports Paho C v1.3.0
 
 ### Upcoming Release(s)
 
-As soon as the current version is stabilized and released, work will immediately begin to bring in support for MQTT v5.
-
-Prior to that, the plan is to allow the Futures support to settle, improve error handling and reporting, and clean up the internal implementation.
+The next major release will bring in support for MQTT v5.
 
 ## Building the Crate
 
@@ -98,7 +96,9 @@ Generates reference documentation.
 
 ###  The Paho C Library and _paho-mqtt-sys_
 
-The Paho Rust crate is a wrapper around the Paho C library. The project includes a Rust _-sys_ crate, called _paho-mqtt-sys_, which provides unsafe bindings to the C library.  The repository contains a Git submodule pointing to the specific version of the C library that the Rust crate requires, and by default, it will automatically build and link to that library, using pre-generated C bindings that are also included in the repo.
+The Paho Rust crate is a wrapper around the Paho C library. This version is **specifically matched to Paho C v 1.3.x**, and is currently using version 1.3.0. It will generally not build against newer versions of the C library, as the C lib expands functionality by extending structures, thus breaking the Rust build.
+
+The project includes a Rust _-sys_ crate, called _paho-mqtt-sys_, which provides unsafe bindings to the C library.  The repository contains a Git submodule pointing to the specific version of the C library that the Rust crate requires, and by default, it will automatically build and link to that library, using pre-generated C bindings that are also included in the repo.
 
 When building, the user has several options:
 

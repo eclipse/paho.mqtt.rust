@@ -659,7 +659,9 @@ pub struct SubscribeManyToken {
 impl SubscribeManyToken {
     /// Creates a new, unsignaled Token.
     pub fn new(n: usize) -> SubscribeManyToken {
-        SubscribeManyToken { inner: TokenInner::from_request(ServerRequest::SubscribeMany(n)) }
+        SubscribeManyToken {
+            inner: TokenInner::from_request(ServerRequest::SubscribeMany(n))
+        }
     }
 
     /// Creates a new Token signaled with an error.
