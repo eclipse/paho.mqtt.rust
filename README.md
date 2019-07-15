@@ -144,7 +144,8 @@ Alternately, this can be expressed with individual environment variables for eac
     PAHO_MQTT_C_INCLUDE_DIR= ...path to headers...
     PAHO_MQTT_C_LIB_DIR= ...path to library...
 
-In this case, 
+In this case, the headers and library can be found independently. This was necessary when building against a development tree for Paho C that used GNU Make build. This doesn't seem as necessary now that CMake is used everywhere.
+
 #### Linking to an installed Paho C library
 
 If the correct version of the Paho C library is expected to be installed on the target system, the simplest solution is to use the pre-generated bindings and specify a link to the shared paho C library. 

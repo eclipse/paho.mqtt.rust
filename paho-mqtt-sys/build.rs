@@ -4,7 +4,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2019 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -77,7 +77,7 @@ mod bindings {
     use std::{env, fs};
     use std::path::Path;
 
-    pub fn place_bindings(_inc_dir: &str) {
+    pub fn place_bindings(_inc_dir: &Path) {
         let out_dir = env::var("OUT_DIR").unwrap();
         let out_path = Path::new(&out_dir).join("bindings.rs");
 
@@ -92,12 +92,14 @@ mod bindings {
     extern crate bindgen;
 
     use std::env;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
-    pub fn place_bindings(inc_dir: &str) {
+    pub fn place_bindings(inc_dir: &Path) {
         let cver = bindgen::clang_version();
         println!("debug:clang version: {}", cver.full);
-        println!("debug:bindgen include path: {}", inc_dir);
+
+        let inc_search = format!("-I{}", inc_dir.display());
+        println!("debug:bindgen include path: {}", inc_search);
 
         // The bindgen::Builder is the main entry point
         // to bindgen, and lets you build up options for
@@ -108,7 +110,7 @@ mod bindings {
             .trust_clang_mangling(false)
             // The input header we would like to generate
             // bindings for.
-            .header("wrapper.h").clang_arg(inc_dir)
+            .header("wrapper.h").clang_arg(inc_search)
             // Finish the builder and generate the bindings.
             .generate()
             // Unwrap the Result and panic on failure.
@@ -127,12 +129,14 @@ mod build {
     extern crate cmake;
 
     use super::*;
-    use std::{/*env, fs,*/ process};
+    use std::process;
     use std::path::Path;
     use std::process::Command;
     use std::env;
 
     pub fn main() {
+        println!("debug:Running the bundled build for Paho C");
+
         // we rerun the build if the `build.rs` file is changed.
         println!("cargo:rerun-if-changed=build.rs");
 
@@ -144,56 +148,66 @@ mod build {
                         .status();
         }
 
-        // Use cmake to build the C lib
+        // Use and configure cmake to build the Paho C lib
         let ssl = if cfg!(feature = "ssl") { "on" } else { "off" };
 
-        let mut cmkc = cmake::Config::new("paho.mqtt.c/");
-        cmkc
+        let mut cmk_cfg = cmake::Config::new("paho.mqtt.c/");
+        cmk_cfg
             .define("PAHO_BUILD_STATIC", "on")
             .define("PAHO_WITH_SSL", ssl);
 
         if let Ok(ssl_sp) = env::var("OPENSSL_SEARCH_PATH") {
-            cmkc.define("OPENSSL_SEARCH_PATH", format!("{}", ssl_sp));
+            cmk_cfg.define("OPENSSL_SEARCH_PATH", format!("{}", ssl_sp));
         }
 
-        let mut cmk = cmkc.build();
+        // 'cmk' is a PathBuf to the cmake install directory
+        let cmk = cmk_cfg.build();
+        println!("debug:CMake output dir: {}", cmk.display());
 
         // We check if the target library was compiled.
-        let mut cmk_out_dir = cmk.clone();
-        let mut lib_path = "lib";
-
-        if cmk_out_dir.join(lib_path).exists() {
-            cmk_out_dir = cmk_out_dir.join(lib_path);
-        } else if cmk_out_dir.join("lib64").exists() {
-            cmk_out_dir = cmk_out_dir.join("lib64");
-            lib_path = "lib64";
+        let lib_path = if cmk.join("lib").exists() {
+            "lib"
         }
+        else if cmk.join("lib64").exists() {
+            "lib64"
+        }
+        else {
+            panic!("Unknown library directory.")
+        };
+
+        // Absolute path to Paho C libs
+        let lib_dir = cmk.join(lib_path);
 
         let link_lib = link_lib();
-        let link_file = format!("lib{}.a", link_lib);
+        let link_file = if cfg!(windows) {
+            format!("{}.lib", link_lib)
+        }
+        else {
+            format!("lib{}.a", link_lib)
+        };
 
-        let lib = cmk_out_dir.join(Path::new(&link_file));
+        let lib = lib_dir.join(Path::new(&link_file));
+        println!("debug:Using Paho C library at: {}", lib.display());
+
         if !lib.exists() {
-            println!("Error building Paho C library: '{}'", lib.to_string_lossy());
+            println!("Error building Paho C library: '{}'", lib.display());
             process::exit(103);
         }
 
         // Get bundled bindings or regenerate
-        let mut cmk_inc = cmk.clone();
-        cmk_inc.push("include");
-        let inc_dir = format!("{}", cmk_inc.display());
+        let inc_dir = cmk.join("include");
+        println!("debug:Using Paho C headers at: {}", inc_dir.display());
+
         bindings::place_bindings(&inc_dir);
 
-
-        // we add the folder where all the libraries are built to the path search
-        cmk.push(lib_path);
-
+        // Link in the SSL libraries if configured for it.
         if cfg!(feature = "ssl") {
             println!("cargo:rustc-link-lib=ssl");
             println!("cargo:rustc-link-lib=crypto");
         }
 
-        println!("cargo:rustc-link-search=native={}", cmk.display());
+        // we add the folder where all the libraries are built to the path search
+        println!("cargo:rustc-link-search=native={}", lib_dir.display());
         println!("cargo:rustc-link-lib=static={}", link_lib);
     }
 }
@@ -203,6 +217,7 @@ mod build {
 mod build {
     use super::*;
     use std::env;
+    use std::path::Path;
 
     // Set the library path, and return the location of the header,
     // if found.
@@ -244,6 +259,8 @@ mod build {
     }
 
     pub fn main() {
+        println!("debug:Running the un-bundled build for Paho C");
+
         // We will use the directory `paho.mqtt.c`, if something change
         // there we should rerun the compile step.
         println!("cargo:rerun-if-changed=paho.mqtt.c/");
@@ -253,7 +270,7 @@ mod build {
             panic!("Can't generate bindings. Unknown library location");
         }
 
-        bindings::place_bindings(&inc_dir);
+        bindings::place_bindings(&Path::new(&inc_dir));
     }
 }
 

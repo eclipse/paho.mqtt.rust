@@ -40,7 +40,7 @@ use futures::{Future, Stream};
 use futures::future::ok;
 
 // The topic that we use for the test
-const TOPIC: &'static str = "test";
+const TOPIC: &'static str = "test/roundtrip";
 const QOS: i32 = 1;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -62,7 +62,7 @@ fn main() {
     let conn_opts = mqtt::ConnectOptionsBuilder::new()
         .keep_alive_interval(Duration::from_secs(20))
         .mqtt_version(mqtt::MQTT_VERSION_3_1_1)
-        .clean_session(false)
+        .clean_session(true)
         .automatic_reconnect(Duration::from_secs(1), Duration::from_secs(30))
         .finalize();
 
@@ -74,8 +74,8 @@ fn main() {
             cli.subscribe(TOPIC, QOS)
         })
         .and_then(|_| {
-            println!("Publishing a message on the 'test' topic");
-            let msg = mqtt::Message::new("test", "This is the test message!", QOS);
+            println!("Publishing a message on the '{}' topic", TOPIC);
+            let msg = mqtt::Message::new(TOPIC, "This is the roundtrip message!", QOS);
             cli.publish(msg)
         })
         .wait().unwrap_or_else(|err| {
