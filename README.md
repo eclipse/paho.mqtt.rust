@@ -109,8 +109,6 @@ When building, the user has several options:
 
 These are chosen with cargo features, explained below.
 
-Currently the Rust library is only linking to the SSL version of the library, _libpaho-mqtt3as_.
-
 #### Building the bundled Paho C library
 
 This is the default:
@@ -119,11 +117,23 @@ This is the default:
     
 This will initialize and update the C library sources from Git, then use the _cmake_ crate to build the static version of the C library, and link it in. By default, the build will use the pre-generated bindings in _bindings/bindings_paho_mqtt_X_Y_Z.rs_, where _X_Y_Z_ is the currently supported library version.
 
-When building the bundled libraries, the bindings can also be regenerated at build-time. This is especially useful when building on uncommon/untested platforms to ensure proper bindings for that system. This is done using the "buildtime_bindgen" feature:
+The defalut features for the build are: ["bundled", "ssl"]
+
+When building the bundled libraries, the bindings can also be regenerated at build-time. This is especially useful when building on uncommon/untested platforms to ensure proper bindings for that system. This is done adding the "build_bindgen" feature:
 
     $ cargo build --features "build_bindgen"
     
-In this case it will generate bindings based on the header files in the bundled C repository,
+In this case it will generate bindings based on the header files in the bundled C repository.
+
+The cached versions of the bindings were created on an x86_64 PC running Linux. When compiling on a different machine or cross-compiling, it is recommended to use "build_bindgen" to regenerate the bindings for that target.
+
+
+#### Building the Paho C library without SSL/TLS
+
+The crate can build the bundled Paho C library without secure sockets:
+
+    $ cargo build --no-default-features --features "bundled"
+
 
 #### Linking to an exteral Paho C library
 
@@ -160,7 +170,7 @@ This option should be used with caution when building an application that will s
 
 #### Bindgen linker issue
 
-The crate can optionally use the Rust _bindgen_ library to create the bindings to the Paho C library.
+As described above, the crate can optionally use the Rust _bindgen_ library to create the bindings to the Paho C library.
 
 https://rust-lang-nursery.github.io/rust-bindgen/
 

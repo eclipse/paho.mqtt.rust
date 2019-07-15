@@ -154,6 +154,7 @@ mod build {
         let mut cmk_cfg = cmake::Config::new("paho.mqtt.c/");
         cmk_cfg
             .define("PAHO_BUILD_STATIC", "on")
+            .define("PAHO_ENABLE_TESTING", "off")
             .define("PAHO_WITH_SSL", ssl);
 
         if let Ok(ssl_sp) = env::var("OPENSSL_SEARCH_PATH") {
