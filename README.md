@@ -22,7 +22,7 @@ To keep up with the latest announcements for this project, follow:
 
 **Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
 
-### New Features in v0.6
+### New Features Coming in v0.6
 
 Development is proceeding to add support for Futures and clean up the internal implementation of the library. The following is already checked into this branch:
 
@@ -45,6 +45,7 @@ Development is proceeding to add support for Futures and clean up the internal i
     - _AsyncClient_ and _Token_ objects are now just _Arc_ wrappers around inner structs making it easy to clone and pass references around.
     
 - **Internal Cleanup**
+    - Updated to wrap Paho C v1.3.1 which has a number of important bug fixes.
     - Moved `Tokens` into their own source file.
     - Consolidated persistence internals into `UserPersistence` struct.
     - Created a new `ResponseOptions` struct to manage the details of the C `MQTTAsync_responseOptions` objects.
@@ -70,7 +71,7 @@ The initial version of the library is a wrapper for the Paho C library, similar 
 - Traditional asynchronous API
 - Synchronous/blocking  API
 
-Supports Paho C v1.3.0
+Supports Paho C v1.3.1
 
 ### Upcoming Release(s)
 
