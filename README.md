@@ -1,5 +1,7 @@
 # Eclipse Paho MQTT Rust Client Library
 
+![Crates.io](https://img.shields.io/crates/d/paho-mqtt)
+
 This repository contains the source code for the [Eclipse Paho](http://eclipse.org/paho) MQTT Rust client library on memory-managed operating systems such as Linux/Posix and Windows.
 
 The Rust crate is a safe wrapper around the Paho C Library. 

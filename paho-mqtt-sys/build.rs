@@ -72,7 +72,7 @@ fn link_lib() -> &'static str {
 
 #[cfg(not(feature = "build_bindgen"))]
 mod bindings {
-    const PAHO_MQTT_C_VERSION: &'static str = "1.3.0";
+    const PAHO_MQTT_C_VERSION: &'static str = "1.3.1";
 
     use std::{env, fs};
     use std::path::Path;
@@ -82,6 +82,7 @@ mod bindings {
         let out_path = Path::new(&out_dir).join("bindings.rs");
 
         let bindings = format!("bindings/bindings_paho_mqtt_c_{}.rs", PAHO_MQTT_C_VERSION);
+        println!("debug:Using bindings from: {}", bindings);
         fs::copy(&bindings, out_path)
             .expect("Could not copy bindings to output directory");
     }
