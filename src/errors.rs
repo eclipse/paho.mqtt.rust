@@ -160,9 +160,9 @@ impl error::Error for MqttError {
     }
 
     /// The lower-level cause of the error, if any.
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match self.repr {
-            ErrorRepr::IoError(ref err) => Some(err as &error::Error),
+            ErrorRepr::IoError(ref err) => Some(err as &dyn error::Error),
             _ => None,
         }
     }

@@ -70,10 +70,10 @@ use string_collection::{StringCollection};
 // AsynClient
 
 /// User callback type for when the connection is lost from the broker.
-pub type ConnectionLostCallback = FnMut(&AsyncClient) + 'static;
+pub type ConnectionLostCallback = dyn FnMut(&AsyncClient) + 'static;
 
 /// User callback signature for when subscribed messages are received.
-pub type MessageArrivedCallback = FnMut(&AsyncClient, Option<Message>) + 'static;
+pub type MessageArrivedCallback = dyn FnMut(&AsyncClient, Option<Message>) + 'static;
 
 // The context provided for the client callbacks.
 // Note that the Paho C library maintains a single void* context pointer

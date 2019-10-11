@@ -52,10 +52,10 @@ use errors::{MqttResult, MqttError};
 // TokenData
 
 /// Callback for the token on successful completion
-pub type SuccessCallback = Fn(&AsyncClient, u16) + 'static;
+pub type SuccessCallback = dyn Fn(&AsyncClient, u16) + 'static;
 
 /// Callback for the token on failed completion
-pub type FailureCallback = Fn(&AsyncClient, u16, i32) + 'static;
+pub type FailureCallback = dyn Fn(&AsyncClient, u16, i32) + 'static;
 
 /// The server requests that expect a response.
 /// This is required because the `alt` union of the MQTTAsync_successData

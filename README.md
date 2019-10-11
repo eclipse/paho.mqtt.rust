@@ -28,7 +28,7 @@ Development is proceeding to add support for Futures and clean up the internal i
 
 - **Futures support:**
     - Compatible with the [Rust Futures](https://docs.rs/futures/0.1.25/futures/) library v0.1
-    - Now depends on the crates"futures" (v0.1) and "futures-timer" (v0.1).
+    - Now depends on the crates "futures" (v0.1) and "futures-timer" (v0.1).
     - The `Token` objects, which are returned by asynchronous calls, now implements the `Futures` trait, which is _mostly_ compatible with the previous implementation.
     - Incoming messages can be obtained through a `Stream` from the client, implemented with a futures channel.
     - New examples of a publisher and subscriber implemented with futures.

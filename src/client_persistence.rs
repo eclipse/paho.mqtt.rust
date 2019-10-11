@@ -86,14 +86,14 @@ pub struct UserPersistence {
     /// The underlying struct for the C library
     pub(crate) copts: ffi::MQTTClient_persistence,
     // The user-supplied persistence object
-    persistence: Box<Box<ClientPersistence>>,
+    persistence: Box<Box<dyn ClientPersistence>>,
 }
 
 impl UserPersistence
 {
     /// Creates a new user persistence object.
-    pub fn new(mut persistence: Box<Box<ClientPersistence>>) -> UserPersistence {
-        let context = &mut *persistence as *mut Box<ClientPersistence> as _;
+    pub fn new(mut persistence: Box<Box<dyn ClientPersistence>>) -> UserPersistence {
+        let context = &mut *persistence as *mut Box<dyn ClientPersistence> as _;
 
         UserPersistence {
             copts: ffi::MQTTClient_persistence {
@@ -124,7 +124,7 @@ impl UserPersistence
             let client_id = CStr::from_ptr(client_id).to_str().unwrap();
             let server_uri = CStr::from_ptr(server_uri).to_str().unwrap();
 
-            let persist: &mut Box<ClientPersistence> = mem::transmute(context);
+            let persist: &mut Box<dyn ClientPersistence> = mem::transmute(context);
 
             if let Ok(_) = persist.open(client_id, server_uri) {
                 *handle = context;
@@ -141,7 +141,7 @@ impl UserPersistence
             return PERSISTENCE_ERROR;
         }
 
-        let persist: &mut Box<ClientPersistence> = mem::transmute(handle);
+        let persist: &mut Box<dyn ClientPersistence> = mem::transmute(handle);
 
         match persist.close() {
             Ok(_) => PERSISTENCE_SUCCESS,
@@ -163,7 +163,7 @@ impl UserPersistence
         if bufcount == 0 {
             return PERSISTENCE_SUCCESS;
         }
-        let persist: &mut Box<ClientPersistence> = mem::transmute(handle);
+        let persist: &mut Box<dyn ClientPersistence> = mem::transmute(handle);
         let key = CStr::from_ptr(key).to_str().unwrap();
 
         let mut bufs: Vec<&[u8]> = Vec::new();
@@ -190,7 +190,7 @@ impl UserPersistence
                 buffer.is_null() || buflen.is_null() {
             return PERSISTENCE_ERROR;
         }
-        let persist: &mut Box<ClientPersistence> = mem::transmute(handle);
+        let persist: &mut Box<dyn ClientPersistence> = mem::transmute(handle);
         let key = CStr::from_ptr(key).to_str().unwrap();
 
         match persist.get(key) {
@@ -214,7 +214,7 @@ impl UserPersistence
         if handle.is_null() || key.is_null() {
             return PERSISTENCE_ERROR;
         }
-        let persist: &mut Box<ClientPersistence> = mem::transmute(handle);
+        let persist: &mut Box<dyn ClientPersistence> = mem::transmute(handle);
         let key = CStr::from_ptr(key).to_str().unwrap();
 
         match persist.remove(key) {
@@ -233,7 +233,7 @@ impl UserPersistence
             return PERSISTENCE_ERROR;
         }
 
-        let persist: &mut Box<ClientPersistence> = mem::transmute(handle);
+        let persist: &mut Box<dyn ClientPersistence> = mem::transmute(handle);
 
         *keys = ptr::null_mut();
         *nkeys = 0;
@@ -269,7 +269,7 @@ impl UserPersistence
         if handle.is_null() {
             return PERSISTENCE_ERROR;
         }
-        let persist: &mut Box<ClientPersistence> = mem::transmute(handle);
+        let persist: &mut Box<dyn ClientPersistence> = mem::transmute(handle);
 
         match persist.clear() {
             Ok(_) => PERSISTENCE_SUCCESS,
@@ -285,7 +285,7 @@ impl UserPersistence
         if handle.is_null() || key.is_null() {
             return PERSISTENCE_ERROR;
         }
-        let persist: &mut Box<ClientPersistence> = mem::transmute(handle);
+        let persist: &mut Box<dyn ClientPersistence> = mem::transmute(handle);
         let key = CStr::from_ptr(key).to_str().unwrap();
 
         if persist.contains_key(key) { 1 } else { 0 }

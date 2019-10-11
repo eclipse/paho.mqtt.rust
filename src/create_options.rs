@@ -39,7 +39,7 @@ pub enum PersistenceType {
 	/// No persistence is used.
 	None,
 	/// A user-defined persistence provided by the application.
-	User(Box<Box<ClientPersistence>>),
+	User(Box<Box<dyn ClientPersistence>>),
 }
 
 impl fmt::Debug for PersistenceType {
@@ -225,7 +225,7 @@ impl CreateOptionsBuilder {
 	pub fn user_persistence<T>(mut self, persistence: T) -> CreateOptionsBuilder 
 			where T: ClientPersistence + 'static
 	{
-		let persistence: Box<Box<ClientPersistence>> = Box::new(Box::new(persistence));
+		let persistence: Box<Box<dyn ClientPersistence>> = Box::new(Box::new(persistence));
 		self.persistence = PersistenceType::User(persistence);
 		self
 	}
