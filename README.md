@@ -22,9 +22,9 @@ To keep up with the latest announcements for this project, follow:
 
 **Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
 
-### New Features Coming in v0.6
+### New Features in v0.6
 
-Development is proceeding to add support for Futures and clean up the internal implementation of the library. The following is already checked into this branch:
+The v0.6 release added support for Futures and cleaned up the internal implementation of the library. 
 
 - **Futures support:**
     - Compatible with the [Rust Futures](https://docs.rs/futures/0.1.25/futures/) library v0.1
@@ -99,7 +99,7 @@ Generates reference documentation.
 
 ###  The Paho C Library and _paho-mqtt-sys_
 
-The Paho Rust crate is a wrapper around the Paho C library. This version is **specifically matched to Paho C v 1.3.x**, and is currently using version 1.3.0. It will generally not build against newer versions of the C library, as the C lib expands functionality by extending structures, thus breaking the Rust build.
+The Paho Rust crate is a wrapper around the Paho C library. This version is **specifically matched to Paho C v 1.3.x**, and is currently using version 1.3.1. It will generally not build against newer versions of the C library, as the C lib expands functionality by extending structures, thus breaking the Rust build.
 
 The project includes a Rust _-sys_ crate, called _paho-mqtt-sys_, which provides unsafe bindings to the C library.  The repository contains a Git submodule pointing to the specific version of the C library that the Rust crate requires, and by default, it will automatically build and link to that library, using pre-generated C bindings that are also included in the repo.
 
@@ -235,7 +235,7 @@ export MQTT_C_CLIENT_TRACE_LEVEL=PROTOCOL
 
 ## Example
 
-Several small sample applications can be found in the _examples_ directory. Here is an example of a small MQTT publisher:
+Several small sample applications can be found in the _examples_ directory. Here is what a small MQTT publisher might look like:
 
 ```
 use std::process;

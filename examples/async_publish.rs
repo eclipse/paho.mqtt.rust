@@ -36,16 +36,23 @@ fn main() {
     // Initialize the logger from the environment
     env_logger::init();
 
+    // Command-line option(s)
     let host = env::args().skip(1).next().unwrap_or(
         "tcp://localhost:1883".to_string()
     );
 
-    // Create a client & define connect options
-    let cli = mqtt::AsyncClient::new(host).unwrap_or_else(|err| {
+    // Create a client to the specified host, no persistence
+    let create_opts = mqtt::CreateOptionsBuilder::new()
+        .server_uri(host)
+        .persistence(mqtt::PersistenceType::None)
+        .finalize();
+
+    let cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|err| {
         println!("Error creating the client: {}", err);
         process::exit(1);
     });
 
+    // Connect with default options
     let conn_opts = mqtt::ConnectOptions::new();
 
     // Connect and wait for it to complete or fail
@@ -56,7 +63,7 @@ fn main() {
 
     // Create a message and publish it
     println!("Publishing a message on the 'test' topic");
-    let msg = mqtt::Message::new("test", "Hello world!", 0);
+    let msg = mqtt::Message::new("test", "Hello Rust MQTT world!", 0);
     let tok = cli.publish(msg);
 
     if let Err(e) = tok.wait() {

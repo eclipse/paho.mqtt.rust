@@ -68,8 +68,10 @@ fn main() {
         process::exit(1);
     }
 
+    let topic = "data/time";
+
     // Create messages and publish them
-    println!("Publishing time on the topic 'test'");
+    println!("Publishing time on the topic '{}'", topic);
 
     loop {
         let t0 = time_now_hundredths();
@@ -83,7 +85,7 @@ fn main() {
 
         let tf = 0.01 * (t as f64);
 
-        let msg = mqtt::Message::new("test", format!("{:.3}", tf), 1);
+        let msg = mqtt::Message::new(topic, format!("{:.3}", tf), 1);
         if let Err(e) = cli.publish(msg).wait() {
             println!("Error sending message: {:?}", e);
         }
