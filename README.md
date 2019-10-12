@@ -2,15 +2,34 @@
 
 ![Crates.io](https://img.shields.io/crates/d/paho-mqtt)
 
-This repository contains the source code for the [Eclipse Paho](http://eclipse.org/paho) MQTT Rust client library on memory-managed operating systems such as Linux/Posix and Windows.
+This repository contains the source code for the [Eclipse Paho](http://eclipse.org/paho) MQTT Rust client library on memory-managed operating systems such as Linux/Posix, Mac, and Windows.
 
 The Rust crate is a safe wrapper around the Paho C Library. 
 
-This is a pre-release version of the library, but has good feature coverage for an MQTT 3.1.1 library, and doesn't have a lot of outstanding issues.
-
-The API is still under development, and there will likely be some minor breaking changes in the next few releases, but major redevelopment of the API is slowing down and approaching stability.
-
 Most development and deployment has being done on Linux. Please let us know about any success or failure on other systems.
+
+## Features
+
+The initial version of this crate is a wrapper for the Paho C library, similar to the implementation for the current Paho C++ library. It targets MQTT v3.1 and 3.1.1, and includes all of the features available in the C library for those versions, including:
+
+- Network Transports:
+    - Standard TCP support
+    - SSL / TLS
+    - WebSockets
+- QoS 0, 1, and 2
+- Last Will and Testament (LWT)
+- Message Persistence 
+    - File or memory persistence
+    - User-defined persistence (including example for Redis)
+- Automatic Reconnect
+- Offline Buffering
+- High Availability
+- Several API's:
+    - Rust Futures and Streams for asynchronous operations.
+    - Traditional asynchronous (token/wait) API
+    - Synchronous/blocking  API
+
+Supports Paho C v1.3.1
 
 ## Latest News
 
@@ -51,27 +70,6 @@ The v0.6 release added support for Futures and cleaned up the internal implement
     - Created a new `ResponseOptions` struct to manage the details of the C `MQTTAsync_responseOptions` objects.
     - Cleanup of the `AsyncClient` implementation.
     - A bad reconnect bug is fixed (Issue #33)
-
-### Features
-
-The initial version of the library is a wrapper for the Paho C library, similar to the implementation for the current Paho C++ library. It targets MQTT v3.1 and 3.1.1, and includes all of the features available in the C library for those versions, including:
-
-- Standard TCP support
-- SSL / TLS
-- WebSockets
-- QoS 0, 1, and 2
-- Last Will and Testament (LWT)
-- Message Persistence 
-    - File or memory persistence
-    - User-defined persistence
-- Automatic Reconnect
-- Offline Buffering
-- High Availability
-- Rust Futures and Streams for asynchronous operations.
-- Traditional asynchronous API
-- Synchronous/blocking  API
-
-Supports Paho C v1.3.1
 
 ### Upcoming Release(s)
 
@@ -177,7 +175,7 @@ As described above, the crate can optionally use the Rust _bindgen_ library to c
 
 https://rust-lang-nursery.github.io/rust-bindgen/
 
-Bindgen requires a relatively recent version of the Clang library installed on the system - recommended v3.9 or 4.0. The bindgen dependencies seem, however, to seek out the oldest Clang version if multiple ones are installed on the system. On Ubuntu 14.04 or 16.04, the Clang v3.6 default might give some problems, although as the Paho builder is currently configured, it should work.
+Bindgen requires a relatively recent version of the Clang library installed on the system - recommended v3.9 or later. The bindgen dependencies seem, however, to seek out the oldest Clang version if multiple ones are installed on the system. On Ubuntu 14.04 or 16.04, the Clang v3.6 default might give some problems, although as the Paho builder is currently configured, it should work.
 
 But the safest thing would be to set the `LIBCLANG_PATH` environment variable to point to a supported version, like:
 ```
@@ -186,7 +184,7 @@ export LIBCLANG_PATH=/usr/lib/llvm-3.9/lib
 
 ### Cross-Compiling
 
-I was pleasently surprised to discover that the *cmake* crate seems to automatically handle cross-compiling libraries. You'll need a C cross-compiler installed on your system. See here for more info about cross-compiling Rust, in general: 
+I was pleasently surprised to discover that the *cmake* crate automatically handles cross-compiling libraries. You'll need a C cross-compiler installed on your system. See here for more info about cross-compiling Rust, in general: 
 
 https://github.com/japaric/rust-cross
 
