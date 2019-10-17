@@ -223,6 +223,17 @@ impl ConnectOptionsBuilder {
         self
     }
 
+    /// Sets the 'clean start' flag to send to the broker.
+    ///
+    /// # Arguments
+    ///
+    /// `clean` Whether the broker should remove any previously-stored
+    ///         information for this client.
+    pub fn clean_start(&mut self, clean: bool) -> &mut ConnectOptionsBuilder {
+        self.copts.cleanstart = if clean { 1 } else { 0 };
+        self
+    }
+
     /// Sets the maximum number of in-flight messages that can be
     /// simultaneously handled by this client.
     ///
@@ -341,9 +352,17 @@ impl ConnectOptionsBuilder {
     ///       * (0) try the latest version (3.1.1) and work backwards
     ///       * (3) only try v3.1
     ///       * (4) only try v3.1.1
+    ///       * (5) only try v5
     ///
     pub fn mqtt_version(&mut self, ver: u32) -> &mut ConnectOptionsBuilder {
         self.copts.MQTTVersion = ver as i32;
+
+        if ver < ffi::MQTTVERSION_5 {
+            self.copts.cleanstart = 0;
+        }
+        else {
+            self.copts.cleansession = 0;
+        }
         self
     }
 

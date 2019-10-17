@@ -27,6 +27,7 @@ use std::borrow::Cow;
 use std::fmt;
 
 use ffi;
+use properties::Properties;
 
 /// A `Message` represents all the information passed in an MQTT PUBLISH
 /// packet.
@@ -35,7 +36,8 @@ use ffi;
 pub struct Message {
     pub(crate) cmsg: ffi::MQTTAsync_message,
     pub(crate) topic: CString,
-    pub(crate) payload: Vec<u8>
+    pub(crate) payload: Vec<u8>,
+    pub(crate) props: Properties,
 }
 
 impl Message {
@@ -57,6 +59,7 @@ impl Message {
             },
             topic: CString::new(topic.into()).unwrap(),
             payload: payload.into(),
+            props: Properties::default(),
         };
         Message::fixup(msg)
     }
@@ -82,6 +85,7 @@ impl Message {
             },
             topic: CString::new(topic.into()).unwrap(),
             payload: payload.into(),
+            props: Properties::default(),
         };
         Message::fixup(msg)
     }
@@ -102,6 +106,7 @@ impl Message {
             cmsg,
             topic,
             payload: payload.to_vec(),
+            props: Properties::from_c_struct(&cmsg.properties),
         };
         Message::fixup(msg)
     }
@@ -110,6 +115,7 @@ impl Message {
     fn fixup(mut msg: Message) -> Message {
         msg.cmsg.payload = msg.payload.as_mut_ptr() as *mut c_void;
         msg.cmsg.payloadlen = msg.payload.len() as i32;
+        msg.cmsg.properties = msg.props.cprops.clone();
         msg
     }
 
@@ -145,6 +151,11 @@ impl Message {
     pub fn retained(&self) -> bool {
         self.cmsg.retained != 0
     }
+
+    /// Gets the properties in the message
+    pub fn properties(&self) -> &Properties {
+        &self.props
+    }
 }
 
 impl Default for Message {
@@ -153,6 +164,7 @@ impl Default for Message {
             cmsg: ffi::MQTTAsync_message::default(),
             topic: CString::new("").unwrap(),
             payload: Vec::new(),
+            props: Properties::default(),
         };
         Message::fixup(msg)
     }
@@ -164,6 +176,7 @@ impl Clone for Message {
             cmsg: self.cmsg.clone(),
             topic: self.topic.clone(),
             payload: self.payload.clone(),
+            props: self.props.clone(),
         };
         Message::fixup(msg)
     }
@@ -178,6 +191,7 @@ impl<'a, 'b> From<(&'a str, &'b [u8])> for Message {
             cmsg: ffi::MQTTAsync_message::default(),
             topic: CString::new(topic).unwrap(),
             payload: payload.to_vec(),
+            props: Properties::default(),    // TODO: Implement this
         };
         Message::fixup(msg)
     }
@@ -189,6 +203,7 @@ impl<'a, 'b> From<(&'a str, &'b [u8], i32, bool)> for Message {
             cmsg: ffi::MQTTAsync_message::default(),
             topic: CString::new(topic).unwrap(),
             payload: payload.to_vec(),
+            props: Properties::default(),
         };
         msg.cmsg.qos = qos;
         msg.cmsg.retained = if retained { 1 } else { 0 };
@@ -217,6 +232,7 @@ pub struct MessageBuilder {
     payload: Vec<u8>,
     qos: i32,
     retained: bool,
+    props: Properties,
 }
 
 impl MessageBuilder
@@ -228,6 +244,7 @@ impl MessageBuilder
             payload: Vec::new(),
             qos: 0,
             retained: false,
+            props: Properties::default(),
         }
     }
 
@@ -277,12 +294,23 @@ impl MessageBuilder
         self
     }
 
+    /// Sets the collection of properties for the message.
+    ///
+    /// # Arguments
+    ///
+    /// `props` The collection of properties to include with the message.
+    pub fn properties(mut self, props: Properties) -> MessageBuilder {
+        self.props = props;
+        self
+    }
+
     /// Finalize the builder to create the message.
     pub fn finalize(self) -> Message {
         let mut msg = Message {
             cmsg: ffi::MQTTAsync_message::default(),
             topic: CString::new(self.topic).unwrap(),
             payload: self.payload,
+            props: self.props,
         };
         msg.cmsg.qos = self.qos;
         msg.cmsg.retained = if self.retained { 1 } else { 0 };
