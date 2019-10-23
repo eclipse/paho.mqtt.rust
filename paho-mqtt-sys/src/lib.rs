@@ -159,7 +159,7 @@ impl Default for MQTTAsync_responseOptions {
     fn default() -> MQTTAsync_responseOptions {
         MQTTAsync_responseOptions {
             struct_id: [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'R' as c_char ],
-            struct_version: 0,
+            struct_version: 1,
             onSuccess: None,
             onFailure: None,
             context: ptr::null_mut(),

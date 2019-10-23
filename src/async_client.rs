@@ -261,6 +261,13 @@ impl AsyncClient {
         1
     }
 
+    /// Gets the MQTT version for vhich the client was created.
+    pub fn mqtt_version(&self) -> u32 {
+        // TODO: It's getting this from the connect options, not the create options!
+        let lkopts = self.inner.opts.lock().unwrap();
+        lkopts.copts.MQTTVersion as u32
+    }
+
     /// Connects to an MQTT broker using the specified connect options.
     ///
     /// # Arguments
@@ -490,8 +497,9 @@ impl AsyncClient {
     pub fn publish(&self, msg: Message) -> DeliveryToken {
         debug!("Publish: {:?}", msg);
 
+        let ver = self.mqtt_version();
         let tok = DeliveryToken::new(msg);
-        let mut rsp_opts = ResponseOptions::new(tok.clone());
+        let mut rsp_opts = ResponseOptions::new(tok.clone(), ver);
 
         let rc = unsafe {
             let msg = tok.message();
@@ -520,8 +528,9 @@ impl AsyncClient {
     pub fn subscribe<S>(&self, topic: S, qos: i32) -> SubscribeToken
         where S: Into<String>
     {
+        let ver = self.mqtt_version();
         let tok = SubscribeToken::new();
-        let mut rsp_opts = ResponseOptions::new(tok.clone());
+        let mut rsp_opts = ResponseOptions::new(tok.clone(), ver);
         let topic = CString::new(topic.into()).unwrap();
 
         debug!("Subscribe to '{:?}' @ QOS {}", topic, qos);
@@ -549,9 +558,10 @@ impl AsyncClient {
     {
         let n = topics.len();
 
+        let ver = self.mqtt_version();
         // TOOD: Make sure topics & qos are same length (or use min)
         let tok = SubscribeManyToken::new(n);
-        let mut rsp_opts = ResponseOptions::new(tok.clone());
+        let mut rsp_opts = ResponseOptions::new(tok.clone(), ver);
         let topics = StringCollection::new(topics);
 
         debug!("Subscribe to '{:?}' @ QOS {:?}", topics, qos);
@@ -582,8 +592,9 @@ impl AsyncClient {
     pub fn unsubscribe<S>(&self, topic: S) -> Token
         where S: Into<String>
     {
+        let ver = self.mqtt_version();
         let tok = Token::new();
-        let mut rsp_opts = ResponseOptions::new(tok.clone());
+        let mut rsp_opts = ResponseOptions::new(tok.clone(), ver);
         let topic = CString::new(topic.into()).unwrap();
 
         debug!("Unsubscribe from '{:?}'", topic);
@@ -610,8 +621,9 @@ impl AsyncClient {
     pub fn unsubscribe_many<T>(&self, topics: &[T]) -> Token
         where T: AsRef<str>
     {
+        let ver = self.mqtt_version();
         let tok = Token::new();
-        let mut rsp_opts = ResponseOptions::new(tok.clone());
+        let mut rsp_opts = ResponseOptions::new(tok.clone(), ver);
         let topics = StringCollection::new(topics);
 
         debug!("Unsubscribe from '{:?}'", topics);

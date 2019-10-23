@@ -40,19 +40,31 @@ impl ResponseOptions {
     /// structure to act as the context pointer for the callback. It is
     /// up to the callback (or calling function) to recapture and release
     /// this token.
-    pub(crate) fn new<T>(tok: T) -> Self
+    pub(crate) fn new<T>(tok: T, mqtt_version: u32) -> Self
         where T: Into<Token>
     {
         let tok = tok.into();
         let context = tok.into_raw();
         debug!("Created response for token at: {:?}", context);
 
-        ResponseOptions {
-            copts: ffi::MQTTAsync_responseOptions {
-                onSuccess: Some(TokenInner::on_success),
-                onFailure: Some(TokenInner::on_failure),
-                context,
-                ..ffi::MQTTAsync_responseOptions::default()
+        if mqtt_version < 5 {
+            ResponseOptions {
+                copts: ffi::MQTTAsync_responseOptions {
+                    onSuccess: Some(TokenInner::on_success),
+                    onFailure: Some(TokenInner::on_failure),
+                    context,
+                    ..ffi::MQTTAsync_responseOptions::default()
+                }
+            }
+        }
+        else {
+            ResponseOptions {
+                copts: ffi::MQTTAsync_responseOptions {
+                    onSuccess5: Some(TokenInner::on_success5),
+                    onFailure5: Some(TokenInner::on_failure5),
+                    context,
+                    ..ffi::MQTTAsync_responseOptions::default()
+                }
             }
         }
     }

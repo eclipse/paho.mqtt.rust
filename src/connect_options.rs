@@ -46,6 +46,9 @@ pub const MQTT_VERSION_3_1: u32 = ffi::MQTTVERSION_3_1;
 /// Connect with MQTT v3.1.1
 pub const MQTT_VERSION_3_1_1: u32 = ffi::MQTTVERSION_3_1_1;
 
+/// Connect with MQTT v5
+pub const MQTT_VERSION_5: u32 = ffi::MQTTVERSION_5;
+
 /////////////////////////////////////////////////////////////////////////////
 // Connections
 

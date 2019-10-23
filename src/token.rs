@@ -44,6 +44,7 @@ use futures_timer::FutureExt;
 use ffi;
 
 use async_client::{AsyncClient};
+use types::ReasonCode;
 use message::Message;
 use errors;
 use errors::{MqttResult, MqttError};
@@ -56,6 +57,12 @@ pub type SuccessCallback = dyn Fn(&AsyncClient, u16) + 'static;
 
 /// Callback for the token on failed completion
 pub type FailureCallback = dyn Fn(&AsyncClient, u16, i32) + 'static;
+
+/// Callback for the token on successful completion
+pub type SuccessCallback5 = dyn Fn(&AsyncClient, u16) + 'static;
+
+/// Callback for the token on failed completion
+pub type FailureCallback5 = dyn Fn(&AsyncClient, u16, i32) + 'static;
 
 /// The server requests that expect a response.
 /// This is required because the `alt` union of the MQTTAsync_successData
@@ -105,6 +112,8 @@ pub(crate) struct TokenData {
     msg_id: i16,
     /// The return/error code for the action (zero is success)
     ret_code: i32,
+    /// MQTT v5 Reason Code
+    reason_code: ReasonCode,
     /// Additional detail error message (if any)
     err_msg: Option<String>,
     /// The server response (dependent on the request type)
@@ -179,6 +188,10 @@ pub(crate) struct TokenInner {
     on_success: Option<Box<SuccessCallback>>,
     /// User callback for failed completion of the async action
     on_failure: Option<Box<FailureCallback>>,
+    /// User callback for successful completion of the MQTT v5 async action
+    on_success5: Option<Box<SuccessCallback5>>,
+    /// User callback for failed completion of the MQTT v5 async action
+    on_failure5: Option<Box<FailureCallback5>>,
 }
 
 impl TokenInner {
@@ -276,6 +289,71 @@ impl TokenInner {
         tok.inner.on_complete(msgid, rc, err_msg, ptr::null_mut());
     }
 
+    // Callback from the C library for when an MQTT v5 async operation succeeds.
+    pub(crate) unsafe extern "C" fn on_success5(context: *mut c_void, rsp: *mut ffi::MQTTAsync_successData5) {
+        debug!("Token v5 success! {:?}, {:?}", context, rsp);
+        if context.is_null() { return }
+
+        let tok = Token::from_raw(context);
+
+        // TODO: Maybe compare this msgid to the one in the token?
+        let msgid = if !rsp.is_null() { (*rsp).token as u16 } else { 0 };
+
+        tok.inner.on_complete5(msgid, 0, None, rsp);
+    }
+
+    // Callback from the C library when an MQTT v5 async operation fails.
+    pub(crate) unsafe extern "C" fn on_failure5(context: *mut c_void, rsp: *mut ffi::MQTTAsync_failureData5) {
+        warn!("Token v5 failure! {:?}, {:?}", context, rsp);
+        if context.is_null() { return }
+
+        let tok = Token::from_raw(context);
+
+        let mut msgid = 0;
+        let mut rc = -1;
+        let mut reason_code = ReasonCode::default();
+        let mut err_msg = None;
+
+        if let Some(rsp) = rsp.as_ref() {
+            msgid = rsp.token as u16;
+            rc = if rsp.code == 0 { -1 } else { rsp.code as i32 };
+            reason_code = ReasonCode::from_code(rsp.reasonCode);
+
+            if !rsp.message.is_null() {
+                if let Ok(cmsg) = CStr::from_ptr(rsp.message).to_str() {
+                    debug!("Token failure message: {:?}", cmsg);
+                    err_msg = Some(cmsg.to_string());
+                }
+            }
+        }
+
+        debug!("Token completed with code: {}", rc);
+
+        // Fire off any user callbacks
+
+        if let Some(ref cli) = tok.inner.cli {
+            if let Some(ref cb) = tok.inner.on_failure {
+                trace!("Invoking TokenInner::on_failure callback");
+                cb(cli, msgid, rc);
+            }
+        }
+
+        // Signal completion of the token
+
+        let mut data = tok.inner.lock.lock().unwrap();
+        data.complete = true;
+        data.ret_code = rc;
+        data.reason_code = reason_code;
+        data.err_msg = err_msg;
+        // TODO: properties?
+
+        // If this is none, it means that no one is waiting on
+        // the future yet, so we don't need to kick it.
+        if let Some(task) = data.task.as_ref() {
+            task.notify();
+        }
+    }
+
     // Callback function to update the token when the action completes.
     pub(crate) fn on_complete(&self, msgid: u16, rc: i32, err_msg: Option<String>,
                               rsp: *mut ffi::MQTTAsync_successData) {
@@ -337,6 +415,70 @@ impl TokenInner {
             task.notify();
         }
     }
+
+    // Callback function to update the token when the action completes.
+    pub(crate) fn on_complete5(&self, msgid: u16, rc: i32, err_msg: Option<String>,
+                                rsp: *mut ffi::MQTTAsync_successData5) {
+        debug!("Token completed with code: {}", rc);
+
+        // Fire off any user callbacks
+
+        if let Some(ref cli) = self.cli {
+            if rc == 0 {
+                if let Some(ref cb) = self.on_success {
+                    trace!("Invoking TokenInner::on_success callback");
+                    cb(cli, msgid);
+                }
+            }
+            else {
+                if let Some(ref cb) = self.on_failure {
+                    trace!("Invoking TokenInner::on_failure callback");
+                    cb(cli, msgid, rc);
+                }
+            }
+        }
+
+        // Signal completion of the token
+
+        let mut data = self.lock.lock().unwrap();
+        data.complete = true;
+        data.ret_code = rc;
+        data.err_msg = err_msg;
+
+        // Get the response from the server, if any.
+        unsafe {
+            if let Some(rsp) = rsp.as_ref() {
+                debug!("Expected server response for: {:?}", self.req);
+                data.srvr_rsp = match self.req {
+                    ServerRequest::Connect => {
+                        ServerResponse::Connect(
+                            CStr::from_ptr(rsp.alt.connect.serverURI).to_string_lossy().to_string(),
+                            rsp.alt.connect.MQTTVersion,
+                            rsp.alt.connect.sessionPresent != 0
+                        )
+                    },
+                    // TODO: Get the correct QoS
+                    ServerRequest::Subscribe => ServerResponse::Subscribe(0 /*rsp.alt.qos*/),
+                    ServerRequest::SubscribeMany(n) => {
+                        let mut qosv = Vec::new();
+                        for _i in 0..n {
+                            // TODO: Get the correct QoS values
+                            qosv.push(0);   // *rsp.alt.qosList.offset(i as isize));
+                        }
+                        debug!("Subscribed to {} topics w/ Qos: {:?}", qosv.len(), qosv);
+                        ServerResponse::SubscribeMany(qosv)
+                    },
+                    _ => ServerResponse::None,
+                }
+            }
+        }
+
+        // If this is none, it means that no one is waiting on
+        // the future yet, so we don't need to kick it.
+        if let Some(task) = data.task.as_ref() {
+            task.notify();
+        }
+    }
 }
 
 impl Default for TokenInner {
@@ -347,6 +489,8 @@ impl Default for TokenInner {
             req: ServerRequest::None,
             on_success: None,
             on_failure: None,
+            on_success5: None,
+            on_failure5: None,
         }
     }
 }

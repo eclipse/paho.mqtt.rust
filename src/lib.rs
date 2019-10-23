@@ -52,6 +52,7 @@ pub use properties::*;          //{Property, Properties};
 pub use message::*;             //{Message, MessageBuilder};
 pub use token::*;               //{Token}
 pub use topic::*;               //{Topic}
+pub use types::*;               //{ReasonCode}
 pub use client_persistence::*;
 pub use errors::*;              //{MqttResult, MqttError, ErrorKind};
 
@@ -94,6 +95,9 @@ pub mod token;
 /// Options for creating topic objects that are associated with a
 /// particular server.
 pub mod topic;
+
+/// Miscelaneous types
+pub mod types;
 
 /// Definitions for creating user-defined persistence.
 pub mod client_persistence;
