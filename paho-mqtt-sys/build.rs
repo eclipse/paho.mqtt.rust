@@ -275,4 +275,3 @@ mod build {
         bindings::place_bindings(&Path::new(&inc_dir));
     }
 }
-

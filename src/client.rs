@@ -30,12 +30,12 @@
 use std::time::Duration;
 use std::sync::mpsc;
 
-use async_client::AsyncClient;
-use create_options::CreateOptions;
-use connect_options::ConnectOptions;
-use disconnect_options::DisconnectOptions;
-use message::Message;
-use errors::MqttResult;
+use crate::async_client::AsyncClient;
+use crate::create_options::CreateOptions;
+use crate::connect_options::ConnectOptions;
+use crate::disconnect_options::DisconnectOptions;
+use crate::message::Message;
+use crate::errors::MqttResult;
 
 /////////////////////////////////////////////////////////////////////////////
 // Client

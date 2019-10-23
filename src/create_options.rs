@@ -22,8 +22,8 @@
 
 use std::fmt;
 
-use ffi;
-use client_persistence::ClientPersistence;
+use crate::ffi;
+use crate::client_persistence::ClientPersistence;
 
 /*
 Remember the C constants (c_uint)
@@ -43,7 +43,7 @@ pub enum PersistenceType {
 }
 
 impl fmt::Debug for PersistenceType {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match *self {
 			PersistenceType::File => write!(f, "File"),
 			PersistenceType::None => write!(f, "None"),
@@ -57,7 +57,7 @@ impl fmt::Debug for PersistenceType {
 /////////////////////////////////////////////////////////////////////////////
 
 /// The options for creating an MQTT client.
-/// This can be constructed using a 
+/// This can be constructed using a
 /// [CreateOptionsBuilder](struct.CreateOptionsBuilder.html).
 #[derive(Debug)]
 pub struct CreateOptions {
@@ -133,13 +133,13 @@ impl Default for CreateOptions {
 /// # Examples
 ///
 /// ```
-/// extern crate paho_mqtt as mqtt;
-/// 
+/// use paho_mqtt as mqtt;
+///
 /// let opts = mqtt::CreateOptionsBuilder::new()
 ///                    .server_uri("tcp://localhost:1883")
 ///                    .client_id("client1")
 ///                    .finalize();
-/// 
+///
 /// let cli = mqtt::AsyncClient::new(opts).unwrap();
 /// ```
 
@@ -162,12 +162,12 @@ impl CreateOptionsBuilder {
 	}
 
 	/// Sets the the URI to the MQTT broker.
-	/// Alternately, the application can specify multiple servers via the 
+	/// Alternately, the application can specify multiple servers via the
 	/// connect options.
 	///
 	/// # Arguments
 	///
-	/// `server_uri` The URI string to specify the server in the form 
+	/// `server_uri` The URI string to specify the server in the form
 	///              _protocol://host:port_, where the protocol can be
 	///              _tcp_ or _ssl_, and the host can be an IP address
 	///              or domain name.
@@ -179,16 +179,16 @@ impl CreateOptionsBuilder {
 
 	/// Sets the client identifier string that is sent to the server.
 	/// The client ID is a unique name to identify the client to the server,
-	/// which can be used if the client desires the server to hold state 
+	/// which can be used if the client desires the server to hold state
 	/// about the session. If the client requests a clean sesstion, this can
 	/// be an empty string.
-	/// 
-	/// The broker is required to honor a client ID of up to 23 bytes, but 
+	///
+	/// The broker is required to honor a client ID of up to 23 bytes, but
 	/// could honor longer ones, depending on the broker.
-	/// 
-	/// Note that if this is an empty string, the clean session parameter 
+	///
+	/// Note that if this is an empty string, the clean session parameter
 	/// *must* be set to _true_.
-	/// 
+	///
 	/// # Arguments
 	///
 	/// `client_id` A UTF-8 string identifying the client to the server.
@@ -201,7 +201,7 @@ impl CreateOptionsBuilder {
 
 	/// Sets the type of persistence used by the client.
 	/// The default is for the library to automatically use file persistence,
-	/// although this can be turned off by specify `None` for a more 
+	/// although this can be turned off by specify `None` for a more
 	/// performant, though possibly less reliable system.
 	///
 	/// # Arguments
@@ -214,15 +214,15 @@ impl CreateOptionsBuilder {
 	}
 
 	/// Sets a user-defined persistence store.
-	/// This sets the persistence to use a custom one defined by the 
-	/// application. This can be anything that implements the 
+	/// This sets the persistence to use a custom one defined by the
+	/// application. This can be anything that implements the
 	/// `ClientPersistence` trait.
 	///
 	/// # Arguments
 	///
 	/// `persist` An application-defined custom persistence store.
 	///
-	pub fn user_persistence<T>(mut self, persistence: T) -> CreateOptionsBuilder 
+	pub fn user_persistence<T>(mut self, persistence: T) -> CreateOptionsBuilder
 			where T: ClientPersistence + 'static
 	{
 		let persistence: Box<Box<dyn ClientPersistence>> = Box::new(Box::new(persistence));
@@ -232,7 +232,7 @@ impl CreateOptionsBuilder {
 
 	/// Sets the maximum number of messages that can be buffered for delivery
 	/// when the client is off-line.
-	/// The client has limited support for bufferering messages when the 
+	/// The client has limited support for bufferering messages when the
 	/// client is temporarily disconnected. This specifies the maximum number
 	/// of messages that can be buffered.
 	///
@@ -367,5 +367,3 @@ mod tests {
 		assert_eq!(MAX_BUF_MSGS, opts.copts.maxBufferedMessages);
 	}
 }
-
-

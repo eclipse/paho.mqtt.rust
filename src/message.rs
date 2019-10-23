@@ -26,7 +26,7 @@ use std::convert::From;
 use std::borrow::Cow;
 use std::fmt;
 
-use ffi;
+use crate::ffi;
 
 /// A `Message` represents all the information passed in an MQTT PUBLISH
 /// packet.
@@ -132,7 +132,7 @@ impl Message {
     /// return a `Cow::Borrowed([&str])` with the the corresponding `[&str]` slice.
     /// Otherwise, it will replace any invalid UTF-8 sequences with U+FFFD
     /// REPLACEMENT CHARACTER and return a `Cow::Owned(String)` with the result.
-    pub fn payload_str(&self) -> Cow<str> {
+    pub fn payload_str(&self) -> Cow<'_, str> {
         String::from_utf8_lossy(&self.payload)
     }
 
@@ -198,7 +198,7 @@ impl<'a, 'b> From<(&'a str, &'b [u8], i32, bool)> for Message {
 
 impl fmt::Display for Message
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let topic = match self.topic.as_c_str().to_str() {
             Ok(s) => s,
             Err(_) => return Err(fmt::Error),

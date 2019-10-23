@@ -24,17 +24,17 @@
 //! This contains the structures to define the options for connecting to the
 //! MQTT broker/server.
 
-use ffi;
+use crate::ffi;
 use std::ptr;
 use std::time::Duration;
 use std::ffi::CString;
 use std::os::raw::c_int;
 
-use token::{ConnectToken, Token, TokenInner};
-use message::Message;
-use will_options::WillOptions;
-use ssl_options::SslOptions;
-use string_collection::StringCollection;
+use crate::token::{ConnectToken, Token, TokenInner};
+use crate::message::Message;
+use crate::will_options::WillOptions;
+use crate::ssl_options::SslOptions;
+use crate::string_collection::StringCollection;
 
 /// The default version to connect with.
 /// First try v3.1.1, and if that fails, try v3.1
@@ -405,7 +405,7 @@ mod tests {
     use super::*;
     use std::thread;
     use std::ffi::{CStr};
-    use ssl_options::SslOptionsBuilder;
+    use crate::ssl_options::SslOptionsBuilder;
     use std::os::raw::c_char;
 
     // Identifier fo a C connect options struct

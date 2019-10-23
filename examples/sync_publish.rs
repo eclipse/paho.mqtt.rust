@@ -26,10 +26,8 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-extern crate log;
-extern crate env_logger;
-extern crate paho_mqtt as mqtt;
 
+use paho_mqtt as mqtt;
 use std::{env, process};
 use std::time::Duration;
 

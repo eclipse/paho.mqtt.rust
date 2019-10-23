@@ -34,14 +34,10 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-extern crate log;
-extern crate env_logger;
-extern crate futures;
-extern crate paho_mqtt as mqtt;
 
+use paho_mqtt as mqtt;
 use std::{env, process};
 use std::time::Duration;
-
 use futures::{Future, Stream};
 use futures::future::{Either, ok};
 
@@ -132,4 +128,3 @@ fn main() {
     // Hitting ^C will exit the app and cause the broker to publish
     // the LWT message since we're not disconnecting cleanly.
 }
-

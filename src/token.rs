@@ -41,12 +41,12 @@ use futures::task;
 use futures::task::Task;
 use futures_timer::FutureExt;
 
-use ffi;
+use crate::ffi;
 
-use async_client::{AsyncClient};
-use message::Message;
-use errors;
-use errors::{MqttResult, MqttError};
+use crate::async_client::{AsyncClient};
+use crate::message::Message;
+use crate::errors;
+use crate::errors::{MqttResult, MqttError};
 
 /////////////////////////////////////////////////////////////////////////////
 // TokenData

@@ -22,8 +22,8 @@
 
 //! Response options for the Paho MQTT Rust client library.
 
-use ffi;
-use token::{Token, TokenInner};
+use crate::ffi;
+use crate::token::{Token, TokenInner};
 
 /// The collection of options for responses coming back to the client.
 #[derive(Debug)]
@@ -66,7 +66,7 @@ impl ResponseOptions {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use token::{Token};
+    use crate::token::{Token};
 
     #[test]
     fn test_new() {

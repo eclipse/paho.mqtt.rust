@@ -33,9 +33,9 @@ use std::ffi::CString;
 use std::os::raw::c_void;
 use std::borrow::Cow;
 
-use ffi;
+use crate::ffi;
 
-use message::Message;
+use crate::message::Message;
 
 /// The options for the Last Will and Testament (LWT).
 /// This defines a message that is registered with the the server at the time
@@ -48,7 +48,7 @@ use message::Message;
 /// encouraged to just create a `Message` object and use it when building
 /// `ConnectOptions`:
 /// ```
-/// extern crate paho_mqtt as mqtt;
+/// use paho_mqtt as mqtt;
 ///
 /// let lwt = mqtt::Message::new("lwt", "disconnected", 1);
 /// let opts = mqtt::ConnectOptionsBuilder::new().will_message(lwt).finalize();
@@ -137,7 +137,7 @@ impl WillOptions {
 
     /// Gets the payload of the message as a string.
     /// Note that this clones the payload.
-    pub fn payload_str(&self) -> Cow<str> {
+    pub fn payload_str(&self) -> Cow<'_, str> {
         String::from_utf8_lossy(&self.payload)
     }
 
@@ -206,7 +206,7 @@ impl From<Message> for WillOptions {
 mod tests {
     use super::*;
     use std::os::raw::{c_char};
-    use message::MessageBuilder;
+    use crate::message::MessageBuilder;
 
     // The C struct identifier for will options and the supported struct version.
     const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'W' as c_char];
@@ -350,4 +350,3 @@ mod tests {
         assert!(opts.copts.retained != 0);
     }
 }
-

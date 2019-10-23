@@ -21,9 +21,9 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use async_client::{AsyncClient};
-use token::{DeliveryToken};
-use message::Message;
+use crate::async_client::{AsyncClient};
+use crate::token::{DeliveryToken};
+use crate::message::Message;
 
 /////////////////////////////////////////////////////////////////////////////
 //                              Topic

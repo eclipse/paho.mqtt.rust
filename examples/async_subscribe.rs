@@ -32,10 +32,8 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-extern crate log;
-extern crate env_logger;
-extern crate paho_mqtt as mqtt;
 
+use paho_mqtt as mqtt;
 use std::{env, process, thread};
 use std::time::Duration;
 
@@ -130,4 +128,3 @@ fn main() {
     // Hitting ^C will exit the app and cause the broker to publish the
     // LWT message since we're not disconnecting cleanly.
 }
-

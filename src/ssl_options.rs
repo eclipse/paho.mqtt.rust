@@ -23,7 +23,7 @@ use std::ptr;
 use std::ffi::{CString};
 use std::os::raw::{c_char};
 
-use ffi;
+use crate::ffi;
 
 // Implementation note:
 // The C library seems to require the SSL Options struct to provide valid

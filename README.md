@@ -4,7 +4,7 @@
 
 This repository contains the source code for the [Eclipse Paho](http://eclipse.org/paho) MQTT Rust client library on memory-managed operating systems such as Linux/Posix, Mac, and Windows.
 
-The Rust crate is a safe wrapper around the Paho C Library. 
+The Rust crate is a safe wrapper around the Paho C Library.
 
 Most development and deployment has being done on Linux. Please let us know about any success or failure on other systems.
 
@@ -18,7 +18,7 @@ The initial version of this crate is a wrapper for the Paho C library, similar t
     - WebSockets
 - QoS 0, 1, and 2
 - Last Will and Testament (LWT)
-- Message Persistence 
+- Message Persistence
     - File or memory persistence
     - User-defined persistence (including example for Redis)
 - Automatic Reconnect
@@ -43,7 +43,7 @@ To keep up with the latest announcements for this project, follow:
 
 ### New Features in v0.6
 
-The v0.6 release added support for Futures and cleaned up the internal implementation of the library. 
+The v0.6 release added support for Futures and cleaned up the internal implementation of the library.
 
 - **Futures support:**
     - Compatible with the [Rust Futures](https://docs.rs/futures/0.1.25/futures/) library v0.1
@@ -53,16 +53,16 @@ The v0.6 release added support for Futures and cleaned up the internal implement
     - New examples of a publisher and subscriber implemented with futures.
 
 - **Server Responses**
-    - There are now several different types of tokens corresponding to different requests for which the server can return a response: _ConnectToken_, _DeliveryToken_, _SubscribeToken_, etc. 
+    - There are now several different types of tokens corresponding to different requests for which the server can return a response: _ConnectToken_, _DeliveryToken_, _SubscribeToken_, etc.
     - Tokens now track the type of request and get the server response upon completion. This is the Futures _Item_ type for the token.
     - In particular this is useful for connecting subscribers. The app can now determine if a persistent session is already present, and only needs to subscribe if not.
-    
+
 - **Send and Sync Traits**
     - The clients are now marked as _Send_ and _Sync_
     - The _Token_ types are _Send_
     - Most of the option types are _Send_ and _Sync_
     - _AsyncClient_ and _Token_ objects are now just _Arc_ wrappers around inner structs making it easy to clone and pass references around.
-    
+
 - **Internal Cleanup**
     - Updated to wrap Paho C v1.3.1 which has a number of important bug fixes.
     - Moved `Tokens` into their own source file.
@@ -81,7 +81,7 @@ The library is a standard Rust "crate" using the _Cargo_ build tool. It uses the
 
 `$ cargo build`
 
-Builds the library, and also builds the *-sys* subcrate and the bundled Paho C library. It includes SSL, as it is defined as a default feature. 
+Builds the library, and also builds the *-sys* subcrate and the bundled Paho C library. It includes SSL, as it is defined as a default feature.
 
 `$ cargo build --examples`
 
@@ -115,7 +115,7 @@ These are chosen with cargo features, explained below.
 This is the default:
 
     $ cargo build
-    
+
 This will initialize and update the C library sources from Git, then use the _cmake_ crate to build the static version of the C library, and link it in. By default, the build will use the pre-generated bindings in _bindings/bindings_paho_mqtt_X_Y_Z.rs_, where _X_Y_Z_ is the currently supported library version.
 
 The defalut features for the build are: ["bundled", "ssl"]
@@ -123,7 +123,7 @@ The defalut features for the build are: ["bundled", "ssl"]
 When building the bundled libraries, the bindings can also be regenerated at build-time. This is especially useful when building on uncommon/untested platforms to ensure proper bindings for that system. This is done adding the "build_bindgen" feature:
 
     $ cargo build --features "build_bindgen"
-    
+
 In this case it will generate bindings based on the header files in the bundled C repository.
 
 The cached versions of the bindings were created on an x86_64 PC running Linux. When compiling on a different machine or cross-compiling, it is recommended to use "build_bindgen" to regenerate the bindings for that target.
@@ -138,16 +138,16 @@ The crate can build the bundled Paho C library without secure sockets:
 
 #### Linking to an exteral Paho C library
 
-The crate can generate bindings to a copy of the Paho C library in a different location in the local file system, and link to that library. 
+The crate can generate bindings to a copy of the Paho C library in a different location in the local file system, and link to that library.
 
     $ cargo build --no-default-features --features "build_bindgen,ssl"
 
-The "ssl" feature can be omitted if it is not desired. 
+The "ssl" feature can be omitted if it is not desired.
 
 The location of the C library is specified through an environment variable:
 
     PAHO_MQTT_C_DIR= ...path to install directory...
-    
+
 It's assumed that the headers are in an _include/_ directory below the one specified, and the library is in _lib/_ under it. This would be the case with a normal install.
 
 Alternately, this can be expressed with individual environment variables for each of the header and library directories:
@@ -159,7 +159,7 @@ In this case, the headers and library can be found independently. This was neces
 
 #### Linking to an installed Paho C library
 
-If the correct version of the Paho C library is expected to be installed on the target system, the simplest solution is to use the pre-generated bindings and specify a link to the shared paho C library. 
+If the correct version of the Paho C library is expected to be installed on the target system, the simplest solution is to use the pre-generated bindings and specify a link to the shared paho C library.
 
     $ cargo build --no-default-features --features "ssl"
 
@@ -184,7 +184,7 @@ export LIBCLANG_PATH=/usr/lib/llvm-3.9/lib
 
 ### Cross-Compiling
 
-I was pleasently surprised to discover that the *cmake* crate automatically handles cross-compiling libraries. You'll need a C cross-compiler installed on your system. See here for more info about cross-compiling Rust, in general: 
+I was pleasently surprised to discover that the *cmake* crate automatically handles cross-compiling libraries. You'll need a C cross-compiler installed on your system. See here for more info about cross-compiling Rust, in general:
 
 https://github.com/japaric/rust-cross
 
@@ -236,9 +236,8 @@ export MQTT_C_CLIENT_TRACE_LEVEL=PROTOCOL
 Several small sample applications can be found in the _examples_ directory. Here is what a small MQTT publisher might look like:
 
 ```
+use paho_mqtt as mqtt;
 use std::process;
-
-extern crate paho_mqtt as mqtt;
 
 fn main() {
     // Create a client & define connect options
