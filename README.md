@@ -10,7 +10,7 @@ Most development and deployment has being done on Linux. Please let us know abou
 
 ## Features
 
-The initial version of this crate is a wrapper for the Paho C library, similar to the implementation for the current Paho C++ library. It targets MQTT v3.1 and 3.1.1, and includes all of the features available in the C library for those versions, including:
+The initial version of this crate is a wrapper for the Paho C library, similar to the implementation for the current Paho C++ library. It targets MQTT v3.1 and 3.1.1 (with support for v5 coming soon), and includes all of the features available in the C library for those versions, including:
 
 - Network Transports:
     - Standard TCP support
@@ -20,7 +20,7 @@ The initial version of this crate is a wrapper for the Paho C library, similar t
 - Last Will and Testament (LWT)
 - Message Persistence 
     - File or memory persistence
-    - User-defined persistence (including example for Redis)
+    - User-defined key/value persistence (including example for Redis)
 - Automatic Reconnect
 - Offline Buffering
 - High Availability
@@ -32,6 +32,12 @@ The initial version of this crate is a wrapper for the Paho C library, similar t
 Supports Paho C v1.3.1
 
 ## Latest News
+
+Work has begun to implement MQTT v5! This is going on in the `mqttv5` branch, which is _highly_ erratic. Hopefully, a reasonably stable API will be ready by the end of Nov 2019, aiming for a proper release bythe end of year, 2019.
+
+This upcoming release will still target Futures v0.1 and Rust Edition 2015.
+
+Once out the door, work will start to move the library to modern Rust, including upgrading to the 2018 Edition and upgrading to Futures 0.3. This will hinge on the state of Futures and async/await at that time.
 
 To keep up with the latest announcements for this project, follow:
 
