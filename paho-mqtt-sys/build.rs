@@ -158,6 +158,10 @@ mod build {
             .define("PAHO_ENABLE_TESTING", "off")
             .define("PAHO_WITH_SSL", ssl);
 
+        if cfg!(windows) {
+            cmk_cfg.cflag("/DWIN32");
+        }
+
         if let Ok(ssl_sp) = env::var("OPENSSL_SEARCH_PATH") {
             cmk_cfg.define("OPENSSL_SEARCH_PATH", format!("{}", ssl_sp));
         }
@@ -204,8 +208,14 @@ mod build {
 
         // Link in the SSL libraries if configured for it.
         if cfg!(feature = "ssl") {
-            println!("cargo:rustc-link-lib=ssl");
-            println!("cargo:rustc-link-lib=crypto");
+            if cfg!(windows) {
+                println!("cargo:rustc-link-lib=libssl");
+                println!("cargo:rustc-link-lib=libcrypto");
+                println!("cargo:rustc-link-search={}", "C:\\Program Files\\OpenSSL-Win64\\lib");
+            } else {
+                println!("cargo:rustc-link-lib=ssl");
+                println!("cargo:rustc-link-lib=crypto");
+            }
         }
 
         // we add the folder where all the libraries are built to the path search
