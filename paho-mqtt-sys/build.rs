@@ -160,6 +160,7 @@ mod build {
 
         if let Ok(ssl_sp) = env::var("OPENSSL_SEARCH_PATH") {
             cmk_cfg.define("OPENSSL_SEARCH_PATH", format!("{}", ssl_sp));
+            println!("cargo:rustc-link-search=native={}/lib", ssl_sp);
         }
 
         // 'cmk' is a PathBuf to the cmake install directory
