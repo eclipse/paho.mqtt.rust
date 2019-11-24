@@ -205,8 +205,8 @@ mod build {
 
         // Link in the SSL libraries if configured for it.
         if cfg!(feature = "ssl") {
-            println!("cargo:rustc-link-lib=ssl");
-            println!("cargo:rustc-link-lib=crypto");
+            println!("cargo:rustc-link-lib=static=ssl");
+            println!("cargo:rustc-link-lib=static=crypto");
         }
 
         // we add the folder where all the libraries are built to the path search
