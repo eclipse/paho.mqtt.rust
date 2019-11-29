@@ -46,6 +46,8 @@ use ffi;
 use async_client::{AsyncClient};
 use types::ReasonCode;
 use message::Message;
+use properties::{Properties};
+use server_response::{ServerRequest, ServerResponse};
 use errors;
 use errors::{MqttResult, MqttError};
 
@@ -64,43 +66,6 @@ pub type SuccessCallback5 = dyn Fn(&AsyncClient, u16) + 'static;
 /// Callback for the token on failed completion
 pub type FailureCallback5 = dyn Fn(&AsyncClient, u16, i32) + 'static;
 
-/// The server requests that expect a response.
-/// This is required because the `alt` union of the MQTTAsync_successData
-/// struct from C library doesn't indicate which field is valid.
-#[derive(Debug, Clone)]
-pub enum ServerRequest {
-    /// No response expected from the server
-    None,
-    /// Connecting to the server
-    Connect,
-    /// A subscription request of a single topic
-    Subscribe,
-    /// A subscription request of many topics
-    SubscribeMany(usize),
-}
-
-impl Default for ServerRequest {
-    fn default() -> Self { ServerRequest::None }
-}
-
-/// The possible responses that may come back from the server, depending on
-/// the type of request.
-#[derive(Debug, Clone)]
-pub enum ServerResponse {
-    /// No response from the server
-    None,
-    /// The server URI, MQTT version, and whether the session is present
-    Connect(String, i32, bool),
-    /// The granted QoS of the subscription
-    Subscribe(i32),
-    /// The granted QoS of all the subscriptions
-    SubscribeMany(Vec<i32>),
-}
-
-impl Default for ServerResponse {
-    fn default() -> Self { ServerResponse::None }
-}
-
 /// The result data for the token.
 /// This contains the guarded elements in the token which are updated by
 /// the C library callback when the asynchronous operation completes.
@@ -118,6 +83,8 @@ pub(crate) struct TokenData {
     err_msg: Option<String>,
     /// The server response (dependent on the request type)
     srvr_rsp: ServerResponse,
+    /// MQTT v5 Properties
+    props: Properties,
     /// The futures task
     task: Option<Task>,
 }
@@ -384,29 +351,14 @@ impl TokenInner {
         data.err_msg = err_msg;
 
         // Get the response from the server, if any.
-        if !rsp.is_null() {
-            debug!("Expected server response for: {:?}", self.req);
-            unsafe {
-                data.srvr_rsp = match self.req {
-                    ServerRequest::Connect => {
-                        ServerResponse::Connect(
-                            CStr::from_ptr((*rsp).alt.connect.serverURI).to_string_lossy().to_string(),
-                            (*rsp).alt.connect.MQTTVersion,
-                            (*rsp).alt.connect.sessionPresent != 0
-                        )
-                    },
-                    ServerRequest::Subscribe => ServerResponse::Subscribe((*rsp).alt.qos),
-                    ServerRequest::SubscribeMany(n) => {
-                        let mut qosv = Vec::new();
-                        for i in 0..n {
-                            qosv.push(*(*rsp).alt.qosList.offset(i as isize));
-                        }
-                        debug!("Subscribed to {} topics w/ Qos: {:?}", qosv.len(), qosv);
-                        ServerResponse::SubscribeMany(qosv)
-                    },
-                    _ => ServerResponse::None,
-                }
+        debug!("Expecting server response for: {:?}", self.req);
+        unsafe {
+            if let Some(rsp) = rsp.as_ref() {
+                data.srvr_rsp = ServerResponse::from_success(self.req, rsp);
             }
+        }
+        if data.srvr_rsp != ServerResponse::None {
+            debug!("Got response: {:?}", data.srvr_rsp);
         }
 
         // If this is none, it means that no one is waiting on
@@ -446,31 +398,14 @@ impl TokenInner {
         data.err_msg = err_msg;
 
         // Get the response from the server, if any.
+        debug!("Expecting server response for: {:?}", self.req);
         unsafe {
             if let Some(rsp) = rsp.as_ref() {
-                debug!("Expected server response for: {:?}", self.req);
-                data.srvr_rsp = match self.req {
-                    ServerRequest::Connect => {
-                        ServerResponse::Connect(
-                            CStr::from_ptr(rsp.alt.connect.serverURI).to_string_lossy().to_string(),
-                            rsp.alt.connect.MQTTVersion,
-                            rsp.alt.connect.sessionPresent != 0
-                        )
-                    },
-                    // TODO: Get the correct QoS
-                    ServerRequest::Subscribe => ServerResponse::Subscribe(0 /*rsp.alt.qos*/),
-                    ServerRequest::SubscribeMany(n) => {
-                        let mut qosv = Vec::new();
-                        for _i in 0..n {
-                            // TODO: Get the correct QoS values
-                            qosv.push(0);   // *rsp.alt.qosList.offset(i as isize));
-                        }
-                        debug!("Subscribed to {} topics w/ Qos: {:?}", qosv.len(), qosv);
-                        ServerResponse::SubscribeMany(qosv)
-                    },
-                    _ => ServerResponse::None,
-                }
+                data.srvr_rsp = ServerResponse::from_success5(self.req, rsp);
             }
+        }
+        if data.srvr_rsp != ServerResponse::None {
+            debug!("Got response: {:?}", data.srvr_rsp);
         }
 
         // If this is none, it means that no one is waiting on

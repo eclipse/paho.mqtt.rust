@@ -48,6 +48,7 @@ pub use will_options::*;        //{WillOptions, WillOptionsBuilder};
 pub use ssl_options::*;         //{SslOptions, SslOptionsBuilder};
 pub use disconnect_options::*;  //{DisconnectOptions, DisconnectOptionsBuilder};
 pub use response_options::*;    //{ResponseOptions};
+pub use server_response::{ServerResponse};
 pub use properties::*;          //{Property, Properties};
 pub use message::*;             //{Message, MessageBuilder};
 pub use token::*;               //{Token}
@@ -82,6 +83,9 @@ pub mod disconnect_options;
 
 /// Options for responses coming back from the C lib.
 pub mod response_options;
+
+/// Responses coming back from the server.
+pub mod server_response;
 
 /// MQTT 5v properties.
 pub mod properties;

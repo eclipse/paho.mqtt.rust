@@ -63,7 +63,6 @@ fn main() {
         .persistence(mqtt::PersistenceType::None)
         .finalize();
 
-    println!("Create opts: {:?}", create_opts);
 
     let mut cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|err| {
         println!("Error creating the client: {}", err);
@@ -78,8 +77,6 @@ fn main() {
         .mqtt_version(5)
         .clean_start(true)
         .finalize();
-
-    //println!("Conn Opts: {:?}", conn_opts);
 
     // Connect and wait for it to complete or fail
     if let Err(e) = cli.connect(conn_opts).wait() {

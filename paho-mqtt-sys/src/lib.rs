@@ -49,8 +49,16 @@ impl Default for MQTTAsync_createOptions {
             struct_version: 1,
             sendWhileDisconnected: 0,
             maxBufferedMessages: 100,
-            //MQTTVersion: MQTTVERSION_DEFAULT as c_int,
+            MQTTVersion: MQTTVERSION_DEFAULT as c_int,
+        }
+    }
+}
+
+impl MQTTAsync_createOptions {
+    pub fn default_v5() -> MQTTAsync_createOptions {
+        MQTTAsync_createOptions {
             MQTTVersion: MQTTVERSION_5 as c_int,
+            ..MQTTAsync_createOptions::default()
         }
     }
 }

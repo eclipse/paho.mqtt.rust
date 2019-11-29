@@ -121,6 +121,7 @@ impl AsyncClient {
         where T: Into<CreateOptions>
     {
         let mut opts = opts.into();
+        debug!("Create options: {:?}", opts);
 
         // TODO: Don't unwrap() CStrings. Return error instead.
 
