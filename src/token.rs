@@ -46,7 +46,7 @@ use ffi;
 use async_client::{AsyncClient};
 use types::ReasonCode;
 use message::Message;
-use properties::{Properties};
+//use properties::{Properties};
 use server_response::{ServerRequest, ServerResponse};
 use errors;
 use errors::{MqttResult, MqttError};
@@ -83,8 +83,6 @@ pub(crate) struct TokenData {
     err_msg: Option<String>,
     /// The server response (dependent on the request type)
     srvr_rsp: ServerResponse,
-    /// MQTT v5 Properties
-    props: Properties,
     /// The futures task
     task: Option<Task>,
 }
@@ -357,9 +355,7 @@ impl TokenInner {
                 data.srvr_rsp = ServerResponse::from_success(self.req, rsp);
             }
         }
-        if data.srvr_rsp != ServerResponse::None {
-            debug!("Got response: {:?}", data.srvr_rsp);
-        }
+        debug!("Got response: {:?}", data.srvr_rsp);
 
         // If this is none, it means that no one is waiting on
         // the future yet, so we don't need to kick it.
@@ -404,9 +400,7 @@ impl TokenInner {
                 data.srvr_rsp = ServerResponse::from_success5(self.req, rsp);
             }
         }
-        if data.srvr_rsp != ServerResponse::None {
-            debug!("Got response: {:?}", data.srvr_rsp);
-        }
+        debug!("Got response: {:?}", data.srvr_rsp);
 
         // If this is none, it means that no one is waiting on
         // the future yet, so we don't need to kick it.
@@ -518,7 +512,14 @@ impl Future for Token {
     }
 }
 
+pub type ConnectToken = Token;
+//pub type DeliveryToken = Token;
+pub type SubscribeToken = Token;
+pub type SubscribeManyToken = Token;
+pub type UnsubscribeToken = Token;
+pub type UnsubscribeManyToken = Token;
 
+/*
 /////////////////////////////////////////////////////////////////////////////
 // ConnectToken
 
@@ -586,7 +587,7 @@ impl Future for ConnectToken {
         }
     }
 }
-
+*/
 
 /////////////////////////////////////////////////////////////////////////////
 // DeliveryToken
@@ -672,7 +673,7 @@ impl Future for DeliveryToken {
         }
     }
 }
-
+/*
 /////////////////////////////////////////////////////////////////////////////
 // SubscribeToken
 
@@ -771,14 +772,14 @@ impl Future for SubscribeManyToken {
     /// Poll the token to see if the request has completed yet.
     fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
         match self.inner.lock.lock().unwrap().poll() {
-            Ok(Async::Ready(ServerResponse::SubscribeMany(qos))) => Ok(Async::Ready(qos)),
+            Ok(Async::Ready(ServerResponse::SubscribeMany(qos_arr))) => Ok(Async::Ready(qos_arr)),
             Ok(Async::NotReady) => Ok(Async::NotReady),
             Ok(_) => { Err(MqttError::from((-1, "Bad server response".to_string()))) },
             Err(e) => Err(e),
         }
     }
 }
-
+*/
 /////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]

@@ -137,8 +137,15 @@ impl ConnectOptions {
     /// callback).
     pub fn set_token(&mut self, tok: ConnectToken) {
         let tok: Token = tok.into();
-        self.copts.onSuccess = Some(TokenInner::on_success);
-        self.copts.onFailure = Some(TokenInner::on_failure);
+
+        if self.copts.MQTTVersion < ffi::MQTTVERSION_5 as i32 {
+            self.copts.onSuccess = Some(TokenInner::on_success);
+            self.copts.onFailure = Some(TokenInner::on_failure);
+        }
+        else {
+            self.copts.onSuccess5 = Some(TokenInner::on_success5);
+            self.copts.onFailure5 = Some(TokenInner::on_failure5);
+        }
         self.copts.context = tok.into_raw();
     }
 }

@@ -23,11 +23,12 @@
 
 //! MQTT v5 properties.
 
-use ffi;
 use std::{mem, ptr};
 use std::ffi::CString;
-
 use std::os::raw::{c_int, c_char};
+
+use ffi;
+use errors::{MqttResult, MqttError};
 
 /// The Property `value` union type.
 pub type Value = ffi::MQTTProperty__bindgen_ty_1;
@@ -138,7 +139,7 @@ impl Property {
             let p = v.as_mut_ptr() as *mut c_char;
             mem::forget(v);
 
-            //println!("Creating binary property, {} bytes", n);
+            debug!("Creating binary property, {} bytes", n);
             Some(Property::new_string_binary(code, p, n, ptr::null_mut(), 0))
         }
         else {
@@ -151,7 +152,7 @@ impl Property {
             let n = s.len();
             let p = CString::new(s).unwrap().into_raw();
 
-            //println!("Creating string property, {} bytes", n);
+            debug!("Creating string property, {} bytes", n);
             Some(Property::new_string_binary(code, p, n, ptr::null_mut(), 0))
         }
         else {
@@ -167,7 +168,7 @@ impl Property {
             let nval = val.len();
             let pval = CString::new(val).unwrap().into_raw();
 
-            //println!("Creating string pair property, {}/{} bytes", nkey, nval);
+            debug!("Creating string pair property, {}/{} bytes", nkey, nval);
             Some(Property::new_string_binary(code, pkey, nkey, pval, nval))
         }
         else {
@@ -342,16 +343,16 @@ impl Drop for Property {
         unsafe {
             match Property::get_type_from_code(self.cprop.identifier) {
                 PropertyType::BINARY_DATA => {
-                    println!("\nDropping binary property: {:?}", self.cprop.value.__bindgen_anon_1.data.data);
+                    debug!("Dropping binary property: {:?}", self.cprop.value.__bindgen_anon_1.data.data);
                     let n = self.cprop.value.__bindgen_anon_1.data.len as usize;
                     let _ = Vec::from_raw_parts(self.cprop.value.__bindgen_anon_1.data.data, n, n);
                 },
                 PropertyType::UTF_8_ENCODED_STRING => {
-                    println!("\nDropping string property: {:?}", self.cprop.value.__bindgen_anon_1.data.data);
+                    debug!("Dropping string property: {:?}", self.cprop.value.__bindgen_anon_1.data.data);
                     let _ = CString::from_raw(self.cprop.value.__bindgen_anon_1.data.data);
                 },
                 PropertyType::UTF_8_STRING_PAIR => {
-                    println!("\nDropping string pair property: {:?}, {:?}", self.cprop.value.__bindgen_anon_1.data.data, self.cprop.value.__bindgen_anon_1.value.data);
+                    debug!("Dropping string pair property: {:?}, {:?}", self.cprop.value.__bindgen_anon_1.data.data, self.cprop.value.__bindgen_anon_1.value.data);
                     let _ = CString::from_raw(self.cprop.value.__bindgen_anon_1.data.data);
                     let _ = CString::from_raw(self.cprop.value.__bindgen_anon_1.value.data);
                 },
@@ -466,6 +467,26 @@ impl Properties {
             if p.is_null() { None } else { Property::from_c_property(&*p) }
         }
     }
+
+    pub fn push_binary<V>(&mut self, code: PropertyCode, bin: V) -> MqttResult<()>
+            where V: Into<Vec<u8>> {
+        let prop = match Property::new_binary(code, bin) {
+            Some(b) => b,
+            None => return Err(MqttError::from(ffi::MQTTASYNC_FAILURE)),
+        };
+        self.push(prop);
+        Ok(())
+    }
+
+    pub fn push_string(&mut self, code: PropertyCode, s: &str) -> MqttResult<()> {
+        let prop = match Property::new_string(code, s) {
+            Some(p) => p,
+            None => return Err(MqttError::from(ffi::MQTTASYNC_FAILURE)),
+        };
+        self.push(prop);
+        Ok(())
+    }
+
 }
 
 impl Default for Properties {

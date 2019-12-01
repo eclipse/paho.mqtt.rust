@@ -59,6 +59,7 @@ use create_options::{CreateOptions,PersistenceType};
 use connect_options::ConnectOptions;
 use disconnect_options::{DisconnectOptions,DisconnectOptionsBuilder};
 use response_options::ResponseOptions;
+use server_response::{ServerRequest, ServerResponse};
 use message::Message;
 use token::{Token, ConnectToken, DeliveryToken, SubscribeToken, SubscribeManyToken};
 use client_persistence::UserPersistence;
@@ -282,7 +283,8 @@ impl AsyncClient {
             debug!("Connecting handle: {:?}", self.inner.handle);
             debug!("Connect options: {:?}", opts);
 
-            let tok = ConnectToken::new();
+            //let tok = ConnectToken::new();
+            let tok = Token::from_request(ServerRequest::Connect);
 
             let mut lkopts = self.inner.opts.lock().unwrap();
             *lkopts = opts;
@@ -324,7 +326,8 @@ impl AsyncClient {
             }
         }
 
-        let tok = ConnectToken::from_client(self, success_cb, failure_cb);
+        //let tok = ConnectToken::from_client(self, success_cb, failure_cb);
+        let tok = Token::from_client(self, ServerRequest::Connect, success_cb, failure_cb);
         opts.set_token(tok.clone());
 
         debug!("Connect opts: {:?}", opts);
@@ -530,7 +533,8 @@ impl AsyncClient {
         where S: Into<String>
     {
         let ver = self.mqtt_version();
-        let tok = SubscribeToken::new();
+        //let tok = SubscribeToken::new();
+        let tok = Token::from_request(ServerRequest::Subscribe);
         let mut rsp_opts = ResponseOptions::new(tok.clone(), ver);
         let topic = CString::new(topic.into()).unwrap();
 
@@ -561,7 +565,8 @@ impl AsyncClient {
 
         let ver = self.mqtt_version();
         // TOOD: Make sure topics & qos are same length (or use min)
-        let tok = SubscribeManyToken::new(n);
+        //let tok = SubscribeManyToken::new(n);
+        let tok = Token::from_request(ServerRequest::SubscribeMany(n));
         let mut rsp_opts = ResponseOptions::new(tok.clone(), ver);
         let topics = StringCollection::new(topics);
 
@@ -594,7 +599,8 @@ impl AsyncClient {
         where S: Into<String>
     {
         let ver = self.mqtt_version();
-        let tok = Token::new();
+        //let tok = Token::new();
+        let tok = Token::from_request(ServerRequest::Unsubscribe);
         let mut rsp_opts = ResponseOptions::new(tok.clone(), ver);
         let topic = CString::new(topic.into()).unwrap();
 
@@ -622,8 +628,11 @@ impl AsyncClient {
     pub fn unsubscribe_many<T>(&self, topics: &[T]) -> Token
         where T: AsRef<str>
     {
+        let n = topics.len();
+
         let ver = self.mqtt_version();
-        let tok = Token::new();
+        //let tok = Token::new();
+        let tok = Token::from_request(ServerRequest::UnsubscribeMany(n));
         let mut rsp_opts = ResponseOptions::new(tok.clone(), ver);
         let topics = StringCollection::new(topics);
 
@@ -631,7 +640,7 @@ impl AsyncClient {
 
         let rc = unsafe {
             ffi::MQTTAsync_unsubscribeMany(self.inner.handle,
-                                           topics.len() as c_int,
+                                           n as c_int,
                                            topics.as_c_arr_mut_ptr(),
                                            &mut rsp_opts.copts)
         };

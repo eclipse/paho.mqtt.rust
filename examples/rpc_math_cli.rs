@@ -7,7 +7,7 @@
 //! properties.
 //!
 //! The sample demonstrates:
-//!  - Connecting to an MQTT server/broker
+//!  - Connecting to an MQTT v5 server/broker
 //!  - Using MQTT v5 properties
 //!  - Publishing RPC request messages
 //!  - Using asynchronous tokens
@@ -33,72 +33,108 @@
 extern crate futures;
 extern crate log;
 extern crate env_logger;
+extern crate serde_json;
 extern crate paho_mqtt as mqtt;
 
 use std::{env, process};
 use futures::Future;
+use serde_json::json;
 
-fn main() {
+fn main() -> mqtt::MqttResult<()> {
     // Initialize the logger from the environment
     env_logger::init();
 
-    // We use this server.
+    // We use the broker on this host.
     let host = "localhost";
 
     // Command-line option(s)
-    let args: Vec<String> = env::args().collect();
+    let args: Vec<String> = env::args().skip(1).collect();
 
-    if args.len() < 4 {
+    if args.len() < 3 {
         println!("USAGE: rpc_math_cli <add|mult> <num1> <num2> [... numN]");
         process::exit(1);
     }
 
     const QOS: i32 = 1;
+    const MQTTV5: u32 = 5;
+
     const REQ_TOPIC_HDR: &'static str = "requests/math";
+    const REP_TOPIC_HDR: &'static str = "replies/math";
 
     // Create a client to the specified host, no persistence
     let create_opts = mqtt::CreateOptionsBuilder::new()
-        .mqtt_version(5)
+        .mqtt_version(MQTTV5)
         .server_uri(host)
         .persistence(mqtt::PersistenceType::None)
         .finalize();
 
 
     let mut cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|err| {
-        println!("Error creating the client: {}", err);
+        eprintln!("Error creating the client: {}", err);
         process::exit(1);
     });
 
     // Initialize the consumer before connecting.
-    let _rx = cli.start_consuming();
+    // With a clean session/start, this order isn't important,
+    // but it's still a good habit to start consuming first.
+    let rx = cli.start_consuming();
 
     // Connect with default options
     let conn_opts = mqtt::ConnectOptionsBuilder::new()
-        .mqtt_version(5)
+        .mqtt_version(MQTTV5)
         .clean_start(true)
         .finalize();
 
     // Connect and wait for it to complete or fail
-    if let Err(e) = cli.connect(conn_opts).wait() {
-        println!("Unable to connect: {:?}", e);
-        process::exit(1);
-    }
 
-    let req = args[0].to_string();
-    let req_topic = format!("{}/{}", REQ_TOPIC_HDR, req);
+    let rsp = cli.connect(conn_opts).wait().unwrap_or_else(|err| {
+        eprintln!("Unable to connect: {:?}", err);
+        process::exit(1);
+    });
+
+    // We get the assigned Client ID from the properties in the connection
+    // response. The Client ID will help form a unique "reply to" topic
+    // for us.
+
+    /*
+    if let Some((_uri, _ver, session)) = rsp.connect_response() {
+        println!("Existing session: {}", session);
+    }
+    */
+
+    let client_id = rsp.properties()
+        .get(mqtt::PropertyCode::ASSIGNED_CLIENT_IDENTIFER).unwrap()
+        .get_string().unwrap_or("<unknown>".to_string());
+
+    //println!("Client ID: {}", client_id);
+
+    // We form a unique reply topic based on the Client ID,
+    // and then subscribe to that topic.
+    // (Be sure to subscribe *before* starting to send requests)
+    let reply_topic = format!("{}/{}", REP_TOPIC_HDR, client_id);
+    cli.subscribe(&reply_topic, QOS).wait()?;
+
+    // The request topic will be of the form:
+    //     "requests/math/<operation>"
+    // where we get <operation> ("add", "mult", etc) from the command line.
+
+    let req_topic = format!("{}/{}", REQ_TOPIC_HDR, args[0]);
+    let corr_id = "1".as_bytes();
 
     let mut props = mqtt::Properties::new();
-    props.push(mqtt::Property::new_string(mqtt::PropertyCode::RESPONSE_TOPIC, &req_topic).unwrap());
-    props.push(mqtt::Property::new_binary(mqtt::PropertyCode::CORRELATION_DATA, "1").unwrap());
+    props.push_string(mqtt::PropertyCode::RESPONSE_TOPIC, &reply_topic).unwrap();
+    props.push_binary(mqtt::PropertyCode::CORRELATION_DATA, corr_id).unwrap();
+
+    // The payload is the JSON array of arguments for the operation.
+    // These are the remaining arguments from the command line.
+
+    let math_args: Vec<f64> = args[1..].iter().map(|x| x.parse::<f64>().unwrap()).collect();
+    let payload = json!(math_args).to_string();
 
     // Create a message and publish it
-    println!("Publishing a message on the 'test' topic");
-    //let mut msg = mqtt::Message::new("test", "Hello Rust MQTT world!", QOS);
-    //msg.set_properties(props);
-
     let msg = mqtt::MessageBuilder::new()
         .topic(req_topic)
-        .payload("math request")
+        .payload(payload)
         .qos(QOS)
         .properties(props)
         .finalize();
@@ -106,11 +142,29 @@ fn main() {
     let tok = cli.publish(msg);
 
     if let Err(e) = tok.wait() {
-        println!("Error sending message: {:?}", e);
+        eprintln!("Error sending message: {:?}", e);
+        cli.disconnect(None).wait().unwrap();
+        process::exit(2);
+    }
+
+    // Wait for the reply
+
+    if let Some(msg) = rx.recv().unwrap() {
+        println!("Reply Message: {:?}", msg);
+        let reply_corr_id = msg.properties()
+            .get(mqtt::PropertyCode::CORRELATION_DATA).unwrap()
+            .get_binary().unwrap_or(vec![]);
+        println!("Reply correlation: {:?}", reply_corr_id);
+
+        let ret: f64 = serde_json::from_str(&msg.payload_str()).unwrap();
+        println!("{}", ret);
+    }
+    else {
+        eprintln!("Error receiving reply.");
     }
 
     // Disconnect from the broker
-    let tok = cli.disconnect(None);
-    tok.wait().unwrap();
+    cli.disconnect(None).wait()?;
+    Ok(())
 }
 
