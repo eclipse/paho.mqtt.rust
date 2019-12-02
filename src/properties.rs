@@ -409,6 +409,7 @@ impl Clone for Property {
 
 
 /////////////////////////////////////////////////////////////////////////////
+// Properties
 
 /// A list of MQTT v5 properties.
 ///
@@ -468,10 +469,19 @@ impl Properties {
         }
     }
 
+    pub fn push_int(&mut self, code: PropertyCode, val: i32) -> MqttResult<()> {
+        let prop = match Property::new_int(code, val) {
+            Some(p) => p,
+            None => return Err(MqttError::from(ffi::MQTTASYNC_FAILURE)),
+        };
+        self.push(prop);
+        Ok(())
+    }
+
     pub fn push_binary<V>(&mut self, code: PropertyCode, bin: V) -> MqttResult<()>
             where V: Into<Vec<u8>> {
         let prop = match Property::new_binary(code, bin) {
-            Some(b) => b,
+            Some(p) => p,
             None => return Err(MqttError::from(ffi::MQTTASYNC_FAILURE)),
         };
         self.push(prop);
@@ -487,6 +497,30 @@ impl Properties {
         Ok(())
     }
 
+    pub fn push_string_pair(&mut self, code: PropertyCode, key: &str, val: &str) -> MqttResult<()> {
+        let prop = match Property::new_string_pair(code, key, val) {
+            Some(p) => p,
+            None => return Err(MqttError::from(ffi::MQTTASYNC_FAILURE)),
+        };
+        self.push(prop);
+        Ok(())
+    }
+
+    pub fn get_int(&self, code: PropertyCode) -> Option<i32> {
+        self.get(code).and_then(|prop| prop.get_int())
+    }
+
+    pub fn get_binary(&self, code: PropertyCode) -> Option<Vec<u8>> {
+        self.get(code).and_then(|prop| prop.get_binary())
+    }
+
+    pub fn get_string(&self, code: PropertyCode) -> Option<String> {
+        self.get(code).and_then(|prop| prop.get_string())
+    }
+
+    pub fn get_string_pair(&self, code: PropertyCode) -> Option<(String,String)> {
+        self.get(code).and_then(|prop| prop.get_string_pair())
+    }
 }
 
 impl Default for Properties {

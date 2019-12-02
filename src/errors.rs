@@ -121,6 +121,14 @@ impl From<(ErrorKind, &'static str)> for MqttError {
     }
 }
 
+impl From<&'static str> for MqttError {
+    fn from(desc: &'static str) -> MqttError {
+        MqttError {
+            repr: ErrorRepr::WithDescription(ErrorKind::General, -1, desc),
+        }
+    }
+}
+
 impl From<(ErrorKind, i32, &'static str)> for MqttError {
     fn from((kind, err, desc): (ErrorKind, i32, &'static str)) -> MqttError {
         MqttError {

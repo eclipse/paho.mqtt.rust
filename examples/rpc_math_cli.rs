@@ -7,6 +7,7 @@
 //! properties.
 //!
 //! The sample demonstrates:
+//!  - Creating a dynamic RPC client for MQTT v5
 //!  - Connecting to an MQTT v5 server/broker
 //!  - Using MQTT v5 properties
 //!  - Publishing RPC request messages
