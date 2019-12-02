@@ -59,7 +59,7 @@ use create_options::{CreateOptions,PersistenceType};
 use connect_options::ConnectOptions;
 use disconnect_options::{DisconnectOptions,DisconnectOptionsBuilder};
 use response_options::ResponseOptions;
-use server_response::{ServerRequest, ServerResponse};
+use server_response::ServerRequest;
 use message::Message;
 use token::{Token, ConnectToken, DeliveryToken, SubscribeToken, SubscribeManyToken};
 use client_persistence::UserPersistence;

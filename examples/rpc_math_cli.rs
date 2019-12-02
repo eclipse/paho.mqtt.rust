@@ -97,17 +97,13 @@ fn main() -> mqtt::MqttResult<()> {
     // response. The Client ID will help form a unique "reply to" topic
     // for us.
 
-    /*
-    if let Some((_uri, _ver, session)) = rsp.connect_response() {
-        println!("Existing session: {}", session);
-    }
-    */
-
     let client_id = rsp.properties()
-        .get(mqtt::PropertyCode::ASSIGNED_CLIENT_IDENTIFER).unwrap()
-        .get_string().unwrap_or("<unknown>".to_string());
+        .get_string(mqtt::PropertyCode::ASSIGNED_CLIENT_IDENTIFER)
+        .unwrap_or_else(|| {
+            eprintln!("Unable to retrieve Client ID");
+            process::exit(1);
+        });
 
-    //println!("Client ID: {}", client_id);
 
     // We form a unique reply topic based on the Client ID,
     // and then subscribe to that topic.
@@ -148,17 +144,23 @@ fn main() -> mqtt::MqttResult<()> {
         process::exit(2);
     }
 
-    // Wait for the reply
+    // Wait for the reply and check the Correlation ID
+    // Since we only sent one request, this will certainly be our reply!
 
     if let Some(msg) = rx.recv().unwrap() {
-        println!("Reply Message: {:?}", msg);
+        //println!("Reply Message: {:?}", msg);
         let reply_corr_id = msg.properties()
-            .get(mqtt::PropertyCode::CORRELATION_DATA).unwrap()
-            .get_binary().unwrap_or(vec![]);
-        println!("Reply correlation: {:?}", reply_corr_id);
+            .get_binary(mqtt::PropertyCode::CORRELATION_DATA).unwrap();
 
-        let ret: f64 = serde_json::from_str(&msg.payload_str()).unwrap();
-        println!("{}", ret);
+        //println!("Reply correlation: {:?}", reply_corr_id);
+
+        if reply_corr_id == corr_id {
+            let ret: f64 = serde_json::from_str(&msg.payload_str()).unwrap();
+            println!("{}", ret);
+        }
+        else {
+            eprintln!("Unknown response for {:?}", reply_corr_id);
+        }
     }
     else {
         eprintln!("Error receiving reply.");

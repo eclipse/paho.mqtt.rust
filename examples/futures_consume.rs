@@ -43,7 +43,7 @@ use std::{env, process};
 use std::time::Duration;
 
 use futures::{Future, Stream};
-use futures::future::{Either, ok};
+use futures::future::ok;
 
 // The topics to which we subscribe.
 const TOPICS: &[&str] = &[ "test", "hello" ];
@@ -93,20 +93,23 @@ fn main() {
     // Make the connection to the broker
     println!("Connecting to the MQTT server...");
     cli.connect(conn_opts)
-        .and_then(|(server_uri, ver, session_present)| {
-            println!("Connected to: '{}' with MQTT version {}", server_uri, ver);
-            if !session_present {
-                // Subscribe to multiple topics
-                println!("Subscribing to topics: {:?}", TOPICS);
-                Either::A(cli.subscribe_many(TOPICS, QOS))
+        .and_then(|rsp| {
+            let mut fut = mqtt::Token::from_success();
+            if let Some((server_uri, ver, session_present)) = rsp.connect_response() {
+                println!("Connected to: '{}' with MQTT version {}", server_uri, ver);
+                if !session_present {
+                    // Subscribe to multiple topics
+                    println!("Subscribing to topics: {:?}", TOPICS);
+                    fut = cli.subscribe_many(TOPICS, QOS)
+                }
             }
-            else {
-                Either::B(ok(vec![]))
-            }
+            fut
         })
-        .and_then(|qos| {
-            if qos.len() > 0 {
-                println!("QoS granted: {:?}", qos);
+        .and_then(|rsp| {
+            if let Some(qosv) = rsp.subscribe_many_response() {
+                if qosv.len() > 0 {
+                    println!("QoS granted: {:?}", qosv);
+                }
             }
             mqtt::Token::from_success()
         })

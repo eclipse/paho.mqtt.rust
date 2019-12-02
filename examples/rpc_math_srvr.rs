@@ -80,7 +80,7 @@ fn handle_request(cli: &mqtt::AsyncClient, msg: mqtt::Message) -> mqtt::MqttResu
 
     let reply_to = msg.properties()
         .get_string(mqtt::PropertyCode::RESPONSE_TOPIC)
-    .ok_or(mqtt::MqttError::from("No response topic provided."))?;
+        .ok_or(mqtt::MqttError::from("No response topic provided."))?;
 
     let corr_id = msg.properties()
         .get_binary(mqtt::PropertyCode::CORRELATION_DATA)

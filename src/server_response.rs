@@ -76,13 +76,17 @@ pub enum CommandResponse {
     Subscribe(i32),
     /// The granted QoS of all the subscriptions
     SubscribeMany(Vec<i32>),
+    /// The granted QoS of the subscription
+    Unsubscribe(i32),
+    /// The granted QoS of all the subscriptions
+    UnsubscribeMany(Vec<i32>),
 }
 
 impl Default for CommandResponse {
     fn default() -> Self { CommandResponse::None }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct ServerResponse {
     /// The command-specific responses
     rsp: CommandResponse,
@@ -162,10 +166,12 @@ impl ServerResponse {
         }
     }
 
+    /// Gets the response for the specific type of request.
     pub fn command_response(&self) -> &CommandResponse {
         &self.rsp
     }
 
+    /// Gets the response for a connection request
     pub fn connect_response(&self) -> Option<(String, i32, bool)> {
         match &self.rsp {
             CommandResponse::Connect(uri, ver, session) =>
@@ -174,17 +180,41 @@ impl ServerResponse {
         }
     }
 
+    /// Gets the response for a subscription request.
+    pub fn subscribe_response(&self) -> Option<i32> {
+        match &self.rsp {
+            CommandResponse::Subscribe(qos) => Some(*qos),
+            _ => None,
+        }
+    }
+
+    /// Gets the response for a multi-topic subscription request.
+    pub fn subscribe_many_response(&self) -> Option<Vec<i32>> {
+        match &self.rsp {
+            CommandResponse::SubscribeMany(qosv) => Some(qosv.clone()),
+            _ => None,
+        }
+    }
+
+    /// Gets the response for an unsubscribe request.
+    pub fn unsubscribe_response(&self) -> Option<i32> {
+        match &self.rsp {
+            CommandResponse::Unsubscribe(qos) => Some(*qos),
+            _ => None,
+        }
+    }
+
+    /// Gets the response for a multi-topic unsubscribe request.
+    pub fn unsubscribe_many_response(&self) -> Option<Vec<i32>> {
+        match &self.rsp {
+            CommandResponse::UnsubscribeMany(qosv) => Some(qosv.clone()),
+            _ => None,
+        }
+    }
+
+    /// Gets the properties returned from the server.
     pub fn properties(&self) -> &Properties {
         &self.props
     }
 }
 
-
-impl Default for ServerResponse {
-    fn default() -> Self {
-        ServerResponse {
-            rsp: CommandResponse::default(),
-            props: Properties::default(),
-        }
-    }
-}

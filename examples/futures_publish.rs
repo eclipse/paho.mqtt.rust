@@ -57,7 +57,7 @@ fn main() {
         .and_then(|_| cli.disconnect(None))
         .wait().unwrap_or_else(|err| {
             println!("Error: {}", err);
-            mqtt::ServerResponse::None
+            mqtt::ServerResponse::default()
         });
 }
 
