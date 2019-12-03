@@ -107,7 +107,7 @@ fn main() {
                 println!("Connected to: '{}' with MQTT version {}", server_uri, ver);
                 if !session_present {
                     // Register subscriptions on the server
-                    println!("Subscribing to topics, with requested Qos: {:?}...", qos);
+                    println!("Subscribing to topics, with requested QoS: {:?}...", qos);
 
                     match cli.subscribe_many(&subscriptions, &qos) {
                         Ok(qosv) => println!("QoS granted: {:?}", qosv),

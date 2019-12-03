@@ -81,7 +81,6 @@ pub enum ReasonCode {
 const NORMAL_DISCONNECTION: ReasonCode = ReasonCode::SUCCESS;
 const GRANTED_QOS_0: ReasonCode = ReasonCode::SUCCESS;
 
-
 type Code = ffi::MQTTReasonCodes;
 
 impl ReasonCode {

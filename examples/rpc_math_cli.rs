@@ -1,6 +1,6 @@
 // paho-mqtt/examples/rpc_math_cli.rs
 //
-//! This is a Paho MQTT v5 C++ sample application.
+//! This is a Paho MQTT v5 Rust sample application.
 //!
 //! It's an example of how to create a client for performing remote procedure
 //! calls using MQTT with the 'response topic' and 'correlation data'
@@ -104,7 +104,6 @@ fn main() -> mqtt::MqttResult<()> {
             process::exit(1);
         });
 
-
     // We form a unique reply topic based on the Client ID,
     // and then subscribe to that topic.
     // (Be sure to subscribe *before* starting to send requests)
@@ -145,14 +144,11 @@ fn main() -> mqtt::MqttResult<()> {
     }
 
     // Wait for the reply and check the Correlation ID
-    // Since we only sent one request, this will certainly be our reply!
+    // Since we only sent one request, this should certainly be our reply!
 
     if let Some(msg) = rx.recv().unwrap() {
-        //println!("Reply Message: {:?}", msg);
         let reply_corr_id = msg.properties()
             .get_binary(mqtt::PropertyCode::CORRELATION_DATA).unwrap();
-
-        //println!("Reply correlation: {:?}", reply_corr_id);
 
         if reply_corr_id == corr_id {
             let ret: f64 = serde_json::from_str(&msg.payload_str()).unwrap();

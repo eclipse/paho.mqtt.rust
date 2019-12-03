@@ -191,7 +191,7 @@ impl<'a, 'b> From<(&'a str, &'b [u8])> for Message {
             cmsg: ffi::MQTTAsync_message::default(),
             topic: CString::new(topic).unwrap(),
             payload: payload.to_vec(),
-            props: Properties::default(),    // TODO: Implement this
+            props: Properties::default(),
         };
         Message::fixup(msg)
     }

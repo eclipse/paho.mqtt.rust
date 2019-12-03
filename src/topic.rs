@@ -22,7 +22,7 @@
  *******************************************************************************/
 
 use async_client::{AsyncClient};
-use token::{DeliveryToken};
+use token::{Token, DeliveryToken};
 use message::Message;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -81,6 +81,11 @@ impl<'a> Topic<'a>
             qos,
             retained: true,
         }
+    }
+
+    /// Subscribe to the topic.
+    pub fn subscribe(&self) -> Token {
+        self.cli.subscribe(self.topic.clone(), self.qos)
     }
 
     /// Publish a message on the topic.

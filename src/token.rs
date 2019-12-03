@@ -1,5 +1,7 @@
 // paho-mqtt/src/token.rs
+//
 // This file is part of the Eclipse Paho MQTT Rust Client library.
+//
 
 /*******************************************************************************
  * Copyright (c) 2018-2019 Frank Pagliughi <fpagliughi@mindspring.com>
@@ -310,7 +312,10 @@ impl TokenInner {
         data.ret_code = rc;
         data.reason_code = reason_code;
         data.err_msg = err_msg;
-        // TODO: properties?
+
+        if let Some(rsp) = rsp.as_ref() {
+            data.srvr_rsp = ServerResponse::from_failure5(rsp);
+        }
 
         // If this is none, it means that no one is waiting on
         // the future yet, so we don't need to kick it.

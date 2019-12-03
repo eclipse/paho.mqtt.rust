@@ -1,6 +1,6 @@
 // paho-mqtt/examples/rpc_math_srvr.rs
 //
-//! This is a Paho MQTT v5 C++ sample application.
+//! This is a Paho MQTT v5 Rust sample application.
 //!
 //! It's an example of how to create an RPC server client for servicing
 //! remote procedure calls using MQTT with the 'response topic' and 'correlation data'
@@ -45,7 +45,6 @@ use std::collections::HashMap;
 use futures::Future;
 use serde_json::json;
 
-
 const QOS: i32 = 1;
 const MQTTV5: u32 = 5;
 
@@ -54,10 +53,13 @@ const MQTTV5: u32 = 5;
 fn add(args: &[f64]) -> f64 { args.iter().sum() }
 fn mult(args: &[f64]) -> f64 { args.iter().product() }
 
-/// The math function signature.
+// The math function signature.
 type MathFn = fn(args: &[f64]) -> f64;
 
 // A table of names to functions.
+// The names are the supported public operations that come in on the
+// request topics:
+//     "requests/math/<operatio>"
 lazy_static! {
     static ref FUNC_TBL: HashMap<&'static str, MathFn> = {
         let mut tbl = HashMap::new();
@@ -68,15 +70,23 @@ lazy_static! {
 }
 
 // --------------------------------------------------------------------------
-
-// The request topics will be of the form:
+// Handle a single incoming request as encoded in an MQTT v5 message.
+//
+// The topic indicates the requested operation, in the form:
 //     "requests/math/<operation>"
 // where <operation> ("add", "mult", etc) tells us which processing function
 // to use.
+//
+// The payload contains the parameters for the function as a JSON array
+// of numbers.
+//
+// The properties of the message should have the "reply to" address and
+// Correlation ID for the response.
+//
 
 fn handle_request(cli: &mqtt::AsyncClient, msg: mqtt::Message) -> mqtt::MqttResult<()>
 {
-    //println!("Request Message: {:?}", msg);
+    // We need both a response topic and correlation data to respond.
 
     let reply_to = msg.properties()
         .get_string(mqtt::PropertyCode::RESPONSE_TOPIC)
@@ -88,7 +98,7 @@ fn handle_request(cli: &mqtt::AsyncClient, msg: mqtt::Message) -> mqtt::MqttResu
 
     println!("\nRequest w/ Reply To: {}, Correlation ID: {:?}", reply_to, corr_id);
 
-    // Get the name of the function to call from the topic
+    // Get the name of the function from the topic
 
     let topic_arr: Vec<&str> = msg.topic().split("/").collect();
 
@@ -114,9 +124,10 @@ fn handle_request(cli: &mqtt::AsyncClient, msg: mqtt::Message) -> mqtt::MqttResu
         let mut props = mqtt::Properties::new();
         props.push_binary(mqtt::PropertyCode::CORRELATION_DATA, corr_id).unwrap();
 
+        // Create the reply message and publish it on the response topic
+
         let payload = json!(x).to_string();
 
-        // Create a message and publish it
         let msg = mqtt::MessageBuilder::new()
             .topic(reply_to)
             .payload(payload)
