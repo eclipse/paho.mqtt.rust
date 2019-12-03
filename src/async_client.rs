@@ -58,6 +58,7 @@ use ffi;
 use create_options::{CreateOptions,PersistenceType};
 use connect_options::ConnectOptions;
 use disconnect_options::{DisconnectOptions,DisconnectOptionsBuilder};
+use subscribe_options::SubscribeOptions;
 use response_options::ResponseOptions;
 use server_response::ServerRequest;
 use message::Message;
@@ -533,7 +534,6 @@ impl AsyncClient {
         where S: Into<String>
     {
         let ver = self.mqtt_version();
-        //let tok = SubscribeToken::new();
         let tok = Token::from_request(ServerRequest::Subscribe);
         let mut rsp_opts = ResponseOptions::new(tok.clone(), ver);
         let topic = CString::new(topic.into()).unwrap();
@@ -550,6 +550,43 @@ impl AsyncClient {
         }
         else { tok }
     }
+
+    /// Subscribes to a single topic with v5 options
+    ///
+    /// # Arguments
+    ///
+    /// `topic` The topic name
+    /// `qos` The quality of service requested for messages
+    /// `opts` Options for the subscription
+    ///
+    pub fn subscribe_with_options<S,T>(&self, topic: S, qos: i32, opts: T) -> SubscribeToken
+        where S: Into<String>,
+              T: Into<Option<SubscribeOptions>>
+    {
+        let ver = self.mqtt_version();
+        let tok = Token::from_request(ServerRequest::Subscribe);
+        let mut rsp_opts = if let Some(sopts) = opts.into() {
+            debug_assert!(ver >= 5);
+            ResponseOptions::from_subscribe_options(tok.clone(), sopts)
+        }
+        else {
+            ResponseOptions::new(tok.clone(), ver)
+        };
+        let topic = CString::new(topic.into()).unwrap();
+
+        debug!("Subscribe to '{:?}' @ QOS {}", topic, qos);
+
+        let rc = unsafe {
+            ffi::MQTTAsync_subscribe(self.inner.handle, topic.as_ptr(), qos, &mut rsp_opts.copts)
+        };
+
+        if rc != 0 {
+            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            SubscribeToken::from_error(rc)
+        }
+        else { tok }
+    }
+
 
     /// Subscribes to multiple topics simultaneously.
     ///

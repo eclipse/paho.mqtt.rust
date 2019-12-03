@@ -60,6 +60,7 @@ fn main() -> mqtt::MqttResult<()> {
 
     const QOS: i32 = 1;
     const MQTTV5: u32 = 5;
+    const NO_LOCAL: bool = true;
 
     // The LWT is broadcast to the group if our connection is lost
 
@@ -115,9 +116,9 @@ fn main() -> mqtt::MqttResult<()> {
     }
 
     // Subscribe to the group messages.
-    // TODO: Set NO_LOCAL
     println!("Joining the group '{}'...", chat_group);
-    topic.subscribe().wait()?;
+    let sub_opts = mqtt::SubscribeOptions::new(NO_LOCAL);
+    topic.subscribe_with_options(sub_opts).wait()?;
 
     // Let everyone know that a new user joined  the group
 

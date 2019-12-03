@@ -24,6 +24,7 @@
 
 use ffi;
 use token::{Token, TokenInner};
+use subscribe_options::SubscribeOptions;
 
 /// The collection of options for responses coming back to the client.
 #[derive(Debug)]
@@ -67,6 +68,14 @@ impl ResponseOptions {
                 }
             }
         }
+    }
+
+    pub(crate) fn from_subscribe_options<T>(tok: T, opts: SubscribeOptions) -> Self
+        where T: Into<Token>
+    {
+        let mut ropts = ResponseOptions::new(tok, 5);   // TODO: Use a const
+        ropts.copts.subscribeOptions = opts.copts;
+        ropts
     }
 }
 

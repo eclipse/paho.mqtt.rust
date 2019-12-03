@@ -23,6 +23,7 @@
 
 use async_client::{AsyncClient};
 use token::{Token, DeliveryToken};
+use subscribe_options::SubscribeOptions;
 use message::Message;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -86,6 +87,13 @@ impl<'a> Topic<'a>
     /// Subscribe to the topic.
     pub fn subscribe(&self) -> Token {
         self.cli.subscribe(self.topic.clone(), self.qos)
+    }
+
+    /// Subscribe to the topic with subscription options.
+    pub fn subscribe_with_options<T>(&self, opts: T) -> Token
+        where T: Into<Option<SubscribeOptions>>
+    {
+        self.cli.subscribe_with_options(self.topic.clone(), self.qos, opts)
     }
 
     /// Publish a message on the topic.
