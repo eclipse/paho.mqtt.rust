@@ -91,7 +91,7 @@ impl<'a> Topic<'a>
 
     /// Subscribe to the topic with subscription options.
     pub fn subscribe_with_options<T>(&self, opts: T) -> Token
-        where T: Into<Option<SubscribeOptions>>
+        where T: Into<SubscribeOptions>
     {
         self.cli.subscribe_with_options(self.topic.clone(), self.qos, opts)
     }

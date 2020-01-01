@@ -116,9 +116,9 @@ fn main() -> mqtt::MqttResult<()> {
     }
 
     // Subscribe to the group messages.
+
     println!("Joining the group '{}'...", chat_group);
-    let sub_opts = mqtt::SubscribeOptions::new(NO_LOCAL);
-    topic.subscribe_with_options(sub_opts).wait()?;
+    topic.subscribe_with_options(NO_LOCAL).wait()?;
 
     // Let everyone know that a new user joined  the group
 
@@ -134,6 +134,7 @@ fn main() -> mqtt::MqttResult<()> {
                 let msg = input.trim();
                 if msg.is_empty() { break; }
 
+                // Publish payload as "<user>: <message>"
                 let chat_msg = format!("{}: {}", chat_user, msg);
                 if let Err(err) = topic.publish(chat_msg).wait() {
                     eprintln!("Error: {}", err);
@@ -148,6 +149,7 @@ fn main() -> mqtt::MqttResult<()> {
     // and then disconnect cleanly.
 
     if cli.is_connected() {
+        println!("Leaving the group...");
         topic.publish(format!("<<< {} left the group >>>", chat_user)).wait()?;
         cli.disconnect(None).wait()?;
     }

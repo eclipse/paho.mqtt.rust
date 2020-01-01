@@ -2,9 +2,9 @@
 //
 //! This is a Paho MQTT v5 Rust sample application.
 //!
-//! It's an example of how to create an RPC server client for servicing
-//! remote procedure calls using MQTT with the 'response topic' and 'correlation data'
-//! properties.
+//! It's an example of how to create an RPC server client for receiving and
+//! executing remote procedure calls using MQTT with the 'response topic'
+//! and 'correlation data' properties.
 //!
 //! The sample demonstrates:
 //!  - Creating an RPC service for MQTT v5
@@ -78,7 +78,7 @@ lazy_static! {
 // to use.
 //
 // The payload contains the parameters for the function as a JSON array
-// of numbers.
+// of numbers, "[ 7, 12, 18]"
 //
 // The properties of the message should have the "reply to" address and
 // Correlation ID for the response.
@@ -152,9 +152,6 @@ fn main() -> mqtt::MqttResult<()> {
     // We use the broker on this host.
     let host = "localhost";
 
-    // Command-line option(s)
-    //let args: Vec<String> = env::args().skip(1).collect();
-
     const REQ_TOPIC_HDR: &'static str = "requests/math/#";
 
     // Create a client to the specified host, no persistence
@@ -200,7 +197,7 @@ fn main() -> mqtt::MqttResult<()> {
         }
     }
 
-
+    println!("Processing requests...");
     for msg in rx.iter() {
         if let Some(msg) = msg {
             if let Err(err) = handle_request(&cli, msg) {
@@ -208,7 +205,7 @@ fn main() -> mqtt::MqttResult<()> {
             }
         }
         else {
-            eprintln!("Error receiving reply.");
+            eprintln!("Error receiving request.");
         }
     }
 

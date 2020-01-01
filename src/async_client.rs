@@ -284,7 +284,6 @@ impl AsyncClient {
             debug!("Connecting handle: {:?}", self.inner.handle);
             debug!("Connect options: {:?}", opts);
 
-            //let tok = ConnectToken::new();
             let tok = Token::from_request(ServerRequest::Connect);
 
             let mut lkopts = self.inner.opts.lock().unwrap();
@@ -541,7 +540,8 @@ impl AsyncClient {
         debug!("Subscribe to '{:?}' @ QOS {}", topic, qos);
 
         let rc = unsafe {
-            ffi::MQTTAsync_subscribe(self.inner.handle, topic.as_ptr(), qos, &mut rsp_opts.copts)
+            ffi::MQTTAsync_subscribe(self.inner.handle, topic.as_ptr(),
+                                     qos, &mut rsp_opts.copts)
         };
 
         if rc != 0 {
@@ -561,23 +561,20 @@ impl AsyncClient {
     ///
     pub fn subscribe_with_options<S,T>(&self, topic: S, qos: i32, opts: T) -> SubscribeToken
         where S: Into<String>,
-              T: Into<Option<SubscribeOptions>>
+              T: Into<SubscribeOptions>
     {
-        let ver = self.mqtt_version();
+        debug_assert!(self.mqtt_version() >= 5);
+
         let tok = Token::from_request(ServerRequest::Subscribe);
-        let mut rsp_opts = if let Some(sopts) = opts.into() {
-            debug_assert!(ver >= 5);
-            ResponseOptions::from_subscribe_options(tok.clone(), sopts)
-        }
-        else {
-            ResponseOptions::new(tok.clone(), ver)
-        };
+        let mut rsp_opts = ResponseOptions::from_subscribe_options(tok.clone(),
+                                                                   opts.into());
         let topic = CString::new(topic.into()).unwrap();
 
         debug!("Subscribe to '{:?}' @ QOS {}", topic, qos);
 
         let rc = unsafe {
-            ffi::MQTTAsync_subscribe(self.inner.handle, topic.as_ptr(), qos, &mut rsp_opts.copts)
+            ffi::MQTTAsync_subscribe(self.inner.handle, topic.as_ptr(),
+                                     qos, &mut rsp_opts.copts)
         };
 
         if rc != 0 {
@@ -586,7 +583,6 @@ impl AsyncClient {
         }
         else { tok }
     }
-
 
     /// Subscribes to multiple topics simultaneously.
     ///
@@ -602,9 +598,45 @@ impl AsyncClient {
 
         let ver = self.mqtt_version();
         // TOOD: Make sure topics & qos are same length (or use min)
-        //let tok = SubscribeManyToken::new(n);
         let tok = Token::from_request(ServerRequest::SubscribeMany(n));
         let mut rsp_opts = ResponseOptions::new(tok.clone(), ver);
+        let topics = StringCollection::new(topics);
+
+        debug!("Subscribe to '{:?}' @ QOS {:?}", topics, qos);
+
+        let rc = unsafe {
+            ffi::MQTTAsync_subscribeMany(self.inner.handle,
+                                         n as c_int,
+                                         topics.as_c_arr_mut_ptr(),
+                                         // C lib takes mutable QoS ptr, but doesn't mutate
+                                         mem::transmute(qos.as_ptr()),
+                                         &mut rsp_opts.copts)
+        };
+
+        if rc != 0 {
+            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            SubscribeManyToken::from_error(rc)
+        }
+        else { tok }
+    }
+
+    /// Subscribes to multiple topics simultaneously with options.
+    ///
+    /// # Arguments
+    ///
+    /// `topics` The collection of topic names
+    /// `qos` The quality of service requested for messages
+    ///
+    pub fn subscribe_many_with_options<T>(&self, topics: &[T], qos: &[i32],
+                                          opts: &[SubscribeOptions]) -> SubscribeManyToken
+        where T: AsRef<str>
+    {
+        let n = topics.len();
+
+        debug_assert!(self.mqtt_version() >= ffi::MQTTVERSION_5);
+        // TOOD: Make sure topics & qos are same length (or use min)
+        let tok = Token::from_request(ServerRequest::SubscribeMany(n));
+        let mut rsp_opts = ResponseOptions::from_subscribe_many_options(tok.clone(), opts);
         let topics = StringCollection::new(topics);
 
         debug!("Subscribe to '{:?}' @ QOS {:?}", topics, qos);
@@ -636,7 +668,6 @@ impl AsyncClient {
         where S: Into<String>
     {
         let ver = self.mqtt_version();
-        //let tok = Token::new();
         let tok = Token::from_request(ServerRequest::Unsubscribe);
         let mut rsp_opts = ResponseOptions::new(tok.clone(), ver);
         let topic = CString::new(topic.into()).unwrap();
@@ -668,7 +699,6 @@ impl AsyncClient {
         let n = topics.len();
 
         let ver = self.mqtt_version();
-        //let tok = Token::new();
         let tok = Token::from_request(ServerRequest::UnsubscribeMany(n));
         let mut rsp_opts = ResponseOptions::new(tok.clone(), ver);
         let topics = StringCollection::new(topics);
