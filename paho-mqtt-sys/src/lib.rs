@@ -28,6 +28,7 @@
 #![allow(dead_code)]
 
 use std::ptr;
+use std::fmt;
 use std::os::raw::{c_char, c_int};
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
@@ -45,7 +46,7 @@ impl Default for MQTTAsync_createOptions {
     fn default() -> MQTTAsync_createOptions {
         MQTTAsync_createOptions {
             struct_id: [ b'M' as c_char, b'Q' as c_char, b'C' as c_char, b'O' as c_char],
-            struct_version: 0,
+            struct_version: 1,
             sendWhileDisconnected: 0,
             maxBufferedMessages: 100,
             MQTTVersion: MQTTVERSION_DEFAULT as c_int,
@@ -53,17 +54,30 @@ impl Default for MQTTAsync_createOptions {
     }
 }
 
+impl MQTTAsync_createOptions {
+    pub fn default_v5() -> MQTTAsync_createOptions {
+        MQTTAsync_createOptions {
+            MQTTVersion: MQTTVERSION_5 as c_int,
+            ..MQTTAsync_createOptions::default()
+        }
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////
 // Connecting
+
+// Note that this sets up the defaults for MQTT 3.1.1 or earlier.
+// The application must specifically set the version to 5 for MQTT v5, and
+// disable clean sessions (at a minimum).
 
 impl Default for MQTTAsync_connectOptions {
     fn default() -> MQTTAsync_connectOptions {
         MQTTAsync_connectOptions {
             struct_id: [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'C' as c_char],
-            struct_version: 5,
+            struct_version: 6,
             keepAliveInterval: 60,
             cleansession: 1,
-            maxInflight: 10,
+            maxInflight: 65535,
             will: ptr::null_mut(),
             username: ptr::null(),
             password: ptr::null(),
@@ -153,7 +167,7 @@ impl Default for MQTTAsync_responseOptions {
     fn default() -> MQTTAsync_responseOptions {
         MQTTAsync_responseOptions {
             struct_id: [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'R' as c_char ],
-            struct_version: 0,
+            struct_version: 1,
             onSuccess: None,
             onFailure: None,
             context: ptr::null_mut(),
@@ -171,6 +185,13 @@ impl Default for MQTTAsync_responseOptions {
 /////////////////////////////////////////////////////////////////////////////
 // MQTTProperties (new for v5)
 
+impl fmt::Debug for MQTTProperty {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // TODO: Implement this
+        write!(f, "[]")
+    }
+}
+
 impl Default for MQTTProperties {
     fn default() -> MQTTProperties {
         MQTTProperties {
@@ -183,6 +204,11 @@ impl Default for MQTTProperties {
 }
 
 
+impl Default for MQTTLenString {
+    fn default() -> MQTTLenString {
+        MQTTLenString { len: 0, data: ptr::null_mut(), }
+    }
+}
 
 /////////////////////////////////////////////////////////////////////////////
 // Messages
@@ -191,7 +217,7 @@ impl Default for MQTTAsync_message {
     fn default() -> MQTTAsync_message {
         MQTTAsync_message {
             struct_id: [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'M' as c_char ],
-            struct_version: 0,
+            struct_version: 1,
             payloadlen: 0,
             payload: ptr::null_mut(),
             qos: 0,

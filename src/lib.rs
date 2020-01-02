@@ -47,10 +47,14 @@ pub use connect_options::*;     //{ConnectOptions, ConnectOptionsBuilder, MQTT_V
 pub use will_options::*;        //{WillOptions, WillOptionsBuilder};
 pub use ssl_options::*;         //{SslOptions, SslOptionsBuilder};
 pub use disconnect_options::*;  //{DisconnectOptions, DisconnectOptionsBuilder};
+pub use subscribe_options::*;   //{SubscribeOptions};
 pub use response_options::*;    //{ResponseOptions};
+pub use server_response::*;     //{ServerResponse, CommandResponse};
+pub use properties::*;          //{Property, Properties};
 pub use message::*;             //{Message, MessageBuilder};
 pub use token::*;               //{Token}
 pub use topic::*;               //{Topic}
+pub use types::*;               //{ReasonCode}
 pub use client_persistence::*;
 pub use errors::*;              //{MqttResult, MqttError, ErrorKind};
 
@@ -78,8 +82,17 @@ pub mod ssl_options;
 /// Options for disconnecting from the server.
 pub mod disconnect_options;
 
+/// Options for subscribing to topics
+pub mod subscribe_options;
+
 /// Options for responses coming back from the C lib.
 pub mod response_options;
+
+/// Responses coming back from the server.
+pub mod server_response;
+
+/// MQTT 5v properties.
+pub mod properties;
 
 /// The message object
 pub mod message;
@@ -90,6 +103,9 @@ pub mod token;
 /// Options for creating topic objects that are associated with a
 /// particular server.
 pub mod topic;
+
+/// Miscelaneous types
+pub mod types;
 
 /// Definitions for creating user-defined persistence.
 pub mod client_persistence;

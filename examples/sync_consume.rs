@@ -102,18 +102,20 @@ fn main() {
     // Make the connection to the broker
     println!("Connecting to the MQTT broker...");
     match cli.connect(conn_opts) {
-        Ok((server_uri, ver, session_present)) => {
-            println!("Connected to: '{}' with MQTT version {}", server_uri, ver);
-            if !session_present {
-                // Register subscriptions on the server
-                println!("Subscribing to topics, with requested Qos: {:?}...", qos);
+        Ok(rsp) => {
+            if let Some((server_uri, ver, session_present)) = rsp.connect_response() {
+                println!("Connected to: '{}' with MQTT version {}", server_uri, ver);
+                if !session_present {
+                    // Register subscriptions on the server
+                    println!("Subscribing to topics, with requested QoS: {:?}...", qos);
 
-                match cli.subscribe_many(&subscriptions, &qos) {
-                    Ok(qosv) => println!("QoS granted: {:?}", qosv),
-                    Err(e) => {
-                        println!("Error subscribing to topics: {:?}", e);
-                        cli.disconnect(None).unwrap();
-                        process::exit(1);
+                    match cli.subscribe_many(&subscriptions, &qos) {
+                        Ok(qosv) => println!("QoS granted: {:?}", qosv),
+                        Err(e) => {
+                            println!("Error subscribing to topics: {:?}", e);
+                            cli.disconnect(None).unwrap();
+                            process::exit(1);
+                        }
                     }
                 }
             }

@@ -46,6 +46,9 @@ pub const MQTT_VERSION_3_1: u32 = ffi::MQTTVERSION_3_1;
 /// Connect with MQTT v3.1.1
 pub const MQTT_VERSION_3_1_1: u32 = ffi::MQTTVERSION_3_1_1;
 
+/// Connect with MQTT v5
+pub const MQTT_VERSION_5: u32 = ffi::MQTTVERSION_5;
+
 /////////////////////////////////////////////////////////////////////////////
 // Connections
 
@@ -134,8 +137,15 @@ impl ConnectOptions {
     /// callback).
     pub fn set_token(&mut self, tok: ConnectToken) {
         let tok: Token = tok.into();
-        self.copts.onSuccess = Some(TokenInner::on_success);
-        self.copts.onFailure = Some(TokenInner::on_failure);
+
+        if self.copts.MQTTVersion < ffi::MQTTVERSION_5 as i32 {
+            self.copts.onSuccess = Some(TokenInner::on_success);
+            self.copts.onFailure = Some(TokenInner::on_failure);
+        }
+        else {
+            self.copts.onSuccess5 = Some(TokenInner::on_success5);
+            self.copts.onFailure5 = Some(TokenInner::on_failure5);
+        }
         self.copts.context = tok.into_raw();
     }
 }
@@ -220,6 +230,17 @@ impl ConnectOptionsBuilder {
     ///         information for this client.
     pub fn clean_session(&mut self, clean: bool) -> &mut ConnectOptionsBuilder {
         self.copts.cleansession = if clean { 1 } else { 0 };
+        self
+    }
+
+    /// Sets the 'clean start' flag to send to the broker.
+    ///
+    /// # Arguments
+    ///
+    /// `clean` Whether the broker should remove any previously-stored
+    ///         information for this client.
+    pub fn clean_start(&mut self, clean: bool) -> &mut ConnectOptionsBuilder {
+        self.copts.cleanstart = if clean { 1 } else { 0 };
         self
     }
 
@@ -341,9 +362,17 @@ impl ConnectOptionsBuilder {
     ///       * (0) try the latest version (3.1.1) and work backwards
     ///       * (3) only try v3.1
     ///       * (4) only try v3.1.1
+    ///       * (5) only try v5
     ///
     pub fn mqtt_version(&mut self, ver: u32) -> &mut ConnectOptionsBuilder {
         self.copts.MQTTVersion = ver as i32;
+
+        if ver < ffi::MQTTVERSION_5 {
+            self.copts.cleanstart = 0;
+        }
+        else {
+            self.copts.cleansession = 0;
+        }
         self
     }
 

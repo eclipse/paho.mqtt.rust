@@ -1,6 +1,6 @@
 [package]
 name = "paho-mqtt"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Frank Pagliughi <fpagliughi@mindspring.com>"]
 homepage = "https://github.com/eclipse/paho.mqtt.rust"
 repository = "https://github.com/eclipse/paho.mqtt.rust"
@@ -18,11 +18,17 @@ libc = "0.2"
 futures = "0.1"
 futures-timer = "0.1"
 log = "0.4"
-env_logger = "0.6"
+num-traits = "0.2"
+num-derive = "0.3"
+
+[dev-dependencies]
+env_logger = "0.7"
+serde = "1.0"
+serde_json = "1.0"
+lazy_static = "1.4"
 
 [features]
 default = ["bundled", "ssl"]
 bundled = ["paho-mqtt-sys/bundled"]
 build_bindgen = ["paho-mqtt-sys/build_bindgen"]
 ssl = ["paho-mqtt-sys/ssl"]
-

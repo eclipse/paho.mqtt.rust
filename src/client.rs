@@ -34,6 +34,7 @@ use async_client::AsyncClient;
 use create_options::CreateOptions;
 use connect_options::ConnectOptions;
 use disconnect_options::DisconnectOptions;
+use server_response::ServerResponse;
 use message::Message;
 use errors::MqttResult;
 
@@ -82,7 +83,7 @@ impl Client {
     }
 
     /// Connects to an MQTT broker using the specified connect options.
-    pub fn connect<T>(&self, opt_opts:T) -> MqttResult<(String, i32, bool)>
+    pub fn connect<T>(&self, opt_opts:T) -> MqttResult<ServerResponse>
         where T: Into<Option<ConnectOptions>>
     {
         self.cli.connect(opt_opts).wait_for(self.timeout)
@@ -121,7 +122,7 @@ impl Client {
     /// Attempts to reconnect to the broker.
     /// This can only be called after a connection was initially made or
     /// attempted. It will retry with the same connect options.
-    pub fn reconnect(&self) -> MqttResult<(String, i32, bool)> {
+    pub fn reconnect(&self) -> MqttResult<ServerResponse> {
         self.cli.reconnect().wait_for(self.timeout)
     }
 
@@ -142,7 +143,7 @@ impl Client {
     /// `topic` The topic name
     /// `qos` The quality of service requested for messages
     ///
-    pub fn subscribe(&self, topic: &str, qos: i32) -> MqttResult<i32> {
+    pub fn subscribe(&self, topic: &str, qos: i32) -> MqttResult<ServerResponse> {
         self.cli.subscribe(topic, qos).wait_for(self.timeout)
     }
 
@@ -153,7 +154,7 @@ impl Client {
     /// `topic` The topic name
     /// `qos` The quality of service requested for messages
     ///
-    pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> MqttResult<Vec<i32>>
+    pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> MqttResult<ServerResponse>
         where T: AsRef<str>
     {
         self.cli.subscribe_many(topics, qos).wait_for(self.timeout)

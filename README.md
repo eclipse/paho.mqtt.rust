@@ -10,7 +10,7 @@ Most development and deployment has being done on Linux. Please let us know abou
 
 ## Features
 
-The initial version of this crate is a wrapper for the Paho C library, similar to the implementation for the current Paho C++ library. It targets MQTT v3.1 and 3.1.1 (with support for v5 coming soon), and includes all of the features available in the C library for those versions, including:
+The initial version of this crate is a wrapper for the Paho C library, similar to the implementation for the current Paho C++ library. It targets MQTT v3.1, 3.1.1, and v5, and includes all of the features available in the C library for those versions, including:
 
 - Network Transports:
     - Standard TCP support
@@ -47,35 +47,23 @@ To keep up with the latest announcements for this project, follow:
 
 **Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
 
-### New Features in v0.6
+### Unreleased Features in this Branch
 
-The v0.6 release added support for Futures and cleaned up the internal implementation of the library. 
+Work is ongoing to bring full MQTT v5 support. The following is already complete:
 
-- **Futures support:**
-    - Compatible with the [Rust Futures](https://docs.rs/futures/0.1.25/futures/) library v0.1
-    - Now depends on the crates "futures" (v0.1) and "futures-timer" (v0.1).
-    - The `Token` objects, which are returned by asynchronous calls, now implements the `Futures` trait, which is _mostly_ compatible with the previous implementation.
-    - Incoming messages can be obtained through a `Stream` from the client, implemented with a futures channel.
-    - New examples of a publisher and subscriber implemented with futures.
-
-- **Server Responses**
-    - There are now several different types of tokens corresponding to different requests for which the server can return a response: _ConnectToken_, _DeliveryToken_, _SubscribeToken_, etc. 
-    - Tokens now track the type of request and get the server response upon completion. This is the Futures _Item_ type for the token.
-    - In particular this is useful for connecting subscribers. The app can now determine if a persistent session is already present, and only needs to subscribe if not.
-    
-- **Send and Sync Traits**
-    - The clients are now marked as _Send_ and _Sync_
-    - The _Token_ types are _Send_
-    - Most of the option types are _Send_ and _Sync_
-    - _AsyncClient_ and _Token_ objects are now just _Arc_ wrappers around inner structs making it easy to clone and pass references around.
-    
-- **Internal Cleanup**
-    - Updated to wrap Paho C v1.3.1 which has a number of important bug fixes.
-    - Moved `Tokens` into their own source file.
-    - Consolidated persistence internals into `UserPersistence` struct.
-    - Created a new `ResponseOptions` struct to manage the details of the C `MQTTAsync_responseOptions` objects.
-    - Cleanup of the `AsyncClient` implementation.
-    - A bad reconnect bug is fixed (Issue #33)
+- Ability to create an MQTT v5 client and request a v5 connection to the server.
+- MQTT v5 `Properties` (for connect, publish, incoming messages, etc)
+- `ReasonCode` and better error notifications.
+- [Breaking] Restored the single `Token` type, getting rid of separate implementations of `ConnectToken`, `SubscribeToken`, etc.
+- Subscribe options, such as "No Local," etc.
+- `Topic` objects can now be used to subscribe to said topics. 
+- Example for a simple chat application _(mqttrs_chat)_ using the v5 "No Local" subscription option. The publisher does not get their own messages echoed back to them.
+ - Examples for RPC using v5 _Properties_ for _ResponseTopic_ and _CorrelationData:_
+     - A math RPC service/server _(rpc_math_srvr)_ that performs basic operations on a list of numbers. 
+     - A math RPC client  _(rpc_math_cli)_ that can send requests.
+- Fix for #48: Sends a _None_ (and exits consumer) on manual disconnect.
+- Fix for #49: Supporting `on_connect()` callback.
+- Fix for #51: Segfault on `subscribe_many()` with a single topic.
 
 ### Upcoming Release(s)
 
@@ -287,3 +275,4 @@ Several external projects are under development which use or enhance the Paho MQ
 The `mqtt-redis` create allows the use of Redis as a persistence store. It also provides a good example of creating a user-defined persistence which implements the `ClientPersistence` trait. It can be found at:
 
 https://github.com/fpagliughi/mqtt.rust.redis
+
