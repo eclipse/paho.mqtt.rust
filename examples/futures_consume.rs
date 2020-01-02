@@ -43,7 +43,7 @@ use std::{env, process};
 use std::time::Duration;
 
 use futures::{Future, Stream};
-use futures::future::ok;
+use futures::future::{ok, err};
 
 // The topics to which we subscribe.
 const TOPICS: &[&str] = &[ "test", "hello" ];
@@ -118,19 +118,21 @@ fn main() {
             process::exit(2);
         });
 
-
     // Just wait for incoming messages by running the receiver stream
     // in this thread.
     println!("Waiting for messages...");
     rx.for_each(|opt_msg| {
         if let Some(msg) = opt_msg {
             println!("{}", msg);
+            ok(())
         }
         else {
             println!("Stream disruption");
+            err(())
         }
-        ok(())
-    }).wait().unwrap();
+    }).wait().unwrap_or_else(|_| {
+        println!("Done");
+    });
 
     // Hitting ^C will exit the app and cause the broker to publish
     // the LWT message since we're not disconnecting cleanly.

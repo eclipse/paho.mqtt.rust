@@ -198,8 +198,7 @@ impl AsyncClient {
     }
 
     // Low-level callback from the C library when the client is connected.
-    // We currently don't use this for anything. Rather connection
-    // completion is tracked through a token.
+    // We just pass the call on to the handler registered with the client, if any.
     unsafe extern "C" fn on_connected(context: *mut c_void, _cause: *mut c_char) {
         debug!("Connected! {:?}", context);
 
@@ -234,8 +233,10 @@ impl AsyncClient {
         {
             let mut cbctx = cli.inner.callback_context.lock().unwrap();
 
+            // Push a None into the message stream to cleanly
+            // shutdown any consumers.
             if let Some(ref mut cb) = cbctx.on_message_arrived {
-                trace!("Invoking disconnect message callback");
+                trace!("Invoking message callback with None");
                 cb(&cli, None);
             }
 
@@ -456,9 +457,20 @@ impl AsyncClient {
                 let _ = unsafe { Token::from_raw(opts.copts.context) };
                 Token::from_error(rc)
             }
-            else { tok }
+            else {
+                let mut cbctx = self.inner.callback_context.lock().unwrap();
+
+                // Push a None into the message stream to cleanly
+                // shutdown any consumers.
+                if let Some(ref mut cb) = cbctx.on_message_arrived {
+                    trace!("Invoking message callback with None");
+                    cb(self, None);
+                }
+                tok
+            }
         }
         else {
+            // Recursive call with default options
             self.disconnect(Some(DisconnectOptions::default()))
         }
     }
@@ -531,11 +543,9 @@ impl AsyncClient {
         }
 
         unsafe {
-            ffi::MQTTAsync_setCallbacks(self.inner.handle,
-                                        ctx as *const _ as *mut c_void,
-                                        Some(AsyncClient::on_connection_lost),
-                                        Some(AsyncClient::on_message_arrived),
-                                        None /* Delivery Complete (unused, Tokens track this) */);
+            ffi::MQTTAsync_setConnectionLostCallback(self.inner.handle,
+                                                     ctx as *const _ as *mut c_void,
+                                                     Some(AsyncClient::on_connection_lost));
         }
     }
 
@@ -584,11 +594,9 @@ impl AsyncClient {
         }
 
         unsafe {
-            ffi::MQTTAsync_setCallbacks(self.inner.handle,
-                                        ctx as *const _ as *mut c_void,
-                                        Some(AsyncClient::on_connection_lost),
-                                        Some(AsyncClient::on_message_arrived),
-                                        None /* Delivery Complete (unused, Tokens track this) */);
+            ffi::MQTTAsync_setMessageArrivedCallback(self.inner.handle,
+                                                     ctx as *const _ as *mut c_void,
+                                                     Some(AsyncClient::on_message_arrived));
         }
     }
 

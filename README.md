@@ -10,7 +10,7 @@ Most development and deployment has being done on Linux. Please let us know abou
 
 ## Features
 
-The initial version of this crate is a wrapper for the Paho C library, similar to the implementation for the current Paho C++ library. It targets MQTT v3.1 and 3.1.1 (with support for v5 coming soon), and includes all of the features available in the C library for those versions, including:
+The initial version of this crate is a wrapper for the Paho C library, similar to the implementation for the current Paho C++ library. It targets MQTT v3.1, 3.1.1, and v5, and includes all of the features available in the C library for those versions, including:
 
 - Network Transports:
     - Standard TCP support
@@ -51,10 +51,13 @@ Work is ongoing to bring full MQTT v5 support. The following is already complete
 - [Breaking] Restored the single `Token` type, getting rid of separate implementations of `ConnectToken`, `SubscribeToken`, etc.
 - Subscribe options, such as "No Local," etc.
 - `Topic` objects can now be used to subscribe to said topics. 
-- Example for a simple chat application _(mqttrs_chat)_ using the v5 "No Local" subscription option. The publisher does not get their own messages echoed back to them. 
+- Example for a simple chat application _(mqttrs_chat)_ using the v5 "No Local" subscription option. The publisher does not get their own messages echoed back to them.
  - Examples for RPC using v5 _Properties_ for _ResponseTopic_ and _CorrelationData:_
      - A math RPC service/server _(rpc_math_srvr)_ that performs basic operations on a list of numbers. 
      - A math RPC client  _(rpc_math_cli)_ that can send requests.
+- Fix for #48: Sends a _None_ (and exits consumer) on manual disconnect.
+- Fix for #49: Supporting `on_connect()` callback.
+- Fix for #51: Segfault on `subscribe_many()` with a single topic.
 
 ### Upcoming Release(s)
 
