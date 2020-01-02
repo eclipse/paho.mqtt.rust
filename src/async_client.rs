@@ -61,18 +61,26 @@ use disconnect_options::{DisconnectOptions,DisconnectOptionsBuilder};
 use subscribe_options::SubscribeOptions;
 use response_options::ResponseOptions;
 use server_response::ServerRequest;
+use properties::Properties;
 use message::Message;
 use token::{Token, ConnectToken, DeliveryToken, SubscribeToken, SubscribeManyToken};
 use client_persistence::UserPersistence;
 use errors;
 use errors::{MqttResult, ErrorKind};
 use string_collection::{StringCollection};
+use types::ReasonCode;
 
 /////////////////////////////////////////////////////////////////////////////
 // AsynClient
 
+/// User callback type for when the client is connected.
+pub type ConnectedCallback = dyn FnMut(&AsyncClient) + 'static;
+
 /// User callback type for when the connection is lost from the broker.
 pub type ConnectionLostCallback = dyn FnMut(&AsyncClient) + 'static;
+
+/// User callback type for when the client receives a disconnect packet.
+pub type DisconnectedCallback = dyn FnMut(&AsyncClient, Properties, ReasonCode) + 'static;
 
 /// User callback signature for when subscribed messages are received.
 pub type MessageArrivedCallback = dyn FnMut(&AsyncClient, Option<Message>) + 'static;
@@ -82,10 +90,15 @@ pub type MessageArrivedCallback = dyn FnMut(&AsyncClient, Option<Message>) + 'st
 // shared between all of the callbacks. We could use just a pointer to the
 // client and retrieve the callbacks from there, but that would require
 // every callback to synchronize data access from the callback.
+#[derive(Default)]
 struct CallbackContext
 {
+    /// Callback for when the client successfully connects.
+    on_connected: Option<Box<ConnectedCallback>>,
     /// Callback for when the client loses connection to the server.
     on_connection_lost: Option<Box<ConnectionLostCallback>>,
+    /// Callback for when the client receives a disconnect packet.
+    on_disconnected: Option<Box<DisconnectedCallback>>,
     /// Callback for when a message arrives from the server.
     on_message_arrived: Option<Box<MessageArrivedCallback>>,
 }
@@ -130,10 +143,7 @@ impl AsyncClient {
         let mut cli = InnerAsyncClient {
             handle: ptr::null_mut(),
             opts: Mutex::new(ConnectOptions::new()),
-            callback_context: Mutex::new(CallbackContext {
-                on_connection_lost: None,
-                on_message_arrived: None,
-            }),
+            callback_context: Mutex::new(CallbackContext::default()),
             server_uri: CString::new(opts.server_uri).unwrap(),
             client_id: CString::new(opts.client_id).unwrap(),
             user_persistence: None,
@@ -190,8 +200,24 @@ impl AsyncClient {
     // Low-level callback from the C library when the client is connected.
     // We currently don't use this for anything. Rather connection
     // completion is tracked through a token.
-    unsafe extern "C" fn on_connected(context: *mut c_void, rsp: *mut ffi::MQTTAsync_successData) {
-        debug!("Connected! {:?}, {:?}", context, rsp);
+    unsafe extern "C" fn on_connected(context: *mut c_void, _cause: *mut c_char) {
+        debug!("Connected! {:?}", context);
+
+        if context.is_null() {
+            error!("Connection lost callback received a null context.");
+            return;
+        }
+
+        let cli = AsyncClient::from_raw(context);
+        {
+            let mut cbctx = cli.inner.callback_context.lock().unwrap();
+
+            if let Some(ref mut cb) = cbctx.on_connected {
+                trace!("Invoking connected callback");
+                cb(&cli);
+            }
+        }
+        let _ = cli.into_raw();
     }
 
     // Low-level callback from the C library when the connection is lost.
@@ -216,6 +242,30 @@ impl AsyncClient {
             if let Some(ref mut cb) = cbctx.on_connection_lost {
                 trace!("Invoking connection lost callback");
                 cb(&cli);
+            }
+        }
+        let _ = cli.into_raw();
+    }
+
+    // Low-level callback from the C library for when a disconnect packet arrives.
+    unsafe extern "C" fn on_disconnected(context: *mut c_void, cprops: *mut ffi::MQTTProperties,
+                                         reason: ffi::MQTTReasonCodes) {
+        debug!("Disconnected on context {:?}, with reason code: {}", context, reason);
+
+        if context.is_null() {
+            error!("Connection lost callback received a null context.");
+            return;
+        }
+
+        let cli = AsyncClient::from_raw(context);
+        let reason_code = ReasonCode::from_code(reason);
+        let props = Properties::from_c_struct(&*cprops);
+        {
+            let mut cbctx = cli.inner.callback_context.lock().unwrap();
+
+            if let Some(ref mut cb) = cbctx.on_disconnected {
+                trace!("Invoking disconnected callback");
+                cb(&cli, props, reason_code);
             }
         }
         let _ = cli.into_raw();
@@ -437,6 +487,31 @@ impl AsyncClient {
         }
     }
 
+    /// Sets the callback for when the connection is established with the broker.
+    ///
+    /// # Arguments
+    ///
+    /// * `cb` The callback to register with the library. This can be a
+    ///     function or a closure.
+    pub fn set_connected_callback<F>(&mut self, cb: F)
+        where F: FnMut(&AsyncClient) + 'static
+    {
+        // A pointer to the inner client will serve as the callback context
+        let ctx: &InnerAsyncClient = &self.inner;
+
+        // This should be protected by a mutex if we'll have a thread-safe client
+        {
+            let mut cbctx = self.inner.callback_context.lock().unwrap();
+            (*cbctx).on_connected = Some(Box::new(cb));
+        }
+
+        unsafe {
+            ffi::MQTTAsync_setConnected(self.inner.handle,
+                                        ctx as *const _ as *mut c_void,
+                                        Some(AsyncClient::on_connected));
+        }
+    }
+
     /// Sets the callback for when the connection is lost with the broker.
     ///
     /// # Arguments
@@ -461,6 +536,31 @@ impl AsyncClient {
                                         Some(AsyncClient::on_connection_lost),
                                         Some(AsyncClient::on_message_arrived),
                                         None /* Delivery Complete (unused, Tokens track this) */);
+        }
+    }
+
+    /// Sets the callback for when a disconnect message arrives from the broker.
+    ///
+    /// # Arguments
+    ///
+    /// * `cb` The callback to register with the library. This can be a
+    ///     function or a closure.
+    pub fn set_disconnected_callback<F>(&mut self, cb: F)
+        where F: FnMut(&AsyncClient, Properties, ReasonCode) + 'static
+    {
+        // A pointer to the inner client will serve as the callback context
+        let ctx: &InnerAsyncClient = &self.inner;
+
+        // This should be protected by a mutex if we'll have a thread-safe client
+        {
+            let mut cbctx = self.inner.callback_context.lock().unwrap();
+            (*cbctx).on_disconnected = Some(Box::new(cb));
+        }
+
+        unsafe {
+            ffi::MQTTAsync_setDisconnected(self.inner.handle,
+                                           ctx as *const _ as *mut c_void,
+                                           Some(AsyncClient::on_disconnected));
         }
     }
 
@@ -891,10 +991,7 @@ impl AsyncClientBuilder {
         let mut cli = InnerAsyncClient {
             handle: ptr::null_mut(),
             opts: Mutex::new(ConnectOptions::new()),
-            callback_context: Mutex::new(CallbackContext {
-                on_connection_lost: None,
-                on_message_arrived: None,
-            }),
+            callback_context: Mutex::new(CallbackContext::default()),
             server_uri: CString::new(self.server_uri.clone()).unwrap(),
             client_id: CString::new(self.client_id.clone()).unwrap(),
             user_persistence: None,

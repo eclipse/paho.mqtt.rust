@@ -72,7 +72,7 @@ fn main() {
     // Initialize the logger from the environment
     env_logger::init();
 
-    let host = env::args().skip(1).next().unwrap_or(
+    let host = env::args().nth(1).unwrap_or(
         "tcp://localhost:1883".to_string()
     );
 
@@ -80,13 +80,18 @@ fn main() {
     // A real system should try harder to use a unique ID.
     let create_opts = mqtt::CreateOptionsBuilder::new()
         .server_uri(host)
-        .client_id("rust_sync_consumer")
+        .client_id("rust_async_subscribe")
         .finalize();
 
     // Create the client connection
     let mut cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|e| {
         println!("Error creating the client: {:?}", e);
         process::exit(1);
+    });
+
+    // Set a closure to be called whenever the client connection is established.
+    cli.set_connected_callback(|_cli: &mqtt::AsyncClient| {
+        println!("Connected.");
     });
 
     // Set a closure to be called whenever the client loses the connection.
