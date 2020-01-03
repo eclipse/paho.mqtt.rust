@@ -42,6 +42,8 @@ extern crate paho_mqtt as mqtt;
 //use std::env;
 use std::process;
 use std::collections::HashMap;
+use std::thread;
+use std::time::Duration;
 use futures::Future;
 use serde_json::json;
 
@@ -67,6 +69,27 @@ lazy_static! {
         tbl.insert("mult", mult as MathFn);
         tbl
     };
+}
+
+
+// --------------------------------------------------------------------------
+// This will attempt to reconnect to the broker. It can be called after
+// connection is lost. In this example, we try to reconnect several times,
+// with a few second pause between each attempt. A real system might keep
+// trying indefinitely, with a backoff, or something like that.
+
+fn try_reconnect(cli: &mqtt::AsyncClient) -> bool
+{
+    println!("Connection lost. Waiting to retry connection");
+    for _ in 0..24 {
+        thread::sleep(Duration::from_millis(2500));
+        if cli.reconnect().wait().is_ok() {
+            println!("Successfully reconnected");
+            return true;
+        }
+    }
+    println!("Unable to reconnect after several attempts.");
+    false
 }
 
 // --------------------------------------------------------------------------
@@ -204,13 +227,16 @@ fn main() -> mqtt::MqttResult<()> {
                 eprintln!("Error: {}", err);
             }
         }
-        else {
-            eprintln!("Error receiving request.");
+        else if cli.is_connected() ||
+                !try_reconnect(&cli) {
+            break;
         }
     }
 
-    // Disconnect from the broker
-    cli.disconnect(None).wait()?;
+    if cli.is_connected() {
+        // Disconnect from the broker
+        cli.disconnect(None).wait()?;
+    }
     Ok(())
 }
 
