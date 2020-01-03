@@ -56,7 +56,7 @@ fn main() {
     env_logger::init();
 
     // Get a host URL from the command line, if any
-    let host = env::args().skip(1).next().unwrap_or(
+    let host = env::args().nth(1).unwrap_or_else(||
         "tcp://localhost:1883".to_string()
     );
 
@@ -107,7 +107,7 @@ fn main() {
         })
         .and_then(|rsp| {
             if let Some(qosv) = rsp.subscribe_many_response() {
-                if qosv.len() > 0 {
+                if !qosv.is_empty() {
                     println!("QoS granted: {:?}", qosv);
                 }
             }

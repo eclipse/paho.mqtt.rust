@@ -23,14 +23,28 @@
 
 //! MQTT support types
 
+use ffi;
 use std::mem;
 
+/// The default version to connect with.
+/// First try v3.1.1, and if that fails, try v3.1
+pub const MQTT_VERSION_DEFAULT: u32 = ffi::MQTTVERSION_DEFAULT;
+
+/// Connect with MQTT v3.1
+pub const MQTT_VERSION_3_1: u32 = ffi::MQTTVERSION_3_1;
+
+/// Connect with MQTT v3.1.1
+pub const MQTT_VERSION_3_1_1: u32 = ffi::MQTTVERSION_3_1_1;
+
+/// Connect with MQTT v5
+pub const MQTT_VERSION_5: u32 = ffi::MQTTVERSION_5;
+
+
+/// MQTT v5 single-byte reason codes.
 #[repr(u32)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum ReasonCode {
-    SUCCESS = 0,
-    //NORMAL_DISCONNECTION = 0,
-    //GRANTED_QOS_0 = 0,
+    SUCCESS = 0,    // also: NORMAL_DISCONNECTION & GRANTED_QOS_0
     GRANTED_QOS_1 = 1,
     GRANTED_QOS_2 = 2,
     DISCONNECT_WITH_WILL_MESSAGE = 4,

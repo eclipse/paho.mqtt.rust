@@ -211,7 +211,7 @@ mod tests {
 
     #[test]
     fn test_assign() {
-        let v = [ "string0", "string1", "string2" ];;
+        let v = [ "string0", "string1", "string2" ];
         let n = v.len();
 
         let org_sc = StringCollection::new(&v);

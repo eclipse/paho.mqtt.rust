@@ -37,7 +37,7 @@ fn main() {
     env_logger::init();
 
     // Get the server URL, if one is given on the command line
-    let host = env::args().skip(1).next().unwrap_or(
+    let host = env::args().nth(1).unwrap_or_else(||
         "tcp://localhost:1883".to_string()
     );
 

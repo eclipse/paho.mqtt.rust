@@ -39,9 +39,10 @@ extern crate serde_json;
 extern crate lazy_static;
 extern crate paho_mqtt as mqtt;
 
-//use std::env;
 use std::process;
 use std::collections::HashMap;
+use std::thread;
+use std::time::Duration;
 use futures::Future;
 use serde_json::json;
 
@@ -69,6 +70,27 @@ lazy_static! {
     };
 }
 
+
+// --------------------------------------------------------------------------
+// This will attempt to reconnect to the broker. It can be called after
+// connection is lost. In this example, we try to reconnect several times,
+// with a few second pause between each attempt. A real system might keep
+// trying indefinitely, with a backoff, or something like that.
+
+fn try_reconnect(cli: &mqtt::AsyncClient) -> bool
+{
+    println!("Connection lost. Waiting to retry connection");
+    for _ in 0..24 {
+        thread::sleep(Duration::from_millis(2500));
+        if cli.reconnect().wait().is_ok() {
+            println!("Successfully reconnected");
+            return true;
+        }
+    }
+    println!("Unable to reconnect after several attempts.");
+    false
+}
+
 // --------------------------------------------------------------------------
 // Handle a single incoming request as encoded in an MQTT v5 message.
 //
@@ -90,17 +112,17 @@ fn handle_request(cli: &mqtt::AsyncClient, msg: mqtt::Message) -> mqtt::MqttResu
 
     let reply_to = msg.properties()
         .get_string(mqtt::PropertyCode::RESPONSE_TOPIC)
-        .ok_or(mqtt::MqttError::from("No response topic provided."))?;
+        .ok_or_else(|| mqtt::MqttError::from("No response topic provided."))?;
 
     let corr_id = msg.properties()
         .get_binary(mqtt::PropertyCode::CORRELATION_DATA)
-        .ok_or(mqtt::MqttError::from("No correlation data provided."))?;
+        .ok_or_else(|| mqtt::MqttError::from("No correlation data provided."))?;
 
     println!("\nRequest w/ Reply To: {}, Correlation ID: {:?}", reply_to, corr_id);
 
     // Get the name of the function from the topic
 
-    let topic_arr: Vec<&str> = msg.topic().split("/").collect();
+    let topic_arr: Vec<&str> = msg.topic().split('/').collect();
 
     if topic_arr.len() < 3 {
         return Err("Malformed request topic".into());
@@ -152,7 +174,7 @@ fn main() -> mqtt::MqttResult<()> {
     // We use the broker on this host.
     let host = "localhost";
 
-    const REQ_TOPIC_HDR: &'static str = "requests/math/#";
+    const REQ_TOPIC_HDR: &str = "requests/math/#";
 
     // Create a client to the specified host, no persistence
     let create_opts = mqtt::CreateOptionsBuilder::new()
@@ -204,13 +226,16 @@ fn main() -> mqtt::MqttResult<()> {
                 eprintln!("Error: {}", err);
             }
         }
-        else {
-            eprintln!("Error receiving request.");
+        else if cli.is_connected() ||
+                !try_reconnect(&cli) {
+            break;
         }
     }
 
-    // Disconnect from the broker
-    cli.disconnect(None).wait()?;
+    if cli.is_connected() {
+        // Disconnect from the broker
+        cli.disconnect(None).wait()?;
+    }
     Ok(())
 }
 

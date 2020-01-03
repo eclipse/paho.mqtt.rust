@@ -841,6 +841,17 @@ impl AsyncClient {
 
         let (tx, rx): (Sender<Option<Message>>, Receiver<Option<Message>>) = mpsc::channel();
 
+        // Make sure at least the low-level connection_lost handler is in
+        // place to notify us when the connection is lost (sends a 'None' to
+        // the receiver).
+        let ctx: &InnerAsyncClient = &self.inner;
+        unsafe {
+            ffi::MQTTAsync_setConnectionLostCallback(self.inner.handle,
+                                                     ctx as *const _ as *mut c_void,
+                                                     Some(AsyncClient::on_connection_lost));
+        }
+
+        // Message callback just queues incoming messages.
         self.set_message_callback(move |_,msg| {
             tx.send(msg).unwrap();
         });

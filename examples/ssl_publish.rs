@@ -73,7 +73,7 @@ fn main() {
     }
 
     // Let the user override the host, but note the "ssl://" protocol.
-    let host = env::args().skip(1).next().unwrap_or(
+    let host = env::args().nth(1).unwrap_or_else(||
         "ssl://localhost:18885".to_string()
     );
 

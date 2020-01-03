@@ -102,11 +102,12 @@ impl ResponseOptions {
 mod tests {
     use super::*;
     use token::{Token};
+    use types::*;
 
     #[test]
     fn test_new() {
         let tok = Token::new();
-        let opts = ResponseOptions::new(tok.clone());
+        let opts = ResponseOptions::new(tok.clone(), MQTT_VERSION_3_1_1);   //ffi::MQTTVERSION_3_1_1);
 
         let inner = Token::into_raw(tok);
 

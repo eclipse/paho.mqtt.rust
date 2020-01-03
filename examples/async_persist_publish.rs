@@ -34,7 +34,7 @@ extern crate log;
 extern crate env_logger;
 extern crate paho_mqtt as mqtt;
 
-use std::process;
+use std::{env, process};
 use std::collections::HashMap;
 use futures::Future;
 
@@ -138,10 +138,14 @@ fn main() {
     // Initialize the logger from the environment
     env_logger::init();
 
+    let host = env::args().nth(1).unwrap_or_else(||
+        "tcp://localhost:1883".to_string()
+    );
+
     // Create a client & define connect options
     println!("Creating the MQTT client.");
     let create_opts = mqtt::CreateOptionsBuilder::new()
-            .server_uri("tcp://localhost:1883")
+            .server_uri(host)
             .user_persistence(MemPersistence::new())
             .client_id("rust_async_persist_publish")
             .finalize();

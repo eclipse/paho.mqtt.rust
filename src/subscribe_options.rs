@@ -140,7 +140,7 @@ impl SubscribeOptionsBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use token::{Token};
+    //use token::{Token};
 
     #[test]
     fn test_new() {

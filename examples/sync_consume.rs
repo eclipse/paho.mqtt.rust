@@ -65,7 +65,7 @@ fn main() {
     // Initialize the logger from the environment
     env_logger::init();
 
-    let host = env::args().skip(1).next().unwrap_or(
+    let host = env::args().nth(1).unwrap_or_else(||
         "tcp://localhost:1883".to_string()
     );
 
