@@ -33,7 +33,7 @@ Supports Paho C v1.3.1
 
 ## Latest News
 
-Work has begun to implement MQTT v5! This is going on in the `mqttv5` branch, which is _highly_ erratic. Hopefully, a reasonably stable API will be ready by the end of Nov 2019, aiming for a proper release bythe end of year, 2019.
+Work is nearly complete to implement MQTT v5! A formal release is due in January 2020.
 
 This upcoming release will still target Futures v0.1 and Rust Edition 2015.
 
@@ -64,10 +64,6 @@ Work is ongoing to bring full MQTT v5 support. The following is already complete
 - Fix for #48: Sends a _None_ (and exits consumer) on manual disconnect.
 - Fix for #49: Supporting `on_connect()` callback.
 - Fix for #51: Segfault on `subscribe_many()` with a single topic.
-
-### Upcoming Release(s)
-
-The next major release will bring in support for MQTT v5.
 
 ## Building the Crate
 
