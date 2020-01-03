@@ -326,14 +326,14 @@ impl MessageBuilder
 mod tests {
     use super::*;
     use std::thread;
-    use std::os::raw::c_char;
+    use std::os::raw::{c_char, c_int};
 
     const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'M' as c_char ];
-    const STRUCT_VERSION: i32 = 0;
+    const STRUCT_VER: c_int = 1;
 
     // These should differ from defaults
-    const TOPIC: &'static str = "test";
-    const PAYLOAD: &'static [u8] = b"Hello world";
+    const TOPIC: &str = "test";
+    const PAYLOAD: &[u8] = b"Hello world";
     const QOS: i32 = 2;
     const RETAINED: bool = true;
 
@@ -347,7 +347,7 @@ mod tests {
         let msg = Message::new(TOPIC, PAYLOAD, QOS);
 
         assert_eq!(STRUCT_ID, msg.cmsg.struct_id);
-        assert_eq!(STRUCT_VERSION, msg.cmsg.struct_version);
+        assert_eq!(STRUCT_VER, msg.cmsg.struct_version);
 
         assert_eq!(TOPIC, msg.topic.to_str().unwrap());
         assert_eq!(PAYLOAD, msg.payload.as_slice());
@@ -392,7 +392,7 @@ mod tests {
         let cmsg = ffi::MQTTAsync_message::default();
 
         assert_eq!(STRUCT_ID, cmsg.struct_id);
-        assert_eq!(0, cmsg.struct_version);
+        assert_eq!(STRUCT_VER, cmsg.struct_version);
 
         assert_eq!(cmsg.struct_id, msg.cmsg.struct_id);
         assert_eq!(cmsg.struct_version, msg.cmsg.struct_version);
@@ -404,7 +404,7 @@ mod tests {
 
     #[test]
     fn test_builder_topic() {
-        const TOPIC: &'static str = "test";
+        const TOPIC: &str = "test";
 
         let msg = MessageBuilder::new()
                     .topic(TOPIC).finalize();
@@ -416,7 +416,7 @@ mod tests {
 
     #[test]
     fn test_builder_payload() {
-        const PAYLOAD: &'static [u8] = b"Hello world";
+        const PAYLOAD: &[u8] = b"Hello world";
 
         let msg = MessageBuilder::new()
                     .payload(PAYLOAD).finalize();
@@ -481,8 +481,8 @@ mod tests {
     // in the new object point to those clones.
     #[test]
     fn test_clone() {
-        const TOPIC: &'static str = "test";
-        const PAYLOAD: &'static [u8] = b"Hello world";
+        const TOPIC: &str = "test";
+        const PAYLOAD: &[u8] = b"Hello world";
         const QOS: i32 = 2;
         const RETAINED: bool = true;
 

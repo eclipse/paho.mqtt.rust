@@ -283,6 +283,9 @@ mod tests {
 	use super::*;
     use std::os::raw::{c_char};
 
+    // The currently supported MQTTAsync_createOptions::struct_version
+    const STRUCT_VER: c_int = 1;
+
     // The identifier for the create options structure
     const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'C' as c_char, b'O' as c_char];
 
@@ -295,7 +298,7 @@ mod tests {
 
 		// First, make sure C options valid
         assert_eq!(STRUCT_ID, copts.struct_id);
-		assert_eq!(0, copts.struct_version);	// Currently supported version
+		assert_eq!(STRUCT_VER, copts.struct_version);
 
 		assert_eq!(copts.struct_id, opts.copts.struct_id);
 		assert_eq!(copts.struct_version, opts.copts.struct_version);
@@ -309,12 +312,13 @@ mod tests {
 
 	#[test]
 	fn test_from_string() {
-		const HOST: &'static str = "localhost";
-		let opts = CreateOptions::from(HOST);
+		const HOST: &str = "localhost";
+
+        let opts = CreateOptions::from(HOST);
 		let copts = ffi::MQTTAsync_createOptions::default();
 
 		assert_eq!(STRUCT_ID, opts.copts.struct_id);
-		assert_eq!(0, opts.copts.struct_version);	// Currently supported version
+		assert_eq!(STRUCT_VER, opts.copts.struct_version);
 		assert_eq!(copts.sendWhileDisconnected, opts.copts.sendWhileDisconnected);
 		assert_eq!(copts.maxBufferedMessages, opts.copts.maxBufferedMessages);
 
@@ -326,13 +330,14 @@ mod tests {
 
 	#[test]
 	fn test_from_tuple() {
-		const HOST: &'static str = "localhost";
-		const ID: &'static str = "bubba";
-		let opts = CreateOptions::from((HOST,ID));
+		const HOST: &str = "localhost";
+		const ID: &str = "bubba";
+
+        let opts = CreateOptions::from((HOST,ID));
 		let copts = ffi::MQTTAsync_createOptions::default();
 
 		assert_eq!(STRUCT_ID, opts.copts.struct_id);
-		assert_eq!(0, opts.copts.struct_version);	// Currently supported version
+		assert_eq!(STRUCT_VER, opts.copts.struct_version);
 		assert_eq!(copts.sendWhileDisconnected, opts.copts.sendWhileDisconnected);
 		assert_eq!(copts.maxBufferedMessages, opts.copts.maxBufferedMessages);
 
@@ -348,7 +353,7 @@ mod tests {
 
 		// First, make sure C options valid
 		assert_eq!(STRUCT_ID, copts.struct_id);
-		assert_eq!(0, copts.struct_version);	// Currently supported version
+		assert_eq!(STRUCT_VER, copts.struct_version);
 
 		assert_eq!(copts.struct_id, opts.copts.struct_id);
 		assert_eq!(copts.struct_version, opts.copts.struct_version);
@@ -362,8 +367,8 @@ mod tests {
 
 	#[test]
 	fn test_builder() {
-		const HOST: &'static str = "localhost";
-		const ID: &'static str = "bubba";
+		const HOST: &str = "localhost";
+		const ID: &str = "bubba";
 		const MAX_BUF_MSGS: i32 = 100;
 
 		let opts = CreateOptionsBuilder::new()
@@ -374,7 +379,7 @@ mod tests {
 						.finalize();
 
 		assert_eq!(STRUCT_ID, opts.copts.struct_id);
-		assert_eq!(0, opts.copts.struct_version);	// Currently supported version
+		assert_eq!(STRUCT_VER, opts.copts.struct_version);
 
 		assert_eq!(HOST, &opts.server_uri);
 		assert_eq!(ID, &opts.client_id);

@@ -531,6 +531,9 @@ impl Default for Properties {
     }
 }
 
+unsafe impl Send for Properties {}
+//unsafe impl Sync for Properties {}
+
 impl Clone for Properties {
     /// Creates a clone of the property.
     /// For string any binary properties, this also clones the heap memory

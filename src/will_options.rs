@@ -213,8 +213,8 @@ mod tests {
     const STRUCT_VERSION: i32 = 1;
 
     // These should differ from defaults.
-    const TOPIC: &'static str = "test";
-    const PAYLOAD: &'static [u8] = b"Hello world";
+    const TOPIC: &str = "test";
+    const PAYLOAD: &[u8] = b"Hello world";
     const QOS: i32 = 2;
     const RETAINED: bool = true;
 

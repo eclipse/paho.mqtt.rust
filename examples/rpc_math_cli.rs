@@ -59,8 +59,8 @@ fn main() -> mqtt::MqttResult<()> {
     const QOS: i32 = 1;
     const MQTTV5: u32 = 5;
 
-    const REQ_TOPIC_HDR: &'static str = "requests/math";
-    const REP_TOPIC_HDR: &'static str = "replies/math";
+    const REQ_TOPIC_HDR: &str = "requests/math";
+    const REP_TOPIC_HDR: &str = "replies/math";
 
     // Create a client to the specified host, no persistence
     let create_opts = mqtt::CreateOptionsBuilder::new()

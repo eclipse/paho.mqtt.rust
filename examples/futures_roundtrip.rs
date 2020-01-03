@@ -40,7 +40,7 @@ use futures::{Future, Stream};
 use futures::future::ok;
 
 // The topic that we use for the test
-const TOPIC: &'static str = "test/roundtrip";
+const TOPIC: &str = "test/roundtrip";
 const QOS: i32 = 1;
 
 /////////////////////////////////////////////////////////////////////////////

@@ -39,7 +39,6 @@ extern crate serde_json;
 extern crate lazy_static;
 extern crate paho_mqtt as mqtt;
 
-//use std::env;
 use std::process;
 use std::collections::HashMap;
 use std::thread;
@@ -113,17 +112,17 @@ fn handle_request(cli: &mqtt::AsyncClient, msg: mqtt::Message) -> mqtt::MqttResu
 
     let reply_to = msg.properties()
         .get_string(mqtt::PropertyCode::RESPONSE_TOPIC)
-        .ok_or(mqtt::MqttError::from("No response topic provided."))?;
+        .ok_or_else(|| mqtt::MqttError::from("No response topic provided."))?;
 
     let corr_id = msg.properties()
         .get_binary(mqtt::PropertyCode::CORRELATION_DATA)
-        .ok_or(mqtt::MqttError::from("No correlation data provided."))?;
+        .ok_or_else(|| mqtt::MqttError::from("No correlation data provided."))?;
 
     println!("\nRequest w/ Reply To: {}, Correlation ID: {:?}", reply_to, corr_id);
 
     // Get the name of the function from the topic
 
-    let topic_arr: Vec<&str> = msg.topic().split("/").collect();
+    let topic_arr: Vec<&str> = msg.topic().split('/').collect();
 
     if topic_arr.len() < 3 {
         return Err("Malformed request topic".into());
@@ -175,7 +174,7 @@ fn main() -> mqtt::MqttResult<()> {
     // We use the broker on this host.
     let host = "localhost";
 
-    const REQ_TOPIC_HDR: &'static str = "requests/math/#";
+    const REQ_TOPIC_HDR: &str = "requests/math/#";
 
     // Create a client to the specified host, no persistence
     let create_opts = mqtt::CreateOptionsBuilder::new()

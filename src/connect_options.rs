@@ -36,19 +36,6 @@ use will_options::WillOptions;
 use ssl_options::SslOptions;
 use string_collection::StringCollection;
 
-/// The default version to connect with.
-/// First try v3.1.1, and if that fails, try v3.1
-pub const MQTT_VERSION_DEFAULT: u32 = ffi::MQTTVERSION_DEFAULT;
-
-/// Connect with MQTT v3.1
-pub const MQTT_VERSION_3_1: u32 = ffi::MQTTVERSION_3_1;
-
-/// Connect with MQTT v3.1.1
-pub const MQTT_VERSION_3_1_1: u32 = ffi::MQTTVERSION_3_1_1;
-
-/// Connect with MQTT v5
-pub const MQTT_VERSION_5: u32 = ffi::MQTTVERSION_5;
-
 /////////////////////////////////////////////////////////////////////////////
 // Connections
 
@@ -435,6 +422,7 @@ mod tests {
     use std::thread;
     use std::ffi::{CStr};
     use ssl_options::SslOptionsBuilder;
+    use types::*;
     use std::os::raw::c_char;
 
     // Identifier fo a C connect options struct
@@ -445,7 +433,7 @@ mod tests {
         let opts = ConnectOptions::new();
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
-        assert_eq!(5, opts.copts.struct_version);
+        assert_eq!(6, opts.copts.struct_version);
         assert_eq!(ptr::null(), opts.copts.will);
         assert_eq!(ptr::null(), opts.copts.username);
         assert_eq!(ptr::null(), opts.copts.password);
@@ -487,7 +475,7 @@ mod tests {
 
     #[test]
     fn test_user_name() {
-        const NAME: &'static str = "some-random-name";
+        const NAME: &str = "some-random-name";
 
         let opts = ConnectOptionsBuilder::new()
                         .user_name(NAME).finalize();
@@ -507,7 +495,7 @@ mod tests {
 
     #[test]
     fn test_password() {
-        const PSWD: &'static str = "some-random-password";
+        const PSWD: &str = "some-random-password";
 
         let opts = ConnectOptionsBuilder::new()
                         .password(PSWD).finalize();
@@ -553,8 +541,8 @@ mod tests {
     fn test_assign() {
         const KEEP_ALIVE_SECS: u64 = 30;
         const MAX_INFLIGHT: i32 = 25;
-        const USER_NAME: &'static str = "some-name";
-        const PASSWORD: &'static str = "some-password";
+        const USER_NAME: &str = "some-name";
+        const PASSWORD: &str = "some-password";
         const CONNECT_TIMEOUT_SECS: u64 = 120;
 
 
