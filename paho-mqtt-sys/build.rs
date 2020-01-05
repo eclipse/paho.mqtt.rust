@@ -53,6 +53,8 @@
 // TODO: Assuming the proper installed version of the library is problematic.
 //      We should check that the version is correct, if possible.
 
+const PAHO_MQTT_C_VERSION: &str = "1.3.1";
+
 fn main() {
     build::main();
 }
@@ -72,16 +74,24 @@ fn link_lib() -> &'static str {
 
 #[cfg(not(feature = "build_bindgen"))]
 mod bindings {
-    const PAHO_MQTT_C_VERSION: &'static str = "1.3.1";
-
-    use std::{env, fs};
+    use super::*;
+    use std::{fs, env};
     use std::path::Path;
 
     pub fn place_bindings(_inc_dir: &Path) {
         let out_dir = env::var("OUT_DIR").unwrap();
         let out_path = Path::new(&out_dir).join("bindings.rs");
 
-        let bindings = format!("bindings/bindings_paho_mqtt_c_{}.rs", PAHO_MQTT_C_VERSION);
+        let target = env::var("TARGET").unwrap();
+        println!("debug:Target: {}", target);
+
+        let bindings = format!("bindings/bindings_paho_mqtt_c_{}-{}.rs",
+                               PAHO_MQTT_C_VERSION, target);
+
+        if !Path::new(&bindings).exists() {
+            panic!("No generated bindings exist for the version/target: {}", bindings);
+        }
+
         println!("debug:Using bindings from: {}", bindings);
         fs::copy(&bindings, out_path)
             .expect("Could not copy bindings to output directory");
@@ -92,7 +102,8 @@ mod bindings {
 mod bindings {
     extern crate bindgen;
 
-    use std::env;
+    use super::*;
+    use std::{fs, env};
     use std::path::{Path, PathBuf};
 
     pub fn place_bindings(inc_dir: &Path) {
@@ -118,10 +129,30 @@ mod bindings {
             .expect("Unable to generate bindings");
 
         // Write the bindings to the $OUT_DIR/bindings.rs file.
-        let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+        let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+        let out_path = out_dir.join("bindings.rs");
+
         bindings
-            .write_to_file(out_path.join("bindings.rs"))
+            .write_to_file(out_path.clone())
             .expect("Couldn't write bindings!");
+
+        // Save a copy of the bindings file into the bindings/ dir
+        // with version and target name, if it doesn't already exist
+
+        let target = env::var("TARGET").unwrap();
+        println!("debug:Target: {}", target);
+
+        let bindings = format!("bindings/bindings_paho_mqtt_c_{}-{}.rs",
+                               PAHO_MQTT_C_VERSION, target);
+
+        if !Path::new(&bindings).exists() {
+            if let Err(err) = fs::copy(out_path, &bindings) {
+                println!("debug:Error copying new binding file: {}", err);
+            }
+            else {
+                println!("debug:Created new bindings file {}", bindings)
+            }
+        }
     }
 }
 
