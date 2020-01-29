@@ -168,6 +168,11 @@ impl SslOptionsBuilder {
         self
     }
 
+    pub fn enable_server_cert_auth(&mut self, enable_server_cert_auth: bool) -> &mut SslOptionsBuilder {
+        self.enable_server_cert_auth = enable_server_cert_auth;
+        self
+    }
+
     pub fn finalize(&self) -> SslOptions {
         let mut opts = SslOptions {
             copts: ffi::MQTTAsync_SSLOptions::default(),
