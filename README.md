@@ -172,7 +172,7 @@ But each release of the the Rust crate is build against a specific version of th
 The crate comes with a number of pre-built bindings for several popular targets in: `paho-mqtt-sys/bindings`. These are files with names in the form:
 
 ```
-bindings_paho_mqtt_c_<version>-<tagret>.rs
+bindings_paho_mqtt_c_<version>-<target>.rs
 ```
 
 Some of these include:
