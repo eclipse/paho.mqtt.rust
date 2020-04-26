@@ -53,7 +53,7 @@
 // TODO: Assuming the proper installed version of the library is problematic.
 //      We should check that the version is correct, if possible.
 
-const PAHO_MQTT_C_VERSION: &str = "1.3.1";
+const PAHO_MQTT_C_VERSION: &str = "1.3.2";
 
 fn main() {
     build::main();
@@ -64,11 +64,21 @@ fn main() {
 fn link_lib() -> &'static str {
     if cfg!(feature = "ssl") {
         println!("debug:link Using SSL library");
-        "paho-mqtt3as-static"
+        if cfg!(windows) {
+            "paho-mqtt3as-static"
+        }
+        else {
+            "paho-mqtt3as"
+        }
     }
     else {
         println!("debug:link Using non-SSL library");
-        "paho-mqtt3a-static"
+        if cfg!(windows) {
+            "paho-mqtt3a-static"
+        }
+        else {
+            "paho-mqtt3a"
+        }
     }
 }
 
@@ -185,6 +195,7 @@ mod build {
 
         let mut cmk_cfg = cmake::Config::new("paho.mqtt.c/");
         cmk_cfg
+            .define("PAHO_BUILD_SHARED", "off")
             .define("PAHO_BUILD_STATIC", "on")
             .define("PAHO_ENABLE_TESTING", "off")
             .define("PAHO_WITH_SSL", ssl);
@@ -239,8 +250,15 @@ mod build {
 
         // Link in the SSL libraries if configured for it.
         if cfg!(feature = "ssl") {
-            println!("cargo:rustc-link-lib=ssl");
-            println!("cargo:rustc-link-lib=crypto");
+            if cfg!(windows) {
+                println!("cargo:rustc-link-lib=libssl");
+                println!("cargo:rustc-link-lib=libcrypto");
+                //println!("cargo:rustc-link-search={}", "C:\\OpenSSL-Win64\\lib");
+            }
+            else {
+                println!("cargo:rustc-link-lib=ssl");
+                println!("cargo:rustc-link-lib=crypto");
+            }
         }
 
         // we add the folder where all the libraries are built to the path search

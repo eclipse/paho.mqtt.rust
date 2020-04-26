@@ -97,6 +97,7 @@ impl Default for MQTTAsync_connectOptions {
                 len: 0,
                 data: ptr::null(),
             },
+            httpHeaders: ptr::null(),
             cleanstart: 0,
             connectProperties: ptr::null_mut(),
             willProperties: ptr::null_mut(),

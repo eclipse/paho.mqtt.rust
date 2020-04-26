@@ -29,7 +29,7 @@ The initial version of this crate is a wrapper for the Paho C library, similar t
     - Traditional asynchronous (token/wait) API
     - Synchronous/blocking  API
 
-Supports Paho C v1.3.1
+Supports Paho C v1.3.2
 
 ## Latest News
 
@@ -87,7 +87,7 @@ Generates reference documentation.
 
 ###  The Paho C Library and _paho-mqtt-sys_
 
-The Paho Rust crate is a wrapper around the Paho C library. This version is **specifically matched to Paho C v 1.3.x**, and is currently using version 1.3.1. It will generally not build against newer versions of the C library, as the C lib expands functionality by extending structures, thus breaking the Rust build.
+The Paho Rust crate is a wrapper around the Paho C library. This version is **specifically matched to Paho C v 1.3.x**, and is currently using version 1.3.2. It will generally not build against newer versions of the C library, as the C lib expands functionality by extending structures, thus breaking the Rust build.
 
 The project includes a Rust _-sys_ crate, called _paho-mqtt-sys_, which provides unsafe bindings to the C library.  The repository contains a Git submodule pointing to the specific version of the C library that the Rust crate requires, and by default, it will automatically build and link to that library, using pre-generated C bindings that are also included in the repo.
 
@@ -159,11 +159,49 @@ Again, the "ssl" feature can be omitted if it is not desired.
 
 This option should be used with caution when building an application that will ship independetly of the target system, since it assumes a _very specific_ version of the C library and will fail if that is not the one on the target.
 
-#### Bindgen linker issue
+#### Rust-C Bindings
 
-As described above, the crate can optionally use the Rust _bindgen_ library to create the bindings to the Paho C library.
+As described above, the crate can optionally use _bindgen_ to create the bindings to the Paho C library.
 
 https://rust-lang-nursery.github.io/rust-bindgen/
+
+Generating bindings each time you build the Rust crate is time consuming and uses a lot of resources. This is especially noticeable when building natively on a small target like an ARM board, or similar.
+
+But each release of the the Rust crate is build against a specific version of the Paho C library, which means that for a specific target, the bindings never change from build to build. Therefore, we can create the bindings once for a target and then use them for a speedy build after that.
+
+The crate comes with a number of pre-built bindings for several popular targets in: `paho-mqtt-sys/bindings`. These are files with names in the form:
+
+```
+bindings_paho_mqtt_c_<version>-<tagret>.rs
+```
+
+Some of these include:
+
+```
+bindings_paho_mqtt_c_1.3.2-x86_64-unknown-linux-gnu.rs
+bindings_paho_mqtt_c_1.3.2-x86_64-pc-windows-msvc.rs
+bindings_paho_mqtt_c_1.3.2-i686-pc-windows-msvc.rs
+bindings_paho_mqtt_c_1.3.2-aarch64-unknown-linux-gnu.rs
+bindings_paho_mqtt_c_1.3.2-armv7-unknown-linux-gnueabihf.rs
+bindings_paho_mqtt_c_1.3.2-default-32.rs
+bindings_paho_mqtt_c_1.3.2-default-64.rs
+```
+
+Bidings can be created for new versions of the Paho C library or for different target platforms using the command-line _bindgen_ tool. For example on an x86 version of Windows using MSVC, you can re-generate the bindings like this:
+
+```
+$ cd paho-mqtt-sys
+$ bindgen wrapper.h -o bindings/bindings_paho_mqtt_c_1.3.2-x86_64-pc-windows-msvc.rs -- -Ipaho.mqtt.c/src
+```
+
+To create bindings for a different target, use the _TARGET_ environment variable. For example, to build the 32-bit MSVC bindings for Windows on a 64-bit host, use the _i686-pc-windows-msvc_ target:
+
+```
+$ TARGET=i686-pc-windows-msvc bindgen wrapper.h -o bindings/bindings_paho_mqtt_c_1.3.2-i686-pc-windows-msvc.rs -- -Ipaho.mqtt.c/src
+```
+
+
+##### Bindgen linker issue
 
 Bindgen requires a relatively recent version of the Clang library installed on the system - recommended v3.9 or later. The bindgen dependencies seem, however, to seek out the oldest Clang version if multiple ones are installed on the system. On Ubuntu 14.04 or 16.04, the Clang v3.6 default might give some problems, although as the Paho builder is currently configured, it should work.
 
