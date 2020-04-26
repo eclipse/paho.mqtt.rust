@@ -189,6 +189,10 @@ mod build {
             .define("PAHO_ENABLE_TESTING", "off")
             .define("PAHO_WITH_SSL", ssl);
 
+        if cfg!(windows) {
+            cmk_cfg.cflag("/DWIN32");
+        }
+
         if let Ok(ssl_sp) = env::var("OPENSSL_SEARCH_PATH") {
             cmk_cfg.define("OPENSSL_SEARCH_PATH", format!("{}", ssl_sp));
         }
