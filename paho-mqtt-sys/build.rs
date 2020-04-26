@@ -204,8 +204,8 @@ mod build {
             cmk_cfg.cflag("/DWIN32");
         }
 
-        if let Ok(ssl_sp) = env::var("OPENSSL_SEARCH_PATH") {
-            cmk_cfg.define("OPENSSL_SEARCH_PATH", format!("{}", ssl_sp));
+        if let Ok(ssl_sp) = env::var("OPENSSL_ROOT_DIR") {
+            cmk_cfg.define("OPENSSL_ROOT_DIR", format!("{}", ssl_sp));
         }
 
         // 'cmk' is a PathBuf to the cmake install directory
@@ -253,11 +253,23 @@ mod build {
             if cfg!(windows) {
                 println!("cargo:rustc-link-lib=libssl");
                 println!("cargo:rustc-link-lib=libcrypto");
-                //println!("cargo:rustc-link-search={}", "C:\\OpenSSL-Win64\\lib");
+                if let Ok(ssl_sp) = env::var("OPENSSL_ROOT_DIR") {
+                    println!("cargo:rustc-link-search={}\\lib", ssl_sp);
+                }
+                else {
+                    #[cfg(target_arch = "x86")]
+                    println!("cargo:rustc-link-search={}\\lib", "C:\\OpenSSL-Win32");
+
+                    #[cfg(target_arch = "x86_64")]
+                    println!("cargo:rustc-link-search={}\\lib", "C:\\OpenSSL-Win64");
+                };
             }
             else {
                 println!("cargo:rustc-link-lib=ssl");
                 println!("cargo:rustc-link-lib=crypto");
+                if let Ok(ssl_sp) = env::var("OPENSSL_ROOT_DIR") {
+                    println!("cargo:rustc-link-search={}/lib", ssl_sp);
+                }
             }
         }
 
