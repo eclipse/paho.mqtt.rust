@@ -6,12 +6,11 @@ This repository contains the source code for the [Eclipse Paho](http://eclipse.o
 
 The Rust crate is a safe wrapper around the Paho C Library. 
 
-Most development and deployment has being done on Linux. Please let us know about any success or failure on other systems.
-
 ## Features
 
-The initial version of this crate is a wrapper for the Paho C library, similar to the implementation for the current Paho C++ library. It targets MQTT v3.1, 3.1.1, and v5, and includes all of the features available in the C library for those versions, including:
+The initial version of this crate is a wrapper for the Paho C library, and includes all of the features available in that library, including:
 
+- Supports MQTT v5, 3.1.1, and 3.1
 - Network Transports:
     - Standard TCP support
     - SSL / TLS
@@ -33,11 +32,9 @@ Supports Paho C v1.3.2
 
 ## Latest News
 
-Work is nearly complete to implement MQTT v5! A formal release is due in January 2020.
+Version 0.7 brings full support for MQTT v5.
 
-This upcoming release will still target Futures v0.1 and Rust Edition 2015.
-
-Once out the door, work will start to move the library to modern Rust, including upgrading to the 2018 Edition and upgrading to Futures 0.3. This will hinge on the state of Futures and async/await at that time.
+Work has started to move the library to modern Rust, including upgrading to the 2018 Edition and implementing the asynchronous client using async/await. That should hopefully be complete by June 2020.
 
 To keep up with the latest announcements for this project, follow:
 
@@ -47,23 +44,30 @@ To keep up with the latest announcements for this project, follow:
 
 **Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
 
-### Unreleased Features in this Branch
+### What's new in v0.7
 
-Work is ongoing to bring full MQTT v5 support. The following is already complete:
+Version 0.7 brings full support for MQTT v5, including:
 
 - Ability to create an MQTT v5 client and request a v5 connection to the server.
 - MQTT v5 `Properties` (for connect, publish, incoming messages, etc)
 - `ReasonCode` and better error notifications.
 - [Breaking] Restored the single `Token` type, getting rid of separate implementations of `ConnectToken`, `SubscribeToken`, etc.
 - Subscribe options, such as "No Local," etc.
-- `Topic` objects can now be used to subscribe to said topics. 
+- `Topic` objects can now be used to subscribe.
+- New callback `on_disconnect()` for when the client receives a disconnect packet from the server, complete with a reason code and properties.
 - Example for a simple chat application _(mqttrs_chat)_ using the v5 "No Local" subscription option. The publisher does not get their own messages echoed back to them.
  - Examples for RPC using v5 _Properties_ for _ResponseTopic_ and _CorrelationData:_
      - A math RPC service/server _(rpc_math_srvr)_ that performs basic operations on a list of numbers. 
      - A math RPC client  _(rpc_math_cli)_ that can send requests.
+
+Also:
+
 - Fix for #48: Sends a _None_ (and exits consumer) on manual disconnect.
 - Fix for #49: Supporting `on_connect()` callback.
 - Fix for #51: Segfault on `subscribe_many()` with a single topic.
+- The build now uses the environment variable `OPENSSL_ROOT_DIR` to help find the SSL libraries in a non-standard install directory.
+
+Note that v0.7 still targets Futures v0.1 and Rust Edition 2015. Support for async/await, and std Future (0.3) will be coming shortly in v0.8.
 
 ## Building the Crate
 
@@ -116,12 +120,18 @@ When building the bundled libraries, the bindings can also be regenerated at bui
     
 In this case it will generate bindings based on the header files in the bundled C repository.
 
-The cached versions of the bindings were created on an x86_64 PC running Linux. When compiling on a different machine or cross-compiling, it is recommended to use "build_bindgen" to regenerate the bindings for that target.
+The cached versions of the bindings are target-specific. If the pre-generated version doesn't exist for the target, it will need to be generated.
 
 
-#### Building the Paho C library without SSL/TLS
+#### Building the Paho C library with or without SSL/TLS
 
-The crate can build the bundled Paho C library without secure sockets:
+Building with SSL happens automatically as "ssl" is a default feature. It requires the OpenSSL libraries be installed for the target. If they are in a non-standard place, then the `OPENSSL_ROOT_DIR` environment variable should be set, pointing at the top-level install path, with the .lib, .a and other library files in a `lib/` directory just under the root. Use like:
+
+    $ export OPENSSL_ROOT_DIR=/home/myacct/openssl
+
+or wherever the library was installed.
+
+The crate can also be build without SSL by using `--no-default-features`. For example, to build the bundled Paho C library without secure sockets:
 
     $ cargo build --no-default-features --features "bundled"
 
@@ -199,7 +209,6 @@ To create bindings for a different target, use the _TARGET_ environment variable
 ```
 $ TARGET=i686-pc-windows-msvc bindgen wrapper.h -o bindings/bindings_paho_mqtt_c_1.3.2-i686-pc-windows-msvc.rs -- -Ipaho.mqtt.c/src
 ```
-
 
 ##### Bindgen linker issue
 
