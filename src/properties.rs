@@ -102,7 +102,6 @@ impl PropertyCode {
 /////////////////////////////////////////////////////////////////////////////
 
 /// A single MQTT v5 property.
-#[derive(Debug)]
 pub struct Property {
     pub(crate) cprop: ffi::MQTTProperty,
 }
@@ -532,7 +531,6 @@ impl Default for Properties {
 }
 
 unsafe impl Send for Properties {}
-//unsafe impl Sync for Properties {}
 
 impl Clone for Properties {
     /// Creates a clone of the property.
