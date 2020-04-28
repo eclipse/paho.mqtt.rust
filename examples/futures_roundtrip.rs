@@ -29,11 +29,8 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-extern crate log;
-extern crate env_logger;
-extern crate futures;
-extern crate paho_mqtt as mqtt;
 
+use paho_mqtt as mqtt;
 use std::{process};
 use std::time::Duration;
 use futures::{Future, Stream};
@@ -100,4 +97,3 @@ fn main() {
         process::exit(3);
     });
 }
-

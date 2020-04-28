@@ -21,10 +21,10 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use async_client::{AsyncClient};
-use token::{Token, DeliveryToken};
-use subscribe_options::SubscribeOptions;
-use message::Message;
+use crate::async_client::{AsyncClient};
+use crate::token::{DeliveryToken};
+use crate::subscribe_options::SubscribeOptions;
+use crate::message::Message;
 
 /////////////////////////////////////////////////////////////////////////////
 //                              Topic
@@ -110,5 +110,4 @@ impl<'a> Topic<'a>
         self.cli.publish(msg)
     }
 }
-
 

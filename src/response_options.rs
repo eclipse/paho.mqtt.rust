@@ -24,9 +24,9 @@
 
 use std::os::raw::c_int;
 
-use ffi;
-use token::{Token, TokenInner};
-use subscribe_options::SubscribeOptions;
+use crate::ffi;
+use crate::token::{Token, TokenInner};
+use crate::subscribe_options::SubscribeOptions;
 
 /// The collection of options for responses coming back to the client.
 #[derive(Debug)]
@@ -101,8 +101,12 @@ impl ResponseOptions {
 #[cfg(test)]
 mod tests {
     use super::*;
+<<<<<<< HEAD
     use token::{Token};
     use types::*;
+=======
+    use crate::token::{Token};
+>>>>>>> 2ea6466c98013290a5ec57b0c53ab95b19eb997f
 
     #[test]
     fn test_new() {

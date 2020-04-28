@@ -28,12 +28,8 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-extern crate futures;
-#[macro_use]
-extern crate log;
-extern crate env_logger;
-extern crate paho_mqtt as mqtt;
-
+use log::{trace, debug};
+use paho_mqtt as mqtt;
 use std::{env, process};
 use std::collections::HashMap;
 use futures::Future;

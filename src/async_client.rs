@@ -30,10 +30,8 @@
 //! wait for the connection to complete.
 //!
 //! ```
-//! extern crate futures;
-//! extern crate paho_mqtt as mqtt;
-//!
 //! use futures::future::Future;
+//! use paho_mqtt as mqtt;
 //!
 //! let cli = mqtt::AsyncClient::new("tcp://localhost:1883").unwrap();
 //!
@@ -53,22 +51,22 @@ use std::sync::{Arc, Mutex};
 use std::ffi::{CString, CStr};
 use std::os::raw::{c_void, c_char, c_int};
 
-use ffi;
+use crate::ffi;
 
-use create_options::{CreateOptions,PersistenceType};
-use connect_options::ConnectOptions;
-use disconnect_options::{DisconnectOptions,DisconnectOptionsBuilder};
-use subscribe_options::SubscribeOptions;
-use response_options::ResponseOptions;
-use server_response::ServerRequest;
-use properties::Properties;
-use message::Message;
-use token::{Token, ConnectToken, DeliveryToken, SubscribeToken, SubscribeManyToken};
-use client_persistence::UserPersistence;
-use errors;
-use errors::{MqttResult, ErrorKind};
-use string_collection::{StringCollection};
-use types::ReasonCode;
+use crate::create_options::{CreateOptions,PersistenceType};
+use crate::connect_options::ConnectOptions;
+use crate::disconnect_options::{DisconnectOptions,DisconnectOptionsBuilder};
+use crate::subscribe_options::SubscribeOptions;
+use crate::response_options::ResponseOptions;
+use crate::server_response::ServerRequest;
+use crate::properties::Properties;
+use crate::message::Message;
+use crate::token::{Token, ConnectToken, DeliveryToken, SubscribeToken, SubscribeManyToken};
+use crate::client_persistence::UserPersistence;
+use crate::errors;
+use crate::errors::{MqttResult, ErrorKind};
+use crate::string_collection::{StringCollection};
+use crate::types::ReasonCode;
 
 /////////////////////////////////////////////////////////////////////////////
 // AsynClient
@@ -1049,7 +1047,7 @@ mod tests {
     use super::*;
     use std::thread;
     use std::sync::Arc;
-    use create_options::{CreateOptionsBuilder};
+    use crate::create_options::{CreateOptionsBuilder};
     use futures::Future;
 
     // Makes sure than when a client is moved, the inner struct stayes at

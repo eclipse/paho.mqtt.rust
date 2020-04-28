@@ -32,31 +32,26 @@
 // Temporary
 #![allow(dead_code)]
 
-extern crate futures;
-extern crate futures_timer;
-
-#[macro_use]
-extern crate log;
-
+#[macro_use] extern crate log;
 extern crate paho_mqtt_sys as ffi;
 
-pub use async_client::*;        //{AsyncClient, AsyncClientBuilder};
-pub use client::*;              //{Client, ClientBuilder};
-pub use create_options::*;      //{CreateOptions, CreateOptionsBuilder};
-pub use connect_options::*;     //{ConnectOptions, ConnectOptionsBuilder, MQTT_VERSION_3_1_1, ...};
-pub use will_options::*;        //{WillOptions, WillOptionsBuilder};
-pub use ssl_options::*;         //{SslOptions, SslOptionsBuilder};
-pub use disconnect_options::*;  //{DisconnectOptions, DisconnectOptionsBuilder};
-pub use subscribe_options::*;   //{SubscribeOptions};
-pub use response_options::*;    //{ResponseOptions};
-pub use server_response::*;     //{ServerResponse, CommandResponse};
-pub use properties::*;          //{Property, Properties};
-pub use message::*;             //{Message, MessageBuilder};
-pub use token::*;               //{Token}
-pub use topic::*;               //{Topic}
-pub use types::*;               //{ReasonCode}
-pub use client_persistence::*;
-pub use errors::*;              //{MqttResult, MqttError, ErrorKind};
+pub use crate::async_client::*;        //{AsyncClient, AsyncClientBuilder};
+pub use crate::client::*;              //{Client, ClientBuilder};
+pub use crate::create_options::*;      //{CreateOptions, CreateOptionsBuilder};
+pub use crate::connect_options::*;     //{ConnectOptions, ConnectOptionsBuilder, MQTT_VERSION_3_1_1, ...};
+pub use crate::will_options::*;        //{WillOptions, WillOptionsBuilder};
+pub use crate::ssl_options::*;         //{SslOptions, SslOptionsBuilder};
+pub use crate::disconnect_options::*;  //{DisconnectOptions, DisconnectOptionsBuilder};
+pub use crate::subscribe_options::*;   //{SubscribeOptions};
+pub use crate::response_options::*;    //{ResponseOptions};
+pub use crate::server_response::*;     //{ServerResponse, CommandResponse};
+pub use crate::properties::*;          //{Property, Properties};
+pub use crate::message::*;             //{Message, MessageBuilder};
+pub use crate::token::*;               //{Token}
+pub use crate::topic::*;               //{Topic}
+pub use crate::types::*;               //{ReasonCode}
+pub use crate::client_persistence::*;
+pub use crate::errors::*;              //{MqttResult, MqttError, ErrorKind};
 
 //pub mod mqtt;
 mod macros;
@@ -119,4 +114,3 @@ pub mod string_collection;
 #[cfg(test)]
 mod tests {
 }
-

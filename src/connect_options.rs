@@ -24,17 +24,17 @@
 //! This contains the structures to define the options for connecting to the
 //! MQTT broker/server.
 
-use ffi;
+use crate::ffi;
 use std::ptr;
 use std::time::Duration;
 use std::ffi::CString;
 use std::os::raw::c_int;
 
-use token::{ConnectToken, Token, TokenInner};
-use message::Message;
-use will_options::WillOptions;
-use ssl_options::SslOptions;
-use string_collection::StringCollection;
+use crate::token::{ConnectToken, Token, TokenInner};
+use crate::message::Message;
+use crate::will_options::WillOptions;
+use crate::ssl_options::SslOptions;
+use crate::string_collection::StringCollection;
 
 /////////////////////////////////////////////////////////////////////////////
 // Connections
@@ -418,12 +418,12 @@ impl ConnectOptionsBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::thread;
     use std::ffi::{CStr};
-    use ssl_options::SslOptionsBuilder;
-    use types::*;
     use std::os::raw::c_char;
+    use crate::ssl_options::SslOptionsBuilder;
+    use crate::types::*;
+    use super::*;
 
     // Identifier fo a C connect options struct
     const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'C' as c_char ];

@@ -1,5 +1,5 @@
 // client_persistence.rs
-// 
+//
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 //
 
@@ -19,15 +19,15 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-extern crate libc;
+use libc;
 
 use std::{ptr, slice, mem};
 use std::ffi::{CString, CStr};
 use std::os::raw::{c_void, c_char, c_int};
 
-use ffi;
+use crate::ffi;
 
-use errors::MqttResult;
+use crate::errors::MqttResult;
 
 // TODO: Should we have a specific PersistenceResult/Error?
 
@@ -348,4 +348,3 @@ mod tests {
     }
     */
 }
-

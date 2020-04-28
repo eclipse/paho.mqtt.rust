@@ -23,7 +23,7 @@ use std::fmt;
 use std::io;
 use std::str::Utf8Error;
 
-use ffi;
+use crate::ffi;
 
 // Gets the string associated with the error code from the C lib.
 pub fn error_message(rc: i32) -> &'static str {
@@ -177,7 +177,7 @@ impl error::Error for MqttError {
 }
 
 impl fmt::Display for MqttError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match self.repr {
             ErrorRepr::WithDescription(_, _err, desc) => desc.fmt(f),
             ErrorRepr::WithDescriptionAndDetail(_, err_code, desc, ref detail) => {
@@ -196,7 +196,7 @@ impl fmt::Display for MqttError {
 }
 
 impl fmt::Debug for MqttError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         fmt::Display::fmt(self, f)
     }
 }

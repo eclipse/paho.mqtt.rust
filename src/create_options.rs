@@ -23,8 +23,8 @@
 use std::fmt;
 use std::os::raw::c_int;
 
-use ffi;
-use client_persistence::ClientPersistence;
+use crate::ffi;
+use crate::client_persistence::ClientPersistence;
 
 /*
 Remember the C constants (c_uint)
@@ -44,7 +44,7 @@ pub enum PersistenceType {
 }
 
 impl fmt::Debug for PersistenceType {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match *self {
 			PersistenceType::File => write!(f, "File"),
 			PersistenceType::None => write!(f, "None"),
@@ -134,7 +134,7 @@ impl Default for CreateOptions {
 /// # Examples
 ///
 /// ```
-/// extern crate paho_mqtt as mqtt;
+/// use paho_mqtt as mqtt;
 ///
 /// let opts = mqtt::CreateOptionsBuilder::new()
 ///                    .server_uri("tcp://localhost:1883")
