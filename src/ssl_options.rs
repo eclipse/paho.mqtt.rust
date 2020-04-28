@@ -19,9 +19,11 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::ptr;
-use std::ffi::{CString};
-use std::os::raw::{c_char};
+use std::{
+    ptr,
+    ffi::{CString},
+    os::raw::{c_char},
+};
 
 use crate::ffi;
 

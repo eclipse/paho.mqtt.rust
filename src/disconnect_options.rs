@@ -25,10 +25,12 @@
 //! This contains the structures to define the options for disconnecting from
 //! the MQTT broker/server.
 
-use crate::ffi;
 use std::time::Duration;
 
-use crate::token::{Token, TokenInner};
+use crate::{
+    ffi,
+    token::{Token, TokenInner},
+};
 
 /// The collection of options for disconnecting from the client.
 #[derive(Debug)]

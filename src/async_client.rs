@@ -44,29 +44,49 @@
 //! tok.wait().unwrap();
 //! ```
 
-use std::str;
-use std::{ptr, slice, mem};
-use std::time::Duration;
-use std::sync::{Arc, Mutex};
-use std::ffi::{CString, CStr};
-use std::os::raw::{c_void, c_char, c_int};
+use std::{
+    str,
+    ptr,
+    slice,
+    mem,
+    time::Duration,
+    sync::{Arc, Mutex},
+    ffi::{CString, CStr},
+    os::raw::{c_void, c_char, c_int},
+};
 
-use crate::ffi;
-
-use crate::create_options::{CreateOptions,PersistenceType};
-use crate::connect_options::ConnectOptions;
-use crate::disconnect_options::{DisconnectOptions,DisconnectOptionsBuilder};
-use crate::subscribe_options::SubscribeOptions;
-use crate::response_options::ResponseOptions;
-use crate::server_response::ServerRequest;
-use crate::properties::Properties;
-use crate::message::Message;
-use crate::token::{Token, ConnectToken, DeliveryToken, SubscribeToken, SubscribeManyToken};
-use crate::client_persistence::UserPersistence;
-use crate::errors;
-use crate::errors::{MqttResult, ErrorKind};
-use crate::string_collection::{StringCollection};
-use crate::types::ReasonCode;
+use crate::{
+    ffi,
+    create_options::{
+        CreateOptions,
+        PersistenceType
+    },
+    connect_options::ConnectOptions,
+    disconnect_options::{
+        DisconnectOptions,
+        DisconnectOptionsBuilder
+    },
+    subscribe_options::SubscribeOptions,
+    response_options::ResponseOptions,
+    server_response::ServerRequest,
+    properties::Properties,
+    message::Message,
+    token::{
+        Token,
+        ConnectToken,
+        DeliveryToken,
+        SubscribeToken,
+        SubscribeManyToken,
+    },
+    client_persistence::UserPersistence,
+    errors::{
+        self,
+        MqttResult,
+        ErrorKind,
+    },
+    string_collection::StringCollection,
+    types::ReasonCode,
+};
 
 /////////////////////////////////////////////////////////////////////////////
 // AsynClient

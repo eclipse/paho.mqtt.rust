@@ -19,15 +19,19 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::slice;
-use std::ffi::{CString};
-use std::os::raw::c_void;
-use std::convert::From;
-use std::borrow::Cow;
-use std::fmt;
+use std::{
+    slice,
+    ffi::{CString},
+    os::raw::c_void,
+    convert::From,
+    borrow::Cow,
+    fmt,
+};
 
-use crate::ffi;
-use crate::properties::Properties;
+use crate::{
+    ffi,
+    properties::Properties,
+};
 
 /// A `Message` represents all the information passed in an MQTT PUBLISH
 /// packet.

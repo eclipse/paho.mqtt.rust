@@ -25,8 +25,10 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::ffi::{CString};
-use std::os::raw::{c_char};
+use std::{
+    ffi::CString,
+    os::raw::c_char,
+};
 
 /// A collection of C-compatible (NUL-terminated) strings that is useful with
 /// C API's that require an array of strings, normally specified as:

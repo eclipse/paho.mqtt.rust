@@ -20,11 +20,15 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::fmt;
-use std::os::raw::c_int;
+use std::{
+    fmt,
+    os::raw::c_int,
+};
 
-use crate::ffi;
-use crate::client_persistence::ClientPersistence;
+use crate::{
+    ffi,
+    client_persistence::ClientPersistence,
+};
 
 /*
 Remember the C constants (c_uint)

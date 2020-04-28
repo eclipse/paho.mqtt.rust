@@ -19,15 +19,19 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
+use std::{
+    ptr,
+    slice,
+    mem,
+    ffi::{CString, CStr},
+    os::raw::{c_void, c_char, c_int},
+};
 use libc;
 
-use std::{ptr, slice, mem};
-use std::ffi::{CString, CStr};
-use std::os::raw::{c_void, c_char, c_int};
-
-use crate::ffi;
-
-use crate::errors::MqttResult;
+use crate::{
+    ffi,
+    errors::MqttResult,
+};
 
 // TODO: Should we have a specific PersistenceResult/Error?
 

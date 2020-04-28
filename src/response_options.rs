@@ -24,9 +24,14 @@
 
 use std::os::raw::c_int;
 
-use crate::ffi;
-use crate::token::{Token, TokenInner};
-use crate::subscribe_options::SubscribeOptions;
+use crate::{
+    ffi,
+    token::{
+        Token,
+        TokenInner,
+    },
+    subscribe_options::SubscribeOptions,
+};
 
 /// The collection of options for responses coming back to the client.
 #[derive(Debug)]

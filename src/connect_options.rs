@@ -24,17 +24,25 @@
 //! This contains the structures to define the options for connecting to the
 //! MQTT broker/server.
 
-use crate::ffi;
-use std::ptr;
-use std::time::Duration;
-use std::ffi::CString;
-use std::os::raw::c_int;
+use std::{
+    ptr,
+    time::Duration,
+    ffi::CString,
+    os::raw::c_int,
+};
 
-use crate::token::{ConnectToken, Token, TokenInner};
-use crate::message::Message;
-use crate::will_options::WillOptions;
-use crate::ssl_options::SslOptions;
-use crate::string_collection::StringCollection;
+use crate::{
+    ffi,
+    token::{
+        ConnectToken,
+        Token,
+        TokenInner,
+    },
+    message::Message,
+    will_options::WillOptions,
+    ssl_options::SslOptions,
+    string_collection::StringCollection,
+};
 
 /////////////////////////////////////////////////////////////////////////////
 // Connections

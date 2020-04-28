@@ -33,8 +33,10 @@
 
 use std::ffi::CStr;
 
-use crate::ffi;
-use crate::properties::{Properties};
+use crate::{
+    ffi,
+    properties::{Properties},
+};
 
 /////////////////////////////////////////////////////////////////////////////
 // ServerRequest

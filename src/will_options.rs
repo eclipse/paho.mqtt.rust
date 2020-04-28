@@ -28,14 +28,17 @@
 //   let opts = ConnectOptionsBuilder::new().will_message(lwt).finalize();
 //
 
-use std::ptr;
-use std::ffi::CString;
-use std::os::raw::c_void;
-use std::borrow::Cow;
+use std::{
+    ptr,
+    ffi::CString,
+    os::raw::c_void,
+    borrow::Cow,
+};
 
-use crate::ffi;
-
-use crate::message::Message;
+use crate::{
+    ffi,
+    message::Message,
+};
 
 /// The options for the Last Will and Testament (LWT).
 /// This defines a message that is registered with the the server at the time

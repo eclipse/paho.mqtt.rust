@@ -27,16 +27,20 @@
 //!
 //! The synchronous calls use a default timeout
 
-use std::time::Duration;
-use std::sync::mpsc;
+use std::{
+    time::Duration,
+    sync::mpsc,
+};
 
-use crate::async_client::AsyncClient;
-use crate::create_options::CreateOptions;
-use crate::connect_options::ConnectOptions;
-use crate::disconnect_options::DisconnectOptions;
-use crate::server_response::ServerResponse;
-use crate::message::Message;
-use crate::errors::MqttResult;
+use crate::{
+    async_client::AsyncClient,
+    create_options::CreateOptions,
+    connect_options::ConnectOptions,
+    disconnect_options::DisconnectOptions,
+    server_response::ServerResponse,
+    message::Message,
+    errors::MqttResult,
+};
 
 /////////////////////////////////////////////////////////////////////////////
 // Client

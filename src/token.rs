@@ -31,26 +31,32 @@
 //! combined with any other Rust futures.
 //!
 
-use std::ptr;
-use std::time::Duration;
-use std::sync::{Arc, Mutex};
-use std::ffi::CStr;
-use std::os::raw::c_void;
-use std::convert::Into;
-
-use futures::{Future, Async};
-use futures::task;
-use futures::task::Task;
+use std::{
+    ptr,
+    time::Duration,
+    sync::{Arc, Mutex},
+    ffi::CStr,
+    os::raw::c_void,
+    convert::Into,
+};
+use futures::{
+    Future,
+    Async,
+    task::{
+        self,
+        Task,
+    },
+};
 use futures_timer::FutureExt;
 
-use crate::ffi;
-use crate::async_client::{AsyncClient};
-use crate::types::ReasonCode;
-use crate::message::Message;
-//use crate::properties::{Properties};
-use crate::server_response::{ServerRequest, ServerResponse};
-use crate::errors;
-use crate::errors::{MqttResult, MqttError};
+use crate::{
+    ffi,
+    async_client::{AsyncClient},
+    types::ReasonCode,
+    message::Message,
+    server_response::{ServerRequest, ServerResponse},
+    errors::{self, MqttResult, MqttError},
+};
 
 /////////////////////////////////////////////////////////////////////////////
 // TokenData

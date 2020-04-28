@@ -21,10 +21,15 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use crate::async_client::{AsyncClient};
-use crate::token::{Token, DeliveryToken};
-use crate::subscribe_options::SubscribeOptions;
-use crate::message::Message;
+use crate::{
+    async_client::AsyncClient,
+    token::{
+        Token,
+        DeliveryToken,
+    },
+    subscribe_options::SubscribeOptions,
+    message::Message,
+};
 
 /////////////////////////////////////////////////////////////////////////////
 //                              Topic
