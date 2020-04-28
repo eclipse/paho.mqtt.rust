@@ -1,6 +1,6 @@
 [package]
 name = "paho-mqtt"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Frank Pagliughi <fpagliughi@mindspring.com>"]
 homepage = "https://github.com/eclipse/paho.mqtt.rust"
 repository = "https://github.com/eclipse/paho.mqtt.rust"
@@ -13,7 +13,7 @@ This is a wrapper around the Paho C library.
 """
 
 [dependencies]
-paho-mqtt-sys = { version = "0.2.2", path = "paho-mqtt-sys", default-features=false }
+paho-mqtt-sys = { version = "0.3", path = "paho-mqtt-sys", default-features=false }
 libc = "0.2"
 futures = "0.1"
 futures-timer = "0.1"
