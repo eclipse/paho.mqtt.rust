@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.7.1](https://github.com/eclipse/paho.mqtt.rust/compare/v0.7..v0.7.1) - 2020-04-28
+
+It turned out that the update to the -sys crate in v0.7 was a breaking change. This just bumps the version numbers to indicate that, so as not to break v0.6 builds via crates.io
+
 ## [v0.7](https://github.com/eclipse/paho.mqtt.rust/compare/v0.6..v0.7) - 2020-04-27
 
 Version 0.7 brings full support for MQTT v5, including:
