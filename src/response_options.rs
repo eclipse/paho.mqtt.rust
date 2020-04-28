@@ -101,12 +101,8 @@ impl ResponseOptions {
 #[cfg(test)]
 mod tests {
     use super::*;
-<<<<<<< HEAD
-    use token::{Token};
-    use types::*;
-=======
     use crate::token::{Token};
->>>>>>> 2ea6466c98013290a5ec57b0c53ab95b19eb997f
+    use crate::types::*;
 
     #[test]
     fn test_new() {

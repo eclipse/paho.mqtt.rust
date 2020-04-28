@@ -22,7 +22,7 @@
  *******************************************************************************/
 
 use crate::async_client::{AsyncClient};
-use crate::token::{DeliveryToken};
+use crate::token::{Token, DeliveryToken};
 use crate::subscribe_options::SubscribeOptions;
 use crate::message::Message;
 

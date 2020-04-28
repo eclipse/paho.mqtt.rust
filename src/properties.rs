@@ -27,8 +27,8 @@ use std::{mem, ptr};
 use std::ffi::CString;
 use std::os::raw::{c_int, c_char};
 
-use ffi;
-use errors::{MqttResult, MqttError};
+use crate::ffi;
+use crate::errors::{MqttResult, MqttError};
 
 /// The Property `value` union type.
 pub type Value = ffi::MQTTProperty__bindgen_ty_1;

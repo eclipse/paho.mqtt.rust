@@ -45,7 +45,7 @@ use futures_timer::FutureExt;
 
 use crate::ffi;
 use crate::async_client::{AsyncClient};
-use cratetypes::ReasonCode;
+use crate::types::ReasonCode;
 use crate::message::Message;
 //use crate::properties::{Properties};
 use crate::server_response::{ServerRequest, ServerResponse};
