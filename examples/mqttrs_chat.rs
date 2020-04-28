@@ -29,15 +29,16 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-extern crate futures;
-extern crate log;
-extern crate env_logger;
-extern crate serde_json;
-extern crate paho_mqtt as mqtt;
-
-use std::{env, process, io};
-use std::time::Duration;
+use std::{
+    env,
+    process,
+    io,
+    time::Duration,
+};
 use futures::Future;
+use paho_mqtt as mqtt;
+
+/////////////////////////////////////////////////////////////////////////////
 
 fn main() -> mqtt::MqttResult<()> {
     // Initialize the logger from the environment

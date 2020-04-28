@@ -28,16 +28,22 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use log::{trace, debug};
-use paho_mqtt as mqtt;
-use std::{env, process};
-use std::collections::HashMap;
+use std::{
+    env,
+    process,
+    collections::HashMap,
+};
+use log::{
+    trace,
+    debug
+};
 use futures::Future;
+use paho_mqtt as mqtt;
 
 // Use a non-zero QOS to exercise the persistence store
 const QOS: i32 = 1;
 
-// --------------------------------------------------------------------------
+/////////////////////////////////////////////////////////////////////////////
 
 /// The ClientPersistence maps pretty closely to a key/val store. We can use
 /// a Rust HashMap to implement an in-memory persistence pretty easily.

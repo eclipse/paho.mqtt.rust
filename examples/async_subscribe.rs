@@ -32,14 +32,20 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-
 use paho_mqtt as mqtt;
-use std::{env, process, thread};
-use std::time::Duration;
+
+use std::{
+    env,
+    process,
+    thread,
+    time::Duration
+};
 
 // The topics to which we subscribe.
 const TOPICS: &[&str] = &[ "test", "hello" ];
 const QOS: &[i32] = &[1, 1];
+
+/////////////////////////////////////////////////////////////////////////////
 
 // Callback for a successful connection to the broker.
 // We subscribe to the topic(s) we want here.

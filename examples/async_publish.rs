@@ -24,10 +24,14 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-
-use paho_mqtt as mqtt;
-use std::{env, process};
+use std::{
+    env,
+    process,
+};
 use futures::Future;
+use paho_mqtt as mqtt;
+
+/////////////////////////////////////////////////////////////////////////////
 
 fn main() {
     // Initialize the logger from the environment

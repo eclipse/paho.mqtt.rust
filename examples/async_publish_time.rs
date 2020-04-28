@@ -29,11 +29,19 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-
-use paho_mqtt as mqtt;
-use std::{env, process, thread};
-use std::time::{SystemTime, Duration};
+use std::{
+    env,
+    process,
+    thread,
+    time::{
+        SystemTime,
+        Duration
+    },
+};
 use futures::Future;
+use paho_mqtt as mqtt;
+
+/////////////////////////////////////////////////////////////////////////////
 
 // Read the system time in units of 1/100 sec since epoch.
 fn time_now_hundredths() -> u64 {

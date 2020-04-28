@@ -31,23 +31,22 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-extern crate futures;
-extern crate log;
-extern crate env_logger;
-extern crate serde_json;
-#[macro_use]
-extern crate lazy_static;
-extern crate paho_mqtt as mqtt;
+#[macro_use] extern crate lazy_static;
 
-use std::process;
-use std::collections::HashMap;
-use std::thread;
-use std::time::Duration;
+use std::{
+    process,
+    thread,
+    collections::HashMap,
+    time::Duration,
+};
 use futures::Future;
 use serde_json::json;
+use paho_mqtt as mqtt;
 
 const QOS: i32 = 1;
 const MQTTV5: u32 = 5;
+
+/////////////////////////////////////////////////////////////////////////////
 
 // The RPC function implementations
 

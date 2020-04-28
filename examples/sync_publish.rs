@@ -26,10 +26,14 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-
+use std::{
+    env,
+    process,
+    time::Duration,
+};
 use paho_mqtt as mqtt;
-use std::{env, process};
-use std::time::Duration;
+
+/////////////////////////////////////////////////////////////////////////////
 
 fn main() {
     // Initialize the logger from the environment

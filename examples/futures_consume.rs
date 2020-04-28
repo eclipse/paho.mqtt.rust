@@ -34,12 +34,20 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-
+use std::{
+    env,
+    process,
+    time::Duration,
+};
+use futures::{
+    Future,
+    Stream,
+    future::{
+        ok,
+        err,
+    },
+};
 use paho_mqtt as mqtt;
-use std::{env, process};
-use std::time::Duration;
-use futures::{Future, Stream};
-use futures::future::{ok, err};
 
 // The topics to which we subscribe.
 const TOPICS: &[&str] = &[ "test", "hello" ];

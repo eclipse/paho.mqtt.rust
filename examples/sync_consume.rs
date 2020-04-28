@@ -32,12 +32,16 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-
+use std::{
+    env,
+    process,
+    thread,
+    time::Duration,
+};
 use paho_mqtt as mqtt;
-use std::{env, process, thread};
-use std::time::Duration;
 
-// --------------------------------------------------------------------------
+/////////////////////////////////////////////////////////////////////////////
+
 // This will attempt to reconnect to the broker. It can be called after
 // connection is lost. In this example, we try to reconnect several times,
 // with a few second pause between each attempt. A real system might keep
@@ -57,7 +61,7 @@ fn try_reconnect(cli: &mqtt::Client) -> bool
     false
 }
 
-/////////////////////////////////////////////////////////////////////////////
+// --------------------------------------------------------------------------
 
 fn main() {
     // Initialize the logger from the environment

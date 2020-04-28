@@ -29,12 +29,16 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-
+use std::{
+    process,
+    time::Duration,
+};
+use futures::{
+    Future,
+    Stream,
+    future::ok,
+};
 use paho_mqtt as mqtt;
-use std::{process};
-use std::time::Duration;
-use futures::{Future, Stream};
-use futures::future::ok;
 
 // The topic that we use for the test
 const TOPIC: &str = "test/roundtrip";
