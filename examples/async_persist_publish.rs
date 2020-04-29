@@ -40,6 +40,8 @@ use log::{
 use futures::Future;
 use paho_mqtt as mqtt;
 
+const PERSISTENCE_ERROR: mqtt::Error = mqtt::Error::Paho(-2);    //ffi::MQTTASYNC_PERSISTENCE_ERROR);
+
 // Use a non-zero QOS to exercise the persistence store
 const QOS: i32 = 1;
 
@@ -67,7 +69,7 @@ impl mqtt::ClientPersistence for MemPersistence
     // Open the persistence store.
     // We don't need to do anything here since the store is in memory.
     // We just capture the name for logging/debugging purposes.
-    fn open(&mut self, client_id: &str, server_uri: &str) -> mqtt::MqttResult<()> {
+    fn open(&mut self, client_id: &str, server_uri: &str) -> mqtt::Result<()> {
         self.name = format!("{}-{}", client_id, server_uri);
         trace!("Client persistence [{}]: open", self.name);
         Ok(())
@@ -75,7 +77,7 @@ impl mqtt::ClientPersistence for MemPersistence
 
     // Close the persistence store.
     // We don't need to do anything.
-    fn close(&mut self) -> mqtt::MqttResult<()> {
+    fn close(&mut self) -> mqtt::Result<()> {
         trace!("Client persistence [{}]: close", self.name);
         Ok(())
     }
@@ -83,7 +85,7 @@ impl mqtt::ClientPersistence for MemPersistence
     // Put data into the persistence store.
     // We get a vector of buffer references for the data to store, which we
     // can concatenate into a single byte buffer to place in the map.
-    fn put(&mut self, key: &str, buffers: Vec<&[u8]>) -> mqtt::MqttResult<()> {
+    fn put(&mut self, key: &str, buffers: Vec<&[u8]>) -> mqtt::Result<()> {
         trace!("Client persistence [{}]: put key '{}'", self.name, key);
         let buf: Vec<u8> = buffers.concat();
         self.map.insert(key.to_string(), buf);
@@ -92,25 +94,25 @@ impl mqtt::ClientPersistence for MemPersistence
 
     // Get (retrieve) data from the persistence store.
     // We look up and return any data corresponding to the specified key.
-    fn get(&self, key: &str) -> mqtt::MqttResult<Vec<u8>> {
+    fn get(&self, key: &str) -> mqtt::Result<Vec<u8>> {
         trace!("Client persistence [{}]: get key '{}'", self.name, key);
         match self.map.get(key) {
             Some(v) => Ok(v.to_vec()),
-            None => Err(mqtt::PERSISTENCE_ERROR)
+            None => Err(PERSISTENCE_ERROR)
         }
     }
 
     // Remove the key entry from the persistence store, if any.
-    fn remove(&mut self, key: &str) -> mqtt::MqttResult<()> {
+    fn remove(&mut self, key: &str) -> mqtt::Result<()> {
         trace!("Client persistence [{}]: remove key '{}'", self.name, key);
         match self.map.remove(key) {
             Some(_) => Ok(()),
-            None => Err(mqtt::PERSISTENCE_ERROR)
+            None => Err(PERSISTENCE_ERROR)
         }
     }
 
     // Retrieve the complete set of keys in the persistence store.
-    fn keys(&self) -> mqtt::MqttResult<Vec<String>> {
+    fn keys(&self) -> mqtt::Result<Vec<String>> {
         trace!("Client persistence [{}]: keys", self.name);
         let mut keys: Vec<String> = Vec::new();
         for key in self.map.keys() {
@@ -121,7 +123,7 @@ impl mqtt::ClientPersistence for MemPersistence
     }
 
     // Clears all the data from the persistence store.
-    fn clear(&mut self) -> mqtt::MqttResult<()> {
+    fn clear(&mut self) -> mqtt::Result<()> {
         trace!("Client persistence [{}]: clear", self.name);
         self.map.clear();
         Ok(())

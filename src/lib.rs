@@ -51,7 +51,7 @@ pub use crate::token::*;               //{Token}
 pub use crate::topic::*;               //{Topic}
 pub use crate::types::*;               //{ReasonCode}
 pub use crate::client_persistence::*;
-pub use crate::errors::*;              //{MqttResult, MqttError, ErrorKind};
+pub use crate::errors::*;              //{Result, Error, ErrorKind};
 
 //pub mod mqtt;
 mod macros;

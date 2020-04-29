@@ -105,17 +105,17 @@ fn try_reconnect(cli: &mqtt::AsyncClient) -> bool
 // Correlation ID for the response.
 //
 
-fn handle_request(cli: &mqtt::AsyncClient, msg: mqtt::Message) -> mqtt::MqttResult<()>
+fn handle_request(cli: &mqtt::AsyncClient, msg: mqtt::Message) -> mqtt::Result<()>
 {
     // We need both a response topic and correlation data to respond.
 
     let reply_to = msg.properties()
         .get_string(mqtt::PropertyCode::RESPONSE_TOPIC)
-        .ok_or_else(|| mqtt::MqttError::from("No response topic provided."))?;
+        .ok_or_else(|| mqtt::Error::from("No response topic provided."))?;
 
     let corr_id = msg.properties()
         .get_binary(mqtt::PropertyCode::CORRELATION_DATA)
-        .ok_or_else(|| mqtt::MqttError::from("No correlation data provided."))?;
+        .ok_or_else(|| mqtt::Error::from("No correlation data provided."))?;
 
     println!("\nRequest w/ Reply To: {}, Correlation ID: {:?}", reply_to, corr_id);
 
@@ -166,7 +166,7 @@ fn handle_request(cli: &mqtt::AsyncClient, msg: mqtt::Message) -> mqtt::MqttResu
 
 // --------------------------------------------------------------------------
 
-fn main() -> mqtt::MqttResult<()> {
+fn main() -> mqtt::Result<()> {
     // Initialize the logger from the environment
     env_logger::init();
 

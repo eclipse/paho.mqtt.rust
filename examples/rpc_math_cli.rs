@@ -41,7 +41,7 @@ use paho_mqtt as mqtt;
 
 /////////////////////////////////////////////////////////////////////////////
 
-fn main() -> mqtt::MqttResult<()> {
+fn main() -> mqtt::Result<()> {
     // Initialize the logger from the environment
     env_logger::init();
 

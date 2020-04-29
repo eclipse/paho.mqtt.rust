@@ -55,7 +55,7 @@ use crate::{
     types::ReasonCode,
     message::Message,
     server_response::{ServerRequest, ServerResponse},
-    errors::{self, MqttResult, MqttError},
+    errors::{self, Result, Error},
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -117,7 +117,7 @@ impl TokenData {
     }
 
     /// Poll the data to see if the request has completed yet.
-    fn poll(&mut self) -> Result<Async<ServerResponse>, MqttError> {
+    fn poll(&mut self) -> Result<Async<ServerResponse>> {
         let rc = self.ret_code;
 
         if !self.complete {
@@ -129,10 +129,10 @@ impl TokenData {
         }
         else {
             if let Some(ref err_msg) = self.err_msg {
-                Err(MqttError::from((rc, err_msg.clone())))
+                Err(Error::PahoDescr(rc, err_msg.clone()))
             }
             else {
-                Err(MqttError::from(rc))
+                Err(Error::Paho(rc))
             }
         }
     }
@@ -490,7 +490,7 @@ impl Token {
 
     /// Blocks the caller a limited amount of time waiting for the
     /// asynchronous operation to complete.
-    pub fn wait_for(self, dur: Duration) -> MqttResult<ServerResponse> {
+    pub fn wait_for(self, dur: Duration) -> Result<ServerResponse> {
         self.timeout(dur).wait()
     }
 }
@@ -499,10 +499,10 @@ unsafe impl Send for Token {}
 
 impl Future for Token {
     type Item = ServerResponse;
-    type Error = MqttError;
+    type Error = Error;
 
     /// Poll the token to see if the request has completed yet.
-    fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
+    fn poll(&mut self) -> Result<Async<Self::Item>> {
         let mut data = self.inner.lock.lock().unwrap();
         let rc = data.ret_code;
 
@@ -514,10 +514,10 @@ impl Future for Token {
             Ok(Async::Ready(data.srvr_rsp.clone()))
         }
         else if let Some(ref err_msg) = data.err_msg {
-            Err(MqttError::from((rc, err_msg.clone())))
+            Err(Error::PahoDescr(rc, err_msg.clone()))
         }
         else {
-            Err(MqttError::from(rc))
+            Err(Error::Paho(rc))
         }
     }
 }
@@ -570,7 +570,7 @@ impl DeliveryToken {
 
     /// Blocks the caller a limited amount of time waiting for the
     /// asynchronous operation to complete.
-    pub fn wait_for(self, dur: Duration) -> MqttResult<()> {
+    pub fn wait_for(self, dur: Duration) -> Result<()> {
         self.timeout(dur).wait()
     }
 }
@@ -590,10 +590,10 @@ impl Into<Token> for DeliveryToken {
 
 impl Future for DeliveryToken {
     type Item = ();
-    type Error = MqttError;
+    type Error = Error;
 
     /// Poll the token to see if the request has completed yet.
-    fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
+    fn poll(&mut self) -> Result<Async<Self::Item>> {
         let mut data = self.inner.lock.lock().unwrap();
         let rc = data.ret_code;
 
@@ -605,10 +605,10 @@ impl Future for DeliveryToken {
             Ok(Async::Ready(()))
         }
         else if let Some(ref err_msg) = data.err_msg {
-            Err(MqttError::from((rc, err_msg.clone())))
+            Err(Error::PahoDescr(rc, err_msg.clone()))
         }
         else {
-            Err(MqttError::from(rc))
+            Err(Error::Paho(rc))
         }
     }
 }

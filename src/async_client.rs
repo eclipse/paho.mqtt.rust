@@ -79,11 +79,7 @@ use crate::{
         SubscribeManyToken,
     },
     client_persistence::UserPersistence,
-    errors::{
-        self,
-        MqttResult,
-        ErrorKind,
-    },
+    errors::Result,
     string_collection::StringCollection,
     types::ReasonCode,
 };
@@ -150,7 +146,7 @@ impl AsyncClient {
     ///
     /// `opts` The create options for the client.
     ///
-    pub fn new<T>(opts: T) -> MqttResult<AsyncClient>
+    pub fn new<T>(opts: T) -> Result<AsyncClient>
         where T: Into<CreateOptions>
     {
         let mut opts = opts.into();
@@ -191,7 +187,7 @@ impl AsyncClient {
 
         if rc != 0 {
             warn!("Create result: {}", rc);
-            fail!((ErrorKind::General, rc, errors::error_message(rc)));
+            bail!(rc);
         }
         debug!("AsyncClient handle: {:?}", cli.handle);
 

@@ -39,7 +39,7 @@ use crate::{
     disconnect_options::DisconnectOptions,
     server_response::ServerResponse,
     message::Message,
-    errors::MqttResult,
+    errors::Result,
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -57,7 +57,7 @@ pub struct Client {
 
 impl Client {
     /// Creates a new MQTT client which can connect to an MQTT broker.
-    pub fn new<T>(opts: T) -> MqttResult<Client>
+    pub fn new<T>(opts: T) -> Result<Client>
         where T: Into<CreateOptions>
     {
         let async_cli = AsyncClient::new(opts)?;
@@ -87,7 +87,7 @@ impl Client {
     }
 
     /// Connects to an MQTT broker using the specified connect options.
-    pub fn connect<T>(&self, opt_opts:T) -> MqttResult<ServerResponse>
+    pub fn connect<T>(&self, opt_opts:T) -> Result<ServerResponse>
         where T: Into<Option<ConnectOptions>>
     {
         self.cli.connect(opt_opts).wait_for(self.timeout)
@@ -100,7 +100,7 @@ impl Client {
     /// `opt_opts` Optional disconnect options. Specifying `None` will use
     ///            default of immediate (zero timeout) disconnect.
     ///
-    pub fn disconnect<T>(&self, opt_opts:T) -> MqttResult<()>
+    pub fn disconnect<T>(&self, opt_opts:T) -> Result<()>
         where T: Into<Option<DisconnectOptions>>
     {
         self.cli.disconnect(opt_opts).wait_for(self.timeout)?;
@@ -118,7 +118,7 @@ impl Client {
     /// `timeout` The amount of time to wait for the disconnect. This has
     ///           a resolution in milliseconds.
     ///
-    pub fn disconnect_after(&self, timeout: Duration) -> MqttResult<()> {
+    pub fn disconnect_after(&self, timeout: Duration) -> Result<()> {
         self.cli.disconnect_after(timeout).wait_for(self.timeout)?;
         Ok(())
     }
@@ -126,7 +126,7 @@ impl Client {
     /// Attempts to reconnect to the broker.
     /// This can only be called after a connection was initially made or
     /// attempted. It will retry with the same connect options.
-    pub fn reconnect(&self) -> MqttResult<ServerResponse> {
+    pub fn reconnect(&self) -> Result<ServerResponse> {
         self.cli.reconnect().wait_for(self.timeout)
     }
 
@@ -136,7 +136,7 @@ impl Client {
     }
 
     /// Publishes a message to an MQTT broker
-    pub fn publish(&self, msg: Message) -> MqttResult<()> {
+    pub fn publish(&self, msg: Message) -> Result<()> {
         self.cli.publish(msg).wait_for(self.timeout)
     }
 
@@ -147,7 +147,7 @@ impl Client {
     /// `topic` The topic name
     /// `qos` The quality of service requested for messages
     ///
-    pub fn subscribe(&self, topic: &str, qos: i32) -> MqttResult<ServerResponse> {
+    pub fn subscribe(&self, topic: &str, qos: i32) -> Result<ServerResponse> {
         self.cli.subscribe(topic, qos).wait_for(self.timeout)
     }
 
@@ -158,7 +158,7 @@ impl Client {
     /// `topic` The topic name
     /// `qos` The quality of service requested for messages
     ///
-    pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> MqttResult<ServerResponse>
+    pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> Result<ServerResponse>
         where T: AsRef<str>
     {
         self.cli.subscribe_many(topics, qos).wait_for(self.timeout)
@@ -171,7 +171,7 @@ impl Client {
     /// `topic` The topic to unsubscribe. It must match a topic from a
     ///         previous subscribe.
     ///
-    pub fn unsubscribe(&self, topic: &str) -> MqttResult<()> {
+    pub fn unsubscribe(&self, topic: &str) -> Result<()> {
         self.cli.unsubscribe(topic).wait_for(self.timeout)?;
         Ok(())
     }
@@ -183,7 +183,7 @@ impl Client {
     /// `topic` The topics to unsubscribe. Each must match a topic from a
     ///         previous subscribe.
     ///
-    pub fn unsubscribe_many<T>(&self, topics: &[T]) -> MqttResult<()>
+    pub fn unsubscribe_many<T>(&self, topics: &[T]) -> Result<()>
         where T: AsRef<str>
     {
         self.cli.unsubscribe_many(topics).wait_for(self.timeout)?;

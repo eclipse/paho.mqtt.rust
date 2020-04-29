@@ -30,7 +30,7 @@ use libc;
 
 use crate::{
     ffi,
-    errors::MqttResult,
+    errors::Result,
 };
 
 // TODO: Should we have a specific PersistenceResult/Error?
@@ -45,30 +45,30 @@ pub trait ClientPersistence {
     /// `client_id` The unique client identifier.
     /// `server_uri` The address of the server to which the client is
     ///              connected.
-    fn open(&mut self, client_id: &str, server_uri: &str) -> MqttResult<()>;
+    fn open(&mut self, client_id: &str, server_uri: &str) -> Result<()>;
 
     /// Close the persistence store.
-    fn close(&mut self) -> MqttResult<()>;
+    fn close(&mut self) -> Result<()>;
 
     /// Put data into the persistence store.
     /// `key` The key to the data.
     /// `buffers` The data to place into the store. Note that these can be
     ///           concatenated into a single, contiguous unit if helpful.
-    fn put(&mut self, key: &str, buffers: Vec<&[u8]>) -> MqttResult<()>;
+    fn put(&mut self, key: &str, buffers: Vec<&[u8]>) -> Result<()>;
 
     /// Gets data from the persistence store.
     /// `key` They key for the desired data.
-    fn get(&self, key: &str) -> MqttResult<Vec<u8>>;
+    fn get(&self, key: &str) -> Result<Vec<u8>>;
 
     /// Removes data for the specified key.
     /// `key` The key for the data to remove.
-    fn remove(&mut self, key: &str) -> MqttResult<()>;
+    fn remove(&mut self, key: &str) -> Result<()>;
 
     /// Gets the keys that are currently in the persistence store
-    fn keys(&self) -> MqttResult<Vec<String>>;
+    fn keys(&self) -> Result<Vec<String>>;
 
     /// Clear the persistence store so that it no longer contains any data.
-    fn clear(&mut self) -> MqttResult<()>;
+    fn clear(&mut self) -> Result<()>;
 
     /// Determines if the persistence store contains the key.
     /// `key` The key to look for.
@@ -309,28 +309,28 @@ mod tests {
     struct TestClientPersistence;
 
     impl ClientPersistence for TestClientPersistence {
-        fn open(&self, client_id: &str, server_uri: &str) -> MqttResult<()> {
+        fn open(&self, client_id: &str, server_uri: &str) -> Result<()> {
             Ok(())
         }
 
-        fn close(&self) -> MqttResult<()> {
+        fn close(&self) -> Result<()> {
             Ok(())
         }
 
-        fn clear(&self) -> MqttResult<()> {
+        fn clear(&self) -> Result<()> {
             Ok(())
         }
 
-        fn put(&self, key: &str, buffers: Vec<&[u8]>) -> MqttResult<()> {
+        fn put(&self, key: &str, buffers: Vec<&[u8]>) -> Result<()> {
             Ok(())
         }
 
-        fn get(&self, key: &str) -> MqttResult<&[u8]> {
+        fn get(&self, key: &str) -> Result<&[u8]> {
             let x = b"Bubba";   //: &'static [u8] = &'static [ 0u8, 1u8, 2u8, 3u8 ];
             Ok(x)
         }
 
-        fn remove(&self, key: &str) -> MqttResult<()> {
+        fn remove(&self, key: &str) -> Result<()> {
             Ok(())
         }
     }

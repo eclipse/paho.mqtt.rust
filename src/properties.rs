@@ -32,7 +32,7 @@ use std::{
 
 use crate::{
     ffi,
-    errors::{MqttResult, MqttError},
+    errors::Result,
 };
 
 /// The Property `value` union type.
@@ -473,38 +473,38 @@ impl Properties {
         }
     }
 
-    pub fn push_int(&mut self, code: PropertyCode, val: i32) -> MqttResult<()> {
+    pub fn push_int(&mut self, code: PropertyCode, val: i32) -> Result<()> {
         let prop = match Property::new_int(code, val) {
             Some(p) => p,
-            None => return Err(MqttError::from(ffi::MQTTASYNC_FAILURE)),
+            None => bail!(ffi::MQTTASYNC_FAILURE),
         };
         self.push(prop);
         Ok(())
     }
 
-    pub fn push_binary<V>(&mut self, code: PropertyCode, bin: V) -> MqttResult<()>
+    pub fn push_binary<V>(&mut self, code: PropertyCode, bin: V) -> Result<()>
             where V: Into<Vec<u8>> {
         let prop = match Property::new_binary(code, bin) {
             Some(p) => p,
-            None => return Err(MqttError::from(ffi::MQTTASYNC_FAILURE)),
+            None => bail!(ffi::MQTTASYNC_FAILURE),
         };
         self.push(prop);
         Ok(())
     }
 
-    pub fn push_string(&mut self, code: PropertyCode, s: &str) -> MqttResult<()> {
+    pub fn push_string(&mut self, code: PropertyCode, s: &str) -> Result<()> {
         let prop = match Property::new_string(code, s) {
             Some(p) => p,
-            None => return Err(MqttError::from(ffi::MQTTASYNC_FAILURE)),
+            None => bail!(ffi::MQTTASYNC_FAILURE),
         };
         self.push(prop);
         Ok(())
     }
 
-    pub fn push_string_pair(&mut self, code: PropertyCode, key: &str, val: &str) -> MqttResult<()> {
+    pub fn push_string_pair(&mut self, code: PropertyCode, key: &str, val: &str) -> Result<()> {
         let prop = match Property::new_string_pair(code, key, val) {
             Some(p) => p,
-            None => return Err(MqttError::from(ffi::MQTTASYNC_FAILURE)),
+            None => bail!(ffi::MQTTASYNC_FAILURE),
         };
         self.push(prop);
         Ok(())
