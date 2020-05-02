@@ -37,7 +37,6 @@ use log::{
     trace,
     debug
 };
-use futures::Future;
 use paho_mqtt as mqtt;
 
 const PERSISTENCE_ERROR: mqtt::Error = mqtt::Error::Paho(-2);    //ffi::MQTTASYNC_PERSISTENCE_ERROR);

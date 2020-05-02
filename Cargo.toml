@@ -16,8 +16,9 @@ This is a wrapper around the Paho C library.
 [dependencies]
 paho-mqtt-sys = { version = "0.3", path = "paho-mqtt-sys", default-features=false }
 libc = "0.2"
-futures = "0.1"
-futures-timer = "0.1"
+#futures = "0.3"
+futures = { version = "0.3", features = ["compat"] }
+futures-timer = "0.3"
 log = "0.4"
 num-traits = "0.2"
 num-derive = "0.3"

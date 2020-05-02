@@ -27,7 +27,6 @@
  *******************************************************************************/
 
 use std::{env, process};
-use futures::Future;
 use paho_mqtt as mqtt;
 
 const QOS: i32 = 1;

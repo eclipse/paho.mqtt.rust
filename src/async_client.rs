@@ -879,8 +879,8 @@ impl AsyncClient {
     }
 
     /// Creates a futures stream for consuming messages.
-    pub fn get_stream(&mut self, buffer_sz: usize) -> futures::sync::mpsc::Receiver<Option<Message>> {
-        use futures::sync::mpsc;
+    pub fn get_stream(&mut self, buffer_sz: usize) -> futures::channel::mpsc::Receiver<Option<Message>> {
+        use futures::channel::mpsc;
 
         let (mut tx, rx) = mpsc::channel(buffer_sz);
 

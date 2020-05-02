@@ -31,31 +31,29 @@
 //! combined with any other Rust futures.
 //!
 
-use std::{
-    ptr,
-    time::Duration,
-    sync::{Arc, Mutex},
-    ffi::CStr,
-    os::raw::c_void,
-    convert::Into,
-};
-use futures::{
-    Future,
-    Async,
-    task::{
-        self,
-        Task,
+use {
+    std::{
+        ptr,
+        time::Duration,
+        sync::{Arc, Mutex},
+        future::Future,
+        pin::Pin,
+        task::{Context, Poll, Waker},
+        ffi::CStr,
+        os::raw::c_void,
+        convert::Into,
     },
-};
-use futures_timer::FutureExt;
+    futures::executor::block_on,
+    //futures_timer::FutureExt,
 
-use crate::{
-    ffi,
-    async_client::{AsyncClient},
-    types::ReasonCode,
-    message::Message,
-    server_response::{ServerRequest, ServerResponse},
-    errors::{self, Result, Error},
+    crate::{
+        ffi,
+        async_client::{AsyncClient},
+        types::ReasonCode,
+        message::Message,
+        server_response::{ServerRequest, ServerResponse},
+        errors::{self, Result, Error},
+    },
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -90,8 +88,8 @@ pub(crate) struct TokenData {
     err_msg: Option<String>,
     /// The server response (dependent on the request type)
     srvr_rsp: ServerResponse,
-    /// The futures task
-    task: Option<Task>,
+    /// To wake the future on completion
+    waker: Option<Waker>
 }
 
 impl TokenData {
@@ -116,8 +114,9 @@ impl TokenData {
         }
     }
 
+    /*
     /// Poll the data to see if the request has completed yet.
-    fn poll(&mut self) -> Result<Async<ServerResponse>> {
+    fn poll(&mut self) -> Poll<Result<ServerResponse>> {
         let rc = self.ret_code;
 
         if !self.complete {
@@ -136,6 +135,7 @@ impl TokenData {
             }
         }
     }
+    */
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -323,9 +323,9 @@ impl TokenInner {
         }
 
         // If this is none, it means that no one is waiting on
-        // the future yet, so we don't need to kick it.
-        if let Some(task) = data.task.as_ref() {
-            task.notify();
+        // the future yet, so we don't need to wake it.
+        if let Some(waker) = data.waker.take() {
+            waker.wake();
         }
     }
 
@@ -368,9 +368,9 @@ impl TokenInner {
         debug!("Got response: {:?}", data.srvr_rsp);
 
         // If this is none, it means that no one is waiting on
-        // the future yet, so we don't need to kick it.
-        if let Some(task) = data.task.as_ref() {
-            task.notify();
+        // the future yet, so we don't need to wake it.
+        if let Some(waker) = data.waker.take() {
+            waker.wake()
         }
     }
 
@@ -413,9 +413,9 @@ impl TokenInner {
         debug!("Got response: {:?}", data.srvr_rsp);
 
         // If this is none, it means that no one is waiting on
-        // the future yet, so we don't need to kick it.
-        if let Some(task) = data.task.as_ref() {
-            task.notify();
+        // the future yet, so we don't need to wake it.
+        if let Some(waker) = data.waker.take() {
+            waker.wake()
         }
     }
 }
@@ -488,36 +488,43 @@ impl Token {
         Arc::into_raw(self.inner) as *mut c_void
     }
 
+    /// Blocks the caller until the asynchronous operation completes.
+    pub fn wait(self) -> Result<ServerResponse> {
+        block_on(self)
+    }
+
     /// Blocks the caller a limited amount of time waiting for the
     /// asynchronous operation to complete.
     pub fn wait_for(self, dur: Duration) -> Result<ServerResponse> {
-        self.timeout(dur).wait()
+        //self.timeout(dur).wait()
+        self.wait()
     }
 }
 
 unsafe impl Send for Token {}
 
 impl Future for Token {
-    type Item = ServerResponse;
-    type Error = Error;
+    type Output = Result<ServerResponse>;
 
     /// Poll the token to see if the request has completed yet.
-    fn poll(&mut self) -> Result<Async<Self::Item>> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut data = self.inner.lock.lock().unwrap();
         let rc = data.ret_code;
 
         if !data.complete {
-            data.task = Some(task::current());
-            Ok(Async::NotReady)
+            // Set waker so that the C callback can wake up the current task
+            // when the operation has completed.
+            data.waker = Some(cx.waker().clone());
+            Poll::Pending
         }
         else if rc == 0 {
-            Ok(Async::Ready(data.srvr_rsp.clone()))
+            Poll::Ready(Ok(data.srvr_rsp.clone()))
         }
         else if let Some(ref err_msg) = data.err_msg {
-            Err(Error::PahoDescr(rc, err_msg.clone()))
+            Poll::Ready(Err(Error::PahoDescr(rc, err_msg.clone())))
         }
         else {
-            Err(Error::Paho(rc))
+            Poll::Ready(Err(Error::Paho(rc)))
         }
     }
 }
@@ -568,10 +575,17 @@ impl DeliveryToken {
         &self.msg
     }
 
+
+    /// Blocks the caller until the asynchronous operation completes.
+    pub fn wait(self) -> Result<()> {
+        block_on(self)
+    }
+
     /// Blocks the caller a limited amount of time waiting for the
     /// asynchronous operation to complete.
     pub fn wait_for(self, dur: Duration) -> Result<()> {
-        self.timeout(dur).wait()
+        //self.timeout(dur).wait()
+        self.wait()
     }
 }
 
@@ -588,6 +602,34 @@ impl Into<Token> for DeliveryToken {
     }
 }
 
+
+impl Future for DeliveryToken {
+    type Output = Result<()>;
+
+    /// Poll the token to see if the request has completed yet.
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut data = self.inner.lock.lock().unwrap();
+        let rc = data.ret_code;
+
+        if !data.complete {
+            // Set waker so that the C callback can wake up the current task
+            // when the operation has completed.
+            data.waker = Some(cx.waker().clone());
+            Poll::Pending
+        }
+        else if rc == 0 {
+            Poll::Ready(Ok(()))
+        }
+        else if let Some(ref err_msg) = data.err_msg {
+            Poll::Ready(Err(Error::PahoDescr(rc, err_msg.clone())))
+        }
+        else {
+            Poll::Ready(Err(Error::Paho(rc)))
+        }
+    }
+}
+
+/*
 impl Future for DeliveryToken {
     type Item = ();
     type Error = Error;
@@ -612,6 +654,7 @@ impl Future for DeliveryToken {
         }
     }
 }
+*/
 
 /////////////////////////////////////////////////////////////////////////////
 

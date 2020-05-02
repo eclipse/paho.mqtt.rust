@@ -35,7 +35,6 @@ use std::{
     env,
     process,
 };
-use futures::Future;
 use serde_json::json;
 use paho_mqtt as mqtt;
 

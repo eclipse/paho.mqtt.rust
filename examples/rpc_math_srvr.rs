@@ -39,7 +39,6 @@ use std::{
     collections::HashMap,
     time::Duration,
 };
-use futures::Future;
 use serde_json::json;
 use paho_mqtt as mqtt;
 

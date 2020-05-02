@@ -35,7 +35,6 @@ use std::{
     io,
     time::Duration,
 };
-use futures::Future;
 use paho_mqtt as mqtt;
 
 /////////////////////////////////////////////////////////////////////////////
