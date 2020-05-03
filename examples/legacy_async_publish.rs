@@ -3,6 +3,10 @@
 //! This is a simple MQTT asynchronous message publisher using the
 //! Paho Rust library.
 //!
+//! This uses the older legacy .wait() calls on individual futures. Newer
+//! applications would likely want to consider the async/await style.
+//! See: async_publish.rs
+//!
 //! This sample demonstrates:
 //!   - Connecting to an MQTT broker
 //!   - Publishing a message asynchronously
@@ -24,8 +28,7 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{env, process };
-use futures::executor::block_on;
+use std::{env, process};
 use paho_mqtt as mqtt;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -50,25 +53,25 @@ fn main() {
         process::exit(1);
     });
 
-    if let Err(err) = block_on(async {
-        // Connect with default options
-        let conn_opts = mqtt::ConnectOptions::new();
+    // Connect with default options
+    let conn_opts = mqtt::ConnectOptions::new();
 
-        // Connect and wait for it to complete or fail
-        cli.connect(conn_opts).await?;
-
-        const QOS: i32 = 1;
-
-        // Create a message and publish it
-        println!("Publishing a message on the 'test' topic");
-        let msg = mqtt::Message::new("test", "Hello Rust MQTT world!", QOS);
-        cli.publish(msg).await?;
-
-        // Disconnect from the broker
-        cli.disconnect(None).await?;
-
-        Ok::<(), mqtt::Error>(())
-    }) {
-        eprintln!("{}", err);
+    // Connect and wait for it to complete or fail
+    if let Err(err) = cli.connect(conn_opts).wait() {
+        println!("Unable to connect: {}", err);
+        process::exit(1);
     }
+
+    // Create a message and publish it
+    println!("Publishing a message on the 'test' topic");
+    let msg = mqtt::Message::new("test", "Hello Rust MQTT world!", 0);
+    let tok = cli.publish(msg);
+
+    if let Err(e) = tok.wait() {
+        println!("Error sending message: {:?}", e);
+    }
+
+    // Disconnect from the broker
+    let tok = cli.disconnect(None);
+    tok.wait().unwrap();
 }

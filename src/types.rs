@@ -40,6 +40,16 @@ pub const MQTT_VERSION_3_1_1: u32 = ffi::MQTTVERSION_3_1_1;
 pub const MQTT_VERSION_5: u32 = ffi::MQTTVERSION_5;
 
 
+/// Quality of Service Zero: At most once
+pub const QOS_0: i32 = 0;
+
+/// Quality of Service Zero: At least once
+pub const QOS_1: i32 = 1;
+
+/// Quality of Service Two: Exactly Once
+pub const QOS_2: i32 = 2;
+
+
 /// MQTT v5 single-byte reason codes.
 #[repr(u32)]
 #[derive(Clone, Copy, PartialEq, Debug)]

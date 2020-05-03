@@ -32,9 +32,15 @@ Supports Paho C v1.3.2
 
 ## Latest News
 
-Version 0.7 brings full support for MQTT v5.
+Work has started to move the library to modern Rust, including:
 
-Work has started to move the library to modern Rust, including upgrading to the 2018 Edition and implementing the asynchronous client using async/await. That should hopefully be complete by June 2020.
+- Upgrade to the 2018 Edition
+- Convert Tokens to implement std Future (i.e. Futures 0.3) and support async/await. 
+- Clean up and modernize the error type using _thiserror_ crate.
+
+That should hopefully be complete by late May 2020.
+
+The previous release, version 0.7.x brought full support for MQTT v5.
 
 To keep up with the latest announcements for this project, follow:
 
@@ -43,6 +49,12 @@ To keep up with the latest announcements for this project, follow:
 **EMail:** [Eclipse Paho Mailing List](https://accounts.eclipse.org/mailing-list/paho-dev)
 
 **Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
+
+### Unreleased Features in this Branch
+
+- Upgraded Tokens to implement Futures 0.3
+- Error type based on _thiserror_
+- Upgraded to 
 
 ### What's new in v0.7
 

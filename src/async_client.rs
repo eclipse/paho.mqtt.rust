@@ -54,6 +54,7 @@ use std::{
     ffi::{CString, CStr},
     os::raw::{c_void, c_char, c_int},
 };
+use futures::stream::Stream;
 
 use crate::{
     ffi,
@@ -850,8 +851,7 @@ impl AsyncClient {
     /// can be lost.
     //
     pub fn start_consuming(&mut self) -> std::sync::mpsc::Receiver<Option<Message>> {
-        use std::sync::mpsc;
-        use std::sync::mpsc::{Sender, Receiver};
+        use std::sync::mpsc::{self, Sender, Receiver};
 
         let (tx, rx): (Sender<Option<Message>>, Receiver<Option<Message>>) = mpsc::channel();
 
@@ -879,12 +879,23 @@ impl AsyncClient {
     }
 
     /// Creates a futures stream for consuming messages.
-    pub fn get_stream(&mut self, buffer_sz: usize) -> futures::channel::mpsc::Receiver<Option<Message>> {
+    pub fn get_stream(&mut self, buffer_sz: usize) -> impl Stream<Item=Option<Message>> {
         use futures::channel::mpsc;
 
         let (mut tx, rx) = mpsc::channel(buffer_sz);
 
+        // Make sure at least the low-level connection_lost handler is in
+        // place to notify us when the connection is lost (sends a 'None' to
+        // the receiver).
+        let ctx: &InnerAsyncClient = &self.inner;
+        unsafe {
+            ffi::MQTTAsync_setConnectionLostCallback(self.inner.handle,
+                                                     ctx as *const _ as *mut c_void,
+                                                     Some(AsyncClient::on_connection_lost));
+        }
+
         self.set_message_callback(move |_,msg| {
+            trace!("Pushing message into async stream");
             if let Err(err) = tx.try_send(msg) {
                 if err.is_full() {
                     warn!("Stream losing messages");
