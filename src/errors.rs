@@ -37,6 +37,8 @@ pub enum Error {
     Io(#[from] io::Error),
     #[error("String UTF-8 Error")]
     Utf8(#[from] str::Utf8Error),
+    #[error("Timeout")]
+    Timeout,
     #[error("{0}")]
     General(&'static str),
     #[error("{0}")]

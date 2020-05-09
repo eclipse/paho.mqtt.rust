@@ -43,8 +43,13 @@ use {
         os::raw::c_void,
         convert::Into,
     },
-    futures::executor::block_on,
-    //futures_timer::FutureExt,
+    futures::{
+        executor::block_on,
+        future::FutureExt, // for `.fuse()`
+        pin_mut,
+        select,
+    },
+    futures_timer::Delay,
 
     crate::{
         ffi,
@@ -496,8 +501,17 @@ impl Token {
     /// Blocks the caller a limited amount of time waiting for the
     /// asynchronous operation to complete.
     pub fn wait_for(self, dur: Duration) -> Result<ServerResponse> {
-        //self.timeout(dur).wait()
-        self.wait()
+        block_on(async move {
+            let f = self.fuse();
+            let to = Delay::new(dur).fuse();
+
+            pin_mut!(f, to);
+
+            select! {
+                val = f => val,
+                _ = to => Err(Error::Timeout),
+            }
+        })
     }
 }
 
@@ -571,21 +585,25 @@ impl DeliveryToken {
     }
 
     /// Gets the message associated with the publish token.
-    pub fn message(&self) -> &Message {
-        &self.msg
-    }
-
+    pub fn message(&self) -> &Message { &self.msg }
 
     /// Blocks the caller until the asynchronous operation completes.
-    pub fn wait(self) -> Result<()> {
-        block_on(self)
-    }
+    pub fn wait(self) -> Result<()> { block_on(self) }
 
     /// Blocks the caller a limited amount of time waiting for the
     /// asynchronous operation to complete.
     pub fn wait_for(self, dur: Duration) -> Result<()> {
-        //self.timeout(dur).wait()
-        self.wait()
+        block_on(async move {
+            let f = self.fuse();
+            let to = Delay::new(dur).fuse();
+
+            pin_mut!(f, to);
+
+            select! {
+                val = f => val,
+                _ = to => Err(Error::Timeout),
+            }
+        })
     }
 }
 
