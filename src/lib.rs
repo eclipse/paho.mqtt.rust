@@ -49,11 +49,11 @@ pub use crate::properties::*;          //{Property, Properties};
 pub use crate::message::*;             //{Message, MessageBuilder};
 pub use crate::token::*;               //{Token}
 pub use crate::topic::*;               //{Topic}
-pub use crate::types::*;               //{ReasonCode}
+pub use crate::reason_code::*;         //{ReasonCode}
+pub use crate::types::*;               //...
 pub use crate::client_persistence::*;
 pub use crate::errors::*;              //{Result, Error, ErrorKind};
 
-//pub mod mqtt;
 mod macros;
 
 /// The asynchronous API
@@ -98,6 +98,9 @@ pub mod token;
 /// Options for creating topic objects that are associated with a
 /// particular server.
 pub mod topic;
+
+/// MQTT v5 Reason Codes
+pub mod reason_code;
 
 /// Miscelaneous types
 pub mod types;

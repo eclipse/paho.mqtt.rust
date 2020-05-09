@@ -23,16 +23,20 @@ use std::{
     str,
 };
 use thiserror::Error;
-use crate::ffi;
+use crate::{
+    ffi,
+    reason_code::ReasonCode,
+};
 
+/// The errors from an MQTT operation.
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("{}", error_message(*.0))]
     Paho(i32),
     #[error("[{0}] {1}")]
     PahoDescr(i32, String),
-    #[error("Reason code: {0}")]
-    ReasonCode(i32),
+    #[error("{0}")]
+    ReasonCode(ReasonCode),
     #[error("I/O failed: {0}")]
     Io(#[from] io::Error),
     #[error("String UTF-8 Error")]
@@ -63,15 +67,14 @@ impl From<String> for Error {
     }
 }
 
-
-
+/// The result type for MQTT operations.
 pub type Result<T> = result::Result<T, Error>;
 
 // Gets the string associated with the error code from the C lib.
 pub fn error_message(rc: i32) -> &'static str {
     match rc {
         ffi::MQTTASYNC_FAILURE => "General failure",
-        ffi::MQTTASYNC_PERSISTENCE_ERROR /* -2 */ => "Persistence error",
+        ffi::MQTTASYNC_PERSISTENCE_ERROR => "Persistence error",
         ffi::MQTTASYNC_DISCONNECTED => "Client disconnected",
         ffi::MQTTASYNC_MAX_MESSAGES_INFLIGHT => "Maximum inflight messages",
         ffi::MQTTASYNC_BAD_UTF8_STRING => "Bad UTF8 string",

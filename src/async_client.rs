@@ -82,7 +82,7 @@ use crate::{
     client_persistence::UserPersistence,
     errors::Result,
     string_collection::StringCollection,
-    types::ReasonCode,
+    reason_code::ReasonCode,
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -274,7 +274,7 @@ impl AsyncClient {
         }
 
         let cli = AsyncClient::from_raw(context);
-        let reason_code = ReasonCode::from_code(reason);
+        let reason_code = ReasonCode::from(reason);
         let props = Properties::from_c_struct(&*cprops);
         {
             let mut cbctx = cli.inner.callback_context.lock().unwrap();
@@ -1075,7 +1075,6 @@ mod tests {
     use std::thread;
     use std::sync::Arc;
     use crate::create_options::{CreateOptionsBuilder};
-    use futures::Future;
 
     // Makes sure than when a client is moved, the inner struct stayes at
     // the same address (on the heap) since that inner struct is used as

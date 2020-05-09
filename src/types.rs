@@ -24,7 +24,6 @@
 //! MQTT support types
 
 use ffi;
-use std::mem;
 
 /// The default version to connect with.
 /// First try v3.1.1, and if that fails, try v3.1
@@ -48,74 +47,5 @@ pub const QOS_1: i32 = 1;
 
 /// Quality of Service Two: Exactly Once
 pub const QOS_2: i32 = 2;
-
-
-/// MQTT v5 single-byte reason codes.
-#[repr(u32)]
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub enum ReasonCode {
-    SUCCESS = 0,    // also: NORMAL_DISCONNECTION & GRANTED_QOS_0
-    GRANTED_QOS_1 = 1,
-    GRANTED_QOS_2 = 2,
-    DISCONNECT_WITH_WILL_MESSAGE = 4,
-    NO_MATCHING_SUBSCRIBERS = 16,
-    NO_SUBSCRIPTION_FOUND = 17,
-    CONTINUE_AUTHENTICATION = 24,
-    RE_AUTHENTICATE = 25,
-    UNSPECIFIED_ERROR = 128,
-    MALFORMED_PACKET = 129,
-    PROTOCOL_ERROR = 130,
-    IMPLEMENTATION_SPECIFIC_ERROR = 131,
-    UNSUPPORTED_PROTOCOL_VERSION = 132,
-    CLIENT_IDENTIFIER_NOT_VALID = 133,
-    BAD_USER_NAME_OR_PASSWORD = 134,
-    NOT_AUTHORIZED = 135,
-    SERVER_UNAVAILABLE = 136,
-    SERVER_BUSY = 137,
-    BANNED = 138,
-    SERVER_SHUTTING_DOWN = 139,
-    BAD_AUTHENTICATION_METHOD = 140,
-    KEEP_ALIVE_TIMEOUT = 141,
-    SESSION_TAKEN_OVER = 142,
-    TOPIC_FILTER_INVALID = 143,
-    TOPIC_NAME_INVALID = 144,
-    PACKET_IDENTIFIER_IN_USE = 145,
-    PACKET_IDENTIFIER_NOT_FOUND = 146,
-    RECEIVE_MAXIMUM_EXCEEDED = 147,
-    TOPIC_ALIAS_INVALID = 148,
-    PACKET_TOO_LARGE = 149,
-    MESSAGE_RATE_TOO_HIGH = 150,
-    QUOTA_EXCEEDED = 151,
-    ADMINISTRATIVE_ACTION = 152,
-    PAYLOAD_FORMAT_INVALID = 153,
-    RETAIN_NOT_SUPPORTED = 154,
-    QOS_NOT_SUPPORTED = 155,
-    USE_ANOTHER_SERVER = 156,
-    SERVER_MOVED = 157,
-    SHARED_SUBSCRIPTIONS_NOT_SUPPORTED = 158,
-    CONNECTION_RATE_EXCEEDED = 159,
-    MAXIMUM_CONNECT_TIME = 160,
-    SUBSCRIPTION_IDENTIFIERS_NOT_SUPPORTED = 161,
-    WILDCARD_SUBSCRIPTIONS_NOT_SUPPORTED = 162,
-	MQTTPP_V3_CODE = 255	// This is not a protocol code; used internally by the library
-}
-
-// Some aliased ReasonCode values
-
-const NORMAL_DISCONNECTION: ReasonCode = ReasonCode::SUCCESS;
-const GRANTED_QOS_0: ReasonCode = ReasonCode::SUCCESS;
-
-type Code = ffi::MQTTReasonCodes;
-
-impl ReasonCode {
-    pub fn from_code(reason_code: Code) -> ReasonCode {
-        unsafe { mem::transmute(reason_code) }
-    }
-}
-
-impl Default for ReasonCode {
-    fn default() -> Self { ReasonCode::SUCCESS }
-}
-
 
 

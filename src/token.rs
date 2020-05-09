@@ -54,7 +54,7 @@ use {
     crate::{
         ffi,
         async_client::{AsyncClient},
-        types::ReasonCode,
+        reason_code::ReasonCode,
         message::Message,
         server_response::{ServerRequest, ServerResponse},
         errors::{self, Result, Error},
@@ -294,7 +294,7 @@ impl TokenInner {
         if let Some(rsp) = rsp.as_ref() {
             msgid = rsp.token as u16;
             rc = if rsp.code == 0 { -1 } else { rsp.code as i32 };
-            reason_code = ReasonCode::from_code(rsp.reasonCode);
+            reason_code = ReasonCode::from(rsp.reasonCode);
 
             if !rsp.message.is_null() {
                 if let Ok(cmsg) = CStr::from_ptr(rsp.message).to_str() {
