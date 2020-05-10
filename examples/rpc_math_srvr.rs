@@ -109,11 +109,11 @@ fn handle_request(cli: &mqtt::AsyncClient, msg: mqtt::Message) -> mqtt::Result<(
     // We need both a response topic and correlation data to respond.
 
     let reply_to = msg.properties()
-        .get_string(mqtt::PropertyCode::RESPONSE_TOPIC)
+        .get_string(mqtt::PropertyCode::ResponseTopic)
         .ok_or_else(|| mqtt::Error::from("No response topic provided."))?;
 
     let corr_id = msg.properties()
-        .get_binary(mqtt::PropertyCode::CORRELATION_DATA)
+        .get_binary(mqtt::PropertyCode::CorrelationData)
         .ok_or_else(|| mqtt::Error::from("No correlation data provided."))?;
 
     println!("\nRequest w/ Reply To: {}, Correlation ID: {:?}", reply_to, corr_id);
@@ -142,7 +142,7 @@ fn handle_request(cli: &mqtt::AsyncClient, msg: mqtt::Message) -> mqtt::Result<(
         // Form a reply message, using the correlation ID
 
         let mut props = mqtt::Properties::new();
-        props.push_binary(mqtt::PropertyCode::CORRELATION_DATA, corr_id).unwrap();
+        props.push_binary(mqtt::PropertyCode::CorrelationData, corr_id).unwrap();
 
         // Create the reply message and publish it on the response topic
 

@@ -97,7 +97,7 @@ fn main() -> mqtt::Result<()> {
     // for us.
 
     let client_id = rsp.properties()
-        .get_string(mqtt::PropertyCode::ASSIGNED_CLIENT_IDENTIFER)
+        .get_string(mqtt::PropertyCode::AssignedClientIdentifer)
         .unwrap_or_else(|| {
             eprintln!("Unable to retrieve Client ID");
             process::exit(1);
@@ -117,8 +117,8 @@ fn main() -> mqtt::Result<()> {
     let corr_id = "1".as_bytes();
 
     let mut props = mqtt::Properties::new();
-    props.push_string(mqtt::PropertyCode::RESPONSE_TOPIC, &reply_topic).unwrap();
-    props.push_binary(mqtt::PropertyCode::CORRELATION_DATA, corr_id).unwrap();
+    props.push_string(mqtt::PropertyCode::ResponseTopic, &reply_topic).unwrap();
+    props.push_binary(mqtt::PropertyCode::CorrelationData, corr_id).unwrap();
 
     // The payload is the JSON array of arguments for the operation.
     // These are the remaining arguments from the command line.
@@ -147,7 +147,7 @@ fn main() -> mqtt::Result<()> {
 
     if let Some(msg) = rx.recv().unwrap() {
         let reply_corr_id = msg.properties()
-            .get_binary(mqtt::PropertyCode::CORRELATION_DATA).unwrap();
+            .get_binary(mqtt::PropertyCode::CorrelationData).unwrap();
 
         if reply_corr_id == corr_id {
             let ret: f64 = serde_json::from_str(&msg.payload_str()).unwrap();

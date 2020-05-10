@@ -45,13 +45,13 @@ type LenString = ffi::MQTTLenString;
 #[repr(u32)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PropertyType {
-    BYTE = 0,
-    TWO_BYTE_INTEGER = 1,
-    FOUR_BYTE_INTEGER = 2,
-    VARIABLE_BYTE_INTEGER = 3,
-    BINARY_DATA = 4,
-    UTF_8_ENCODED_STRING = 5,
-    UTF_8_STRING_PAIR = 6,
+    Byte = 0,
+    TwoByteInteger = 1,
+    FourByteInteger = 2,
+    VariableByteInteger = 3,
+    BinaryData = 4,
+    Utf8EncodedString = 5,
+    Utf8StringPair = 6,
 }
 
 pub type Type = ffi::MQTTPropertyTypes;
@@ -67,33 +67,33 @@ impl PropertyType {
 #[repr(u32)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PropertyCode {
-    PAYLOAD_FORMAT_INDICATOR = 1,
-    MESSAGE_EXPIRY_INTERVAL = 2,
-    CONTENT_TYPE = 3,
-    RESPONSE_TOPIC = 8,
-    CORRELATION_DATA = 9,
-    SUBSCRIPTION_IDENTIFIER = 11,
-    SESSION_EXPIRY_INTERVAL = 17,
-    ASSIGNED_CLIENT_IDENTIFER = 18,
-    SERVER_KEEP_ALIVE = 19,
-    AUTHENTICATION_METHOD = 21,
-    AUTHENTICATION_DATA = 22,
-    REQUEST_PROBLEM_INFORMATION = 23,
-    WILL_DELAY_INTERVAL = 24,
-    REQUEST_RESPONSE_INFORMATION = 25,
-    RESPONSE_INFORMATION = 26,
-    SERVER_REFERENCE = 28,
-    REASON_STRING = 31,
-    RECEIVE_MAXIMUM = 33,
-    TOPIC_ALIAS_MAXIMUM = 34,
-    TOPIC_ALIAS = 35,
-    MAXIMUM_QOS = 36,
-    RETAIN_AVAILABLE = 37,
-    USER_PROPERTY = 38,
-    MAXIMUM_PACKET_SIZE = 39,
-    WILDCARD_SUBSCRIPTION_AVAILABLE = 40,
-    SUBSCRIPTION_IDENTIFIERS_AVAILABLE = 41,
-    SHARED_SUBSCRIPTION_AVAILABLE = 42,
+    PayloadFormatIndicator = 1,
+    MessageExpiryInterval = 2,
+    ContentType = 3,
+    ResponseTopic = 8,
+    CorrelationData = 9,
+    SubscriptionIdentifier = 11,
+    SessionExpiryInterval = 17,
+    AssignedClientIdentifer = 18,
+    ServerKeepAlive = 19,
+    AuthenticationMethod = 21,
+    AuthenticationData = 22,
+    RequestProblemInformation = 23,
+    WillDelayInterval = 24,
+    RequestResponseInformation = 25,
+    ResponseInformation = 26,
+    ServerReference = 28,
+    ReasonString = 31,
+    ReceiveMaximum = 33,
+    TopicAliasMaximum = 34,
+    TopicAlias = 35,
+    MaximumQos = 36,
+    RetainAvailable = 37,
+    UserProperty = 38,
+    MaximumPacketSize = 39,
+    WildcardSubscriptionAvailable = 40,
+    SubscriptionIdentifiersAvailable = 41,
+    SharedSubscriptionAvailable = 42,
 }
 
 type Code = ffi::MQTTPropertyCodes;
@@ -123,9 +123,9 @@ impl Property {
         };
 
         match Property::get_type(code) {
-            PropertyType::BYTE => (),
-            PropertyType::TWO_BYTE_INTEGER => prop.cprop.value.integer2 = val as u16,
-            PropertyType::FOUR_BYTE_INTEGER => prop.cprop.value.integer4 = val as u32,
+            PropertyType::Byte => (),
+            PropertyType::TwoByteInteger => prop.cprop.value.integer2 = val as u16,
+            PropertyType::FourByteInteger => prop.cprop.value.integer4 = val as u32,
             _ => return None,
         }
 
@@ -135,7 +135,7 @@ impl Property {
     pub fn new_binary<V>(code: PropertyCode, bin: V) -> Option<Property>
         where V: Into<Vec<u8>>
     {
-        if Property::get_type(code) == PropertyType::BINARY_DATA {
+        if Property::get_type(code) == PropertyType::BinaryData {
             let mut v = bin.into();
             v.shrink_to_fit();
 
@@ -152,7 +152,7 @@ impl Property {
     }
 
     pub fn new_string(code: PropertyCode, s: &str) -> Option<Property> {
-        if Property::get_type(code) == PropertyType::UTF_8_ENCODED_STRING {
+        if Property::get_type(code) == PropertyType::Utf8EncodedString {
             let n = s.len();
             let p = CString::new(s).unwrap().into_raw();
 
@@ -165,7 +165,7 @@ impl Property {
     }
 
     pub fn new_string_pair(code: PropertyCode, key: &str, val: &str) -> Option<Property> {
-        if Property::get_type(code) == PropertyType::UTF_8_STRING_PAIR {
+        if Property::get_type(code) == PropertyType::Utf8StringPair {
             let nkey = key.len();
             let pkey = CString::new(key).unwrap().into_raw();
 
@@ -192,7 +192,7 @@ impl Property {
             let n = cprop.value.__bindgen_anon_1.data.len as usize;
 
             match typ {
-                PropertyType::BINARY_DATA => {
+                PropertyType::BinaryData => {
                     if pdata.is_null() { return None; }
                     let v = Vec::from_raw_parts(pdata, n, n);
                     let mut vc = v.clone();
@@ -200,7 +200,7 @@ impl Property {
                     mem::forget(v);
                     mem::forget(vc);
                 },
-                PropertyType::UTF_8_ENCODED_STRING => {
+                PropertyType::Utf8EncodedString => {
                     if pdata.is_null() { return None; }
                     let v = Vec::from_raw_parts(pdata as *mut u8, n, n);
                     let sr = CString::new(v.clone());
@@ -208,7 +208,7 @@ impl Property {
                     pdata = sr.unwrap().into_raw();
                     mem::forget(v);
                 },
-                PropertyType::UTF_8_STRING_PAIR => {
+                PropertyType::Utf8StringPair => {
                     let pvalue = cprop.value.__bindgen_anon_1.value.data;
                     if pdata.is_null() || pvalue.is_null() { return None; }
 
@@ -281,9 +281,9 @@ impl Property {
     pub fn get_int(&self) -> Option<i32> {
         unsafe {
             match Property::get_type_from_code(self.cprop.identifier) {
-                PropertyType::BYTE => Some(self.cprop.value.byte as i32),
-                PropertyType::TWO_BYTE_INTEGER => Some(self.cprop.value.integer2 as i32),
-                PropertyType::FOUR_BYTE_INTEGER => Some(self.cprop.value.integer4 as i32),
+                PropertyType::Byte => Some(self.cprop.value.byte as i32),
+                PropertyType::TwoByteInteger => Some(self.cprop.value.integer2 as i32),
+                PropertyType::FourByteInteger => Some(self.cprop.value.integer4 as i32),
                 _ => None
             }
         }
@@ -291,7 +291,7 @@ impl Property {
 
     pub fn get_binary(&self) -> Option<Vec<u8>> {
         unsafe {
-            if Property::get_type_from_code(self.cprop.identifier) == PropertyType::BINARY_DATA {
+            if Property::get_type_from_code(self.cprop.identifier) == PropertyType::BinaryData {
                 let n = self.cprop.value.__bindgen_anon_1.data.len as usize;
                 let p = self.cprop.value.__bindgen_anon_1.data.data as *mut u8;
                 let v = Vec::from_raw_parts(p, n, n);
@@ -307,7 +307,7 @@ impl Property {
 
     pub fn get_string(&self) -> Option<String> {
         unsafe {
-            if Property::get_type_from_code(self.cprop.identifier) == PropertyType::UTF_8_ENCODED_STRING {
+            if Property::get_type_from_code(self.cprop.identifier) == PropertyType::Utf8EncodedString {
                 let s = CString::from_raw(self.cprop.value.__bindgen_anon_1.data.data);
                 let sc = s.clone();
                 s.into_raw();
@@ -321,7 +321,7 @@ impl Property {
 
     pub fn get_string_pair(&self) -> Option<(String,String)> {
         unsafe {
-            if Property::get_type_from_code(self.cprop.identifier) == PropertyType::UTF_8_STRING_PAIR {
+            if Property::get_type_from_code(self.cprop.identifier) == PropertyType::Utf8StringPair {
                 let s = CString::from_raw(self.cprop.value.__bindgen_anon_1.data.data);
                 let sc = s.clone();
                 s.into_raw();
@@ -346,16 +346,16 @@ impl Drop for Property {
     fn drop(&mut self) {
         unsafe {
             match Property::get_type_from_code(self.cprop.identifier) {
-                PropertyType::BINARY_DATA => {
+                PropertyType::BinaryData => {
                     debug!("Dropping binary property: {:?}", self.cprop.value.__bindgen_anon_1.data.data);
                     let n = self.cprop.value.__bindgen_anon_1.data.len as usize;
                     let _ = Vec::from_raw_parts(self.cprop.value.__bindgen_anon_1.data.data, n, n);
                 },
-                PropertyType::UTF_8_ENCODED_STRING => {
+                PropertyType::Utf8EncodedString => {
                     debug!("Dropping string property: {:?}", self.cprop.value.__bindgen_anon_1.data.data);
                     let _ = CString::from_raw(self.cprop.value.__bindgen_anon_1.data.data);
                 },
-                PropertyType::UTF_8_STRING_PAIR => {
+                PropertyType::Utf8StringPair => {
                     debug!("Dropping string pair property: {:?}, {:?}", self.cprop.value.__bindgen_anon_1.data.data, self.cprop.value.__bindgen_anon_1.value.data);
                     let _ = CString::from_raw(self.cprop.value.__bindgen_anon_1.data.data);
                     let _ = CString::from_raw(self.cprop.value.__bindgen_anon_1.value.data);
@@ -377,7 +377,7 @@ impl Clone for Property {
             let typ = Property::get_type_from_code(self.cprop.identifier);
 
             match typ {
-                PropertyType::BINARY_DATA => {
+                PropertyType::BinaryData => {
                     // TODO: Can we just do a low-level mem copy?
                     let n = cprop.value.__bindgen_anon_1.data.len as usize;
                     let v = Vec::from_raw_parts(cprop.value.__bindgen_anon_1.data.data, n, n);
@@ -387,13 +387,13 @@ impl Clone for Property {
                     mem::forget(v);
                     mem::forget(vc);
                 },
-                PropertyType::UTF_8_ENCODED_STRING => {
+                PropertyType::Utf8EncodedString => {
                     let s = CString::from_raw(cprop.value.__bindgen_anon_1.data.data);
                     let sc = s.clone();
                     s.into_raw();
                     cprop.value.__bindgen_anon_1.data.data = sc.into_raw();
                 },
-                PropertyType::UTF_8_STRING_PAIR => {
+                PropertyType::Utf8StringPair => {
                     let s = CString::from_raw(cprop.value.__bindgen_anon_1.data.data);
                     let sc = s.clone();
                     cprop.value.__bindgen_anon_1.data.data = sc.into_raw();
