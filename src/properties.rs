@@ -465,18 +465,29 @@ impl Properties {
         mem::forget(prop);
     }
 
+    /// Gets a property instance
     pub fn get(&self, code: PropertyCode) -> Option<Property> {
+        self.get_at(code, 0)
+    }
+
+    /// Gets a property instance when there are possibly multiple values.
+    pub fn get_at(&self, code: PropertyCode, idx: usize) -> Option<Property> {
         let ps = &self.cprops as *const _ as *mut ffi::MQTTProperties;
         unsafe {
-            let p = ffi::MQTTProperties_getPropertyAt(ps, code as Code, 0);
+            let p = ffi::MQTTProperties_getPropertyAt(ps, code as Code, idx as c_int);
             if p.is_null() { None } else { Property::from_c_property(&*p) }
         }
+    }
+
+    /// Gets an iterator for a property instance
+    pub fn iter(&self, code: PropertyCode) -> PropertyIterator {
+        PropertyIterator { props: self, code, idx: 0 }
     }
 
     pub fn push_int(&mut self, code: PropertyCode, val: i32) -> Result<()> {
         let prop = match Property::new_int(code, val) {
             Some(p) => p,
-            None => bail!(ffi::MQTTASYNC_FAILURE),
+            None => bail!(ffi::MQTT_INVALID_PROPERTY_ID),
         };
         self.push(prop);
         Ok(())
@@ -510,20 +521,44 @@ impl Properties {
         Ok(())
     }
 
+    /// Gets an integer value of a specific property.
     pub fn get_int(&self, code: PropertyCode) -> Option<i32> {
         self.get(code).and_then(|prop| prop.get_int())
     }
 
+    /// Gets an integer value of a specific value when there may be more than one.
+    pub fn get_int_at(&self, code: PropertyCode, idx: usize) -> Option<i32> {
+        self.get_at(code, idx).and_then(|prop| prop.get_int())
+    }
+
+    /// Gets a binary value of a specific property.
     pub fn get_binary(&self, code: PropertyCode) -> Option<Vec<u8>> {
         self.get(code).and_then(|prop| prop.get_binary())
     }
 
+    /// Gets a binary value of a specific value when there may be more than one.
+    pub fn get_binary_at(&self, code: PropertyCode, idx: usize) -> Option<Vec<u8>> {
+        self.get_at(code, idx).and_then(|prop| prop.get_binary())
+    }
+
+    /// Gets a string value of a specific property.
     pub fn get_string(&self, code: PropertyCode) -> Option<String> {
         self.get(code).and_then(|prop| prop.get_string())
     }
 
+    /// Gets a binary value of a specific value when there may be more than one.
+    pub fn get_string_at(&self, code: PropertyCode, idx: usize) -> Option<String> {
+        self.get_at(code, idx).and_then(|prop| prop.get_string())
+    }
+
+    /// Gets a string pair for a specific property.
     pub fn get_string_pair(&self, code: PropertyCode) -> Option<(String,String)> {
         self.get(code).and_then(|prop| prop.get_string_pair())
+    }
+
+    /// Gets a string pair for a specific property when there may ve more than one.
+    pub fn get_string_pair_at(&self, code: PropertyCode, idx: usize) -> Option<(String,String)> {
+        self.get_at(code, idx).and_then(|prop| prop.get_string_pair())
     }
 }
 
@@ -555,6 +590,23 @@ impl Drop for Properties {
     }
 }
 
+/// Iterator over the values for a speciifc property
+pub struct PropertyIterator<'a> {
+    props: &'a Properties,
+    code: PropertyCode,
+    idx: usize,
+}
+
+impl<'a> Iterator for PropertyIterator<'a> {
+    type Item = Property;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let prop = self.props.get_at(self.code, self.idx);
+        self.idx += 1;
+        prop
+    }
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 //                              Unit Tests
@@ -568,10 +620,10 @@ mod tests {
     #[test]
     fn test_new_property_byte() {
         let val = 1;
-        let prop = Property::new_int(PropertyCode::PAYLOAD_FORMAT_INDICATOR, val).unwrap();
+        let prop = Property::new_int(PropertyCode::PayloadFormatIndicator, val).unwrap();
 
         unsafe {
-            assert_eq!(prop.cprop.identifier, PropertyCode::PAYLOAD_FORMAT_INDICATOR as Code);
+            assert_eq!(prop.cprop.identifier, PropertyCode::PayloadFormatIndicator as Code);
             assert_eq!(prop.cprop.value.byte, val as u8);
         }
 
@@ -581,10 +633,10 @@ mod tests {
     #[test]
     fn test_new_property_i16() {
         let val = 1024;
-        let prop = Property::new_int(PropertyCode::RECEIVE_MAXIMUM, val).unwrap();
+        let prop = Property::new_int(PropertyCode::ReceiveMaximum, val).unwrap();
 
         unsafe {
-            assert_eq!(prop.cprop.identifier, PropertyCode::RECEIVE_MAXIMUM as Code);
+            assert_eq!(prop.cprop.identifier, PropertyCode::ReceiveMaximum as Code);
             assert_eq!(prop.cprop.value.integer2, val as u16);
         }
     }
@@ -592,10 +644,10 @@ mod tests {
     #[test]
     fn test_new_property_i32() {
         let val = 1024*1024;
-        let prop = Property::new_int(PropertyCode::MESSAGE_EXPIRY_INTERVAL, val).unwrap();
+        let prop = Property::new_int(PropertyCode::MessageExpiryInterval, val).unwrap();
 
         unsafe {
-            assert_eq!(prop.cprop.identifier, PropertyCode::MESSAGE_EXPIRY_INTERVAL as Code);
+            assert_eq!(prop.cprop.identifier, PropertyCode::MessageExpiryInterval as Code);
             assert_eq!(prop.cprop.value.integer4, val as u32);
         }
     }
@@ -603,7 +655,7 @@ mod tests {
     #[test]
     fn test_new_property_binary() {
         let val = "12345";  // Anything that can be converted into Vec<u8>
-        let prop = Property::new_binary(PropertyCode::CORRELATION_DATA, val).unwrap();
+        let prop = Property::new_binary(PropertyCode::CorrelationData, val).unwrap();
 
         // We should have non-null data pointer, null value pointer
         unsafe {
@@ -618,7 +670,7 @@ mod tests {
     #[test]
     fn test_new_property_string() {
         let val = "replies/myqueue";
-        let prop = Property::new_string(PropertyCode::RESPONSE_TOPIC, val).unwrap();
+        let prop = Property::new_string(PropertyCode::ResponseTopic, val).unwrap();
 
         // We should have non-null data pointer, null value pointer
         unsafe {
@@ -639,7 +691,7 @@ mod tests {
     fn test_new_property_string_pair() {
         let key = "mykey";
         let val = "myvalue";
-        let prop = Property::new_string_pair(PropertyCode::USER_PROPERTY, key, val).unwrap();
+        let prop = Property::new_string_pair(PropertyCode::UserProperty, key, val).unwrap();
 
         // We should have non-null data and value pointers
         unsafe {
@@ -666,30 +718,29 @@ mod tests {
     fn test_move_property_int() {
         let val = 1024*1024;
 
-        let org_prop = Property::new_int(PropertyCode::MESSAGE_EXPIRY_INTERVAL, val).unwrap();
+        let org_prop = Property::new_int(PropertyCode::MessageExpiryInterval, val).unwrap();
         unsafe {
-            assert_eq!(org_prop.cprop.identifier, PropertyCode::MESSAGE_EXPIRY_INTERVAL as Code);
+            assert_eq!(org_prop.cprop.identifier, PropertyCode::MessageExpiryInterval as Code);
             assert_eq!(org_prop.cprop.value.integer4, val as u32);
         }
 
         let prop = org_prop;
         unsafe {
-            assert_eq!(prop.cprop.identifier, PropertyCode::MESSAGE_EXPIRY_INTERVAL as Code);
+            assert_eq!(prop.cprop.identifier, PropertyCode::MessageExpiryInterval as Code);
             assert_eq!(prop.cprop.value.integer4, val as u32);
         }
     }
 
-
     #[test]
     fn test_move_property_binary() {
         let val = "12345";  // Anything that can be converted into Vec<u8>
-        let org_prop = Property::new_binary(PropertyCode::CORRELATION_DATA, val).unwrap();
+        let org_prop = Property::new_binary(PropertyCode::CorrelationData, val).unwrap();
 
         let prop = org_prop;
 
         // We should have non-null data pointer, null value pointer
         unsafe {
-            assert_eq!(prop.cprop.identifier, PropertyCode::CORRELATION_DATA as Code);
+            assert_eq!(prop.cprop.identifier, PropertyCode::CorrelationData as Code);
 
             assert!(!prop.cprop.value.__bindgen_anon_1.data.data.is_null());
             assert_eq!(prop.cprop.value.__bindgen_anon_1.data.len, 5);
@@ -699,16 +750,15 @@ mod tests {
         }
     }
 
-
     #[test]
     fn test_move_property_string() {
         let val = "replies/myqueue";
-        let org_prop = Property::new_string(PropertyCode::RESPONSE_TOPIC, val).unwrap();
+        let org_prop = Property::new_string(PropertyCode::ResponseTopic, val).unwrap();
 
         let prop = org_prop;
 
         unsafe {
-            assert_eq!(prop.cprop.identifier, PropertyCode::RESPONSE_TOPIC as Code);
+            assert_eq!(prop.cprop.identifier, PropertyCode::ResponseTopic as Code);
 
             assert!(!prop.cprop.value.__bindgen_anon_1.data.data.is_null());
             assert_eq!(prop.cprop.value.__bindgen_anon_1.data.len, val.len() as c_int);
@@ -721,13 +771,13 @@ mod tests {
     #[test]
     fn test_clone_property_binary() {
         let val = "12345";  // Anything that can be converted into Vec<u8>
-        let org_prop = Property::new_binary(PropertyCode::CORRELATION_DATA, val).unwrap();
+        let org_prop = Property::new_binary(PropertyCode::CorrelationData, val).unwrap();
 
         let prop = org_prop.clone();
 
         // We should have non-null data pointer, null value pointer
         unsafe {
-            assert_eq!(prop.cprop.identifier, PropertyCode::CORRELATION_DATA as Code);
+            assert_eq!(prop.cprop.identifier, PropertyCode::CorrelationData as Code);
 
             assert!(!prop.cprop.value.__bindgen_anon_1.data.data.is_null());
             assert_eq!(prop.cprop.value.__bindgen_anon_1.data.len, 5);
@@ -744,12 +794,12 @@ mod tests {
     #[test]
     fn test_clone_property_string() {
         let val = "replies/myqueue";
-        let org_prop = Property::new_string(PropertyCode::RESPONSE_TOPIC, val).unwrap();
+        let org_prop = Property::new_string(PropertyCode::ResponseTopic, val).unwrap();
 
         let prop = org_prop.clone();
 
         unsafe {
-            assert_eq!(prop.cprop.identifier, PropertyCode::RESPONSE_TOPIC as Code);
+            assert_eq!(prop.cprop.identifier, PropertyCode::ResponseTopic as Code);
 
             assert!(!prop.cprop.value.__bindgen_anon_1.data.data.is_null());
             assert_eq!(prop.cprop.value.__bindgen_anon_1.data.len, val.len() as c_int);
@@ -777,7 +827,7 @@ mod tests {
         let mut props = Properties::new();
 
         let val = 1;
-        let prop = Property::new_int(PropertyCode::PAYLOAD_FORMAT_INDICATOR, val).unwrap();
+        let prop = Property::new_int(PropertyCode::PayloadFormatIndicator, val).unwrap();
 
         props.push(prop);
 
@@ -788,7 +838,7 @@ mod tests {
 
     #[test]
     fn test_properties_get_int() {
-        let code = PropertyCode::PAYLOAD_FORMAT_INDICATOR;
+        let code = PropertyCode::PayloadFormatIndicator;
 
         let mut props = Properties::new();
 
