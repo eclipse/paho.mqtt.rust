@@ -28,12 +28,18 @@ use std::{
     ptr,
     ffi::CString,
     os::raw::{c_int, c_char},
+    any::{Any, TypeId},
 };
 
 use crate::{
     ffi,
     errors::Result,
 };
+
+const INVALID_PROPERTY_ID: i32 = ffi::MQTT_INVALID_PROPERTY_ID;
+
+/// The type for prperties that take binary data.
+pub type Binary = Vec<u8>;
 
 /// The Property `value` union type.
 pub type Value = ffi::MQTTProperty__bindgen_ty_1;
@@ -57,13 +63,40 @@ pub enum PropertyType {
 pub type Type = ffi::MQTTPropertyTypes;
 
 impl PropertyType {
-    fn from_ctype(typ: Type) -> PropertyType {
-        unsafe { mem::transmute(typ) }
+    /// Tries to create a property type from a C integer value
+    pub fn new(typ: ffi::MQTTPropertyTypes) -> Option<Self> {
+        match typ {
+            0 => Some(Self::Byte),
+            1 => Some(Self::TwoByteInteger),
+            2 => Some(Self::FourByteInteger),
+            3 => Some(Self::VariableByteInteger),
+            4 => Some(Self::BinaryData),
+            5 => Some(Self::Utf8EncodedString),
+            6 => Some(Self::Utf8StringPair),
+            _ => None
+        }
+    }
+
+    /// Gets the any::TypeId that corresponds to the property type.
+    pub fn type_of(&self) -> TypeId {
+        match *self {
+            Self::Byte => TypeId::of::<u8>(),
+            Self::TwoByteInteger => TypeId::of::<u16>(),
+            Self::FourByteInteger => TypeId::of::<u32>(),
+            Self::VariableByteInteger => TypeId::of::<i32>(),
+            Self::BinaryData => TypeId::of::<Binary>(),
+            Self::Utf8EncodedString => TypeId::of::<String>(),
+            Self::Utf8StringPair => TypeId::of::<(String,String)>(),
+        }
     }
 }
 
 
 /// The enumerated codes for the MQTT v5 properties.
+///
+/// The property code defines both the meaning of the value in the property
+/// (Correlation Data, Server Keep Alive) and the data type held by the
+/// property.
 #[repr(u32)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PropertyCode {
@@ -96,98 +129,247 @@ pub enum PropertyCode {
     SharedSubscriptionAvailable = 42,
 }
 
+
 type Code = ffi::MQTTPropertyCodes;
 
 impl PropertyCode {
-    fn from_code(code: Code) -> PropertyCode {
-        unsafe { mem::transmute(code) }
+    pub fn new(code: ffi::MQTTPropertyCodes) -> Option<Self> {
+        match code {
+             1 => Some(Self::PayloadFormatIndicator),
+             2 => Some(Self::MessageExpiryInterval),
+             3 => Some(Self::ContentType),
+             8 => Some(Self::ResponseTopic),
+             9 => Some(Self::CorrelationData),
+            11 => Some(Self::SubscriptionIdentifier),
+            17 => Some(Self::SessionExpiryInterval),
+            18 => Some(Self::AssignedClientIdentifer),
+            19 => Some(Self::ServerKeepAlive),
+            21 => Some(Self::AuthenticationMethod),
+            22 => Some(Self::AuthenticationData),
+            23 => Some(Self::RequestProblemInformation),
+            24 => Some(Self::WillDelayInterval),
+            25 => Some(Self::RequestResponseInformation),
+            26 => Some(Self::ResponseInformation),
+            28 => Some(Self::ServerReference),
+            31 => Some(Self::ReasonString),
+            33 => Some(Self::ReceiveMaximum),
+            34 => Some(Self::TopicAliasMaximum),
+            35 => Some(Self::TopicAlias),
+            36 => Some(Self::MaximumQos),
+            37 => Some(Self::RetainAvailable),
+            38 => Some(Self::UserProperty),
+            39 => Some(Self::MaximumPacketSize),
+            40 => Some(Self::WildcardSubscriptionAvailable),
+            41 => Some(Self::SubscriptionIdentifiersAvailable),
+            42 => Some(Self::SharedSubscriptionAvailable),
+            _ => None
+        }
+    }
+
+    /// Get the property type from the code identifier.
+    pub fn property_type(&self) -> PropertyType {
+        let typ = unsafe { ffi::MQTTProperty_getType(*self as Code) as Type };
+        PropertyType::new(typ).unwrap()
+    }
+
+    /// Gets the any::TypeId that corresponds to the property type.
+    pub fn type_of(&self) -> TypeId {
+        self.property_type().type_of()
     }
 }
 
 /////////////////////////////////////////////////////////////////////////////
 
 /// A single MQTT v5 property.
+///
+/// An MQTT v5 property consists of both a property "code"  and a value. The
+/// code indicates what the property contains (Response Topic, Will Delay
+/// Interval, etc), and also the data type for the value. Each copde
+/// corresponds to a single, specific data type as described in the v5
+/// spec, here:
+/// https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901027
+///
+/// There are only a limited number of data types that are possible for
+/// properties:
+///   "Byte"  - u8
+///   "Two Byte Integer"  - u16
+///   "Four Byte Integer"  - u32
+///   "Binary Data"  - Vec<u8>
+///   "UTF-8 Encoded String"  - String
+///   "UTF-8 String Pair"  - (String,String)
+///
+#[derive(Debug)]
 pub struct Property {
     pub(crate) cprop: ffi::MQTTProperty,
 }
 
 impl Property {
-    pub fn new_int(code: PropertyCode, val: i32) -> Option<Property> {
-        let mut prop = Property {
-            cprop: ffi::MQTTProperty {
-                identifier: code as Code,
-                value: Value {
-                    byte: val as u8
-                },
-            }
-        };
+    /// Creates a new property for a given code and value.
+    ///
+    /// The type for the value must match the type expected for the given
+    /// property code exactly, otherwise it will be rejected and return None.
+    pub fn new<T>(code: PropertyCode, val: T) -> Option<Property>
+        where T: Any + 'static
+    {
+        let rval: &(dyn Any + 'static) = &val;
 
-        match Property::get_type(code) {
-            PropertyType::Byte => (),
-            PropertyType::TwoByteInteger => prop.cprop.value.integer2 = val as u16,
-            PropertyType::FourByteInteger => prop.cprop.value.integer4 = val as u32,
-            _ => return None,
+        // Try some manual mappings first
+
+        if code.type_of() == TypeId::of::<String>() {
+            if let Some(v) = rval.downcast_ref::<&str>() {
+                return Self::new_string(code, v);
+            }
         }
 
-        Some(prop)
+        // Otherwise the types must match exactly
+
+        if code.type_of() != TypeId::of::<T>() {
+            return None;
+        }
+
+        if let Some(v) = rval.downcast_ref::<u8>() {
+            Self::new_byte(code, *v)
+        }
+        else if let Some(v) = rval.downcast_ref::<u16>() {
+            Self::new_u16(code, *v)
+        }
+        else if let Some(v) = rval.downcast_ref::<u32>() {
+            Self::new_u32(code, *v)
+        }
+        else if let Some(v) = rval.downcast_ref::<i32>() {
+            Self::new_int(code, *v)
+        }
+        else if let Some(v) = rval.downcast_ref::<Binary>() {
+            Self::new_binary(code, v.clone())
+        }
+        else if let Some(v) = rval.downcast_ref::<String>() {
+            Self::new_string(code, &*v)
+        }
+        else if let Some(v) = rval.downcast_ref::<(String,String)>() {
+            Self::new_string_pair(code, &v.0, &v.1)
+        }
+        else {
+            None
+        }
+    }
+
+    /// Creates a single-byte property
+    pub fn new_byte(code: PropertyCode, val: u8) -> Option<Property> {
+        if code.property_type() == PropertyType::Byte {
+            Some(Property {
+                cprop: ffi::MQTTProperty {
+                    identifier: code as Code,
+                    value: Value { byte: val },
+                }
+            })
+        }
+        else {
+            None
+        }
+    }
+
+    /// Creates a 2-byte integer property
+    pub fn new_u16(code: PropertyCode, val: u16) -> Option<Property> {
+        if code.property_type() == PropertyType::TwoByteInteger {
+            Some(Property {
+                cprop: ffi::MQTTProperty {
+                    identifier: code as Code,
+                    value: Value { integer2: val },
+                }
+            })
+        }
+        else {
+            None
+        }
+    }
+
+    /// Creates a 4-byte integer property
+    pub fn new_u32(code: PropertyCode, val: u32) -> Option<Property> {
+        if code.property_type() == PropertyType::FourByteInteger {
+            Some(Property {
+                cprop: ffi::MQTTProperty {
+                    identifier: code as Code,
+                    value: Value { integer4: val },
+                }
+            })
+        }
+        else {
+            None
+        }
+    }
+
+    pub fn new_int(code: PropertyCode, val: i32) -> Option<Property> {
+        let value = match code.property_type() {
+            PropertyType::Byte => Value { byte: val as u8 },
+            PropertyType::TwoByteInteger => Value { integer2: val as u16 },
+            PropertyType::FourByteInteger | PropertyType::VariableByteInteger =>
+                Value { integer4: val as u32 },
+            _ => return None,
+        };
+
+        Some(Property {
+            cprop: ffi::MQTTProperty {
+                identifier: code as Code,
+                value,
+            }
+        })
     }
 
     pub fn new_binary<V>(code: PropertyCode, bin: V) -> Option<Property>
-        where V: Into<Vec<u8>>
+        where V: Into<Binary>
     {
-        if Property::get_type(code) == PropertyType::BinaryData {
-            let mut v = bin.into();
-            v.shrink_to_fit();
-
-            let n = v.len();
-            let p = v.as_mut_ptr() as *mut c_char;
-            mem::forget(v);
-
-            debug!("Creating binary property, {} bytes", n);
-            Some(Property::new_string_binary(code, p, n, ptr::null_mut(), 0))
+        if code.property_type() != PropertyType::BinaryData {
+            return None;
         }
-        else {
-            None
-        }
+
+        let mut v = bin.into();
+        v.shrink_to_fit();
+
+        let n = v.len();
+        let p = v.as_mut_ptr() as *mut c_char;
+        mem::forget(v);
+
+        debug!("Creating binary property, {} bytes", n);
+        Some(Property::new_string_binary(code, p, n, ptr::null_mut(), 0))
     }
 
     pub fn new_string(code: PropertyCode, s: &str) -> Option<Property> {
-        if Property::get_type(code) == PropertyType::Utf8EncodedString {
-            let n = s.len();
-            let p = CString::new(s).unwrap().into_raw();
+        if code.property_type() != PropertyType::Utf8EncodedString {
+            return None;
+        }
 
-            debug!("Creating string property, {} bytes", n);
-            Some(Property::new_string_binary(code, p, n, ptr::null_mut(), 0))
-        }
-        else {
-            None
-        }
+        let n = s.len();
+        let p = CString::new(s).unwrap().into_raw();
+
+        debug!("Creating string property, {} bytes", n);
+        Some(Property::new_string_binary(code, p, n, ptr::null_mut(), 0))
     }
 
     pub fn new_string_pair(code: PropertyCode, key: &str, val: &str) -> Option<Property> {
-        if Property::get_type(code) == PropertyType::Utf8StringPair {
-            let nkey = key.len();
-            let pkey = CString::new(key).unwrap().into_raw();
-
-            let nval = val.len();
-            let pval = CString::new(val).unwrap().into_raw();
-
-            debug!("Creating string pair property, {}/{} bytes", nkey, nval);
-            Some(Property::new_string_binary(code, pkey, nkey, pval, nval))
+        if code.property_type() != PropertyType::Utf8StringPair {
+            return None;
         }
-        else {
-            None
-        }
+
+        let nkey = key.len();
+        let pkey = CString::new(key).unwrap().into_raw();
+
+        let nval = val.len();
+        let pval = CString::new(val).unwrap().into_raw();
+
+        debug!("Creating string pair property, {}/{} bytes", nkey, nval);
+        Some(Property::new_string_binary(code, pkey, nkey, pval, nval))
     }
 
     /// Creates a property from a C lib MQTTProperty struct.
-    /// As this is originating from the C lib, we don't want to
     fn from_c_property(cprop: &ffi::MQTTProperty) -> Option<Property> {
         let mut cprop = cprop.clone();
+        let typ = match PropertyCode::new(cprop.identifier)
+                    .and_then(|c| Some(c.property_type())) {
+            Some(typ) => typ,
+            None => return None,
+        };
 
         unsafe {
-            let typ = Property::get_type_from_code(cprop.identifier);
-
             let mut pdata = cprop.value.__bindgen_anon_1.data.data;
             let n = cprop.value.__bindgen_anon_1.data.len as usize;
 
@@ -261,17 +443,61 @@ impl Property {
         }
     }
 
-    /// Get the property type from the code identifier.
-    pub fn get_type(code: PropertyCode) -> PropertyType {
-        let typ = unsafe { ffi::MQTTProperty_getType(code as Code) as Type };
-        PropertyType::from_ctype(typ)
+    /// Gets the MQTT code for the property.
+    pub fn property_code(&self) -> PropertyCode {
+        PropertyCode::new(self.cprop.identifier).unwrap()
     }
 
-    /// Gets the property type from an integer code identifier.
-    fn get_type_from_code(code: Code) -> PropertyType {
-        let pcode: PropertyCode = PropertyCode::from_code(code);
-        Property::get_type(pcode)
+    /// Gets the type of this property.
+    pub fn property_type(&self) -> PropertyType {
+        self.property_code().property_type()
     }
+
+    /// Gets the any::TypeId of this property.
+    pub fn type_of(&self) -> TypeId {
+        self.property_type().type_of()
+    }
+
+
+    pub fn get_val<T>(&self) -> Option<T>
+        where T: Any + 'static + Send + Default
+    {
+        let mut v = T::default();
+        let x: &mut dyn Any = &mut v;
+
+        if let Some(val) = x.downcast_mut::<i32>() {
+            if let Some(n) = self.get_int() {
+                *val = n;
+                Some(v)
+            }
+            else { None }
+        }
+        else if let Some(val) = x.downcast_mut::<Binary>() {
+            if let Some(n) = self.get_binary() {
+                *val = n;
+                Some(v)
+            }
+            else { None }
+        }
+        else if let Some(val) = x.downcast_mut::<String>() {
+            if let Some(n) = self.get_string() {
+                *val = n;
+                Some(v)
+            }
+            else { None }
+        }
+        else if let Some(val) = x.downcast_mut::<(String,String)>() {
+            if let Some(n) = self.get_string_pair() {
+                *val = n;
+                Some(v)
+            }
+            else { None }
+        }
+        else {
+            None
+        }
+    }
+
 
     /// Gets the property value as an integer.
     /// This extracts an integer value from the property. It works with any
@@ -280,7 +506,7 @@ impl Property {
     /// Some(val), otherwise it will return None.
     pub fn get_int(&self) -> Option<i32> {
         unsafe {
-            match Property::get_type_from_code(self.cprop.identifier) {
+            match self.property_type() {
                 PropertyType::Byte => Some(self.cprop.value.byte as i32),
                 PropertyType::TwoByteInteger => Some(self.cprop.value.integer2 as i32),
                 PropertyType::FourByteInteger => Some(self.cprop.value.integer4 as i32),
@@ -289,9 +515,9 @@ impl Property {
         }
     }
 
-    pub fn get_binary(&self) -> Option<Vec<u8>> {
+    pub fn get_binary(&self) -> Option<Binary> {
         unsafe {
-            if Property::get_type_from_code(self.cprop.identifier) == PropertyType::BinaryData {
+            if self.property_type() == PropertyType::BinaryData {
                 let n = self.cprop.value.__bindgen_anon_1.data.len as usize;
                 let p = self.cprop.value.__bindgen_anon_1.data.data as *mut u8;
                 let v = Vec::from_raw_parts(p, n, n);
@@ -307,7 +533,7 @@ impl Property {
 
     pub fn get_string(&self) -> Option<String> {
         unsafe {
-            if Property::get_type_from_code(self.cprop.identifier) == PropertyType::Utf8EncodedString {
+            if self.property_type() == PropertyType::Utf8EncodedString {
                 let s = CString::from_raw(self.cprop.value.__bindgen_anon_1.data.data);
                 let sc = s.clone();
                 s.into_raw();
@@ -321,7 +547,7 @@ impl Property {
 
     pub fn get_string_pair(&self) -> Option<(String,String)> {
         unsafe {
-            if Property::get_type_from_code(self.cprop.identifier) == PropertyType::Utf8StringPair {
+            if self.property_type() == PropertyType::Utf8StringPair {
                 let s = CString::from_raw(self.cprop.value.__bindgen_anon_1.data.data);
                 let sc = s.clone();
                 s.into_raw();
@@ -345,7 +571,7 @@ impl Drop for Property {
     /// For string any binary types, the heap memory will be freed.
     fn drop(&mut self) {
         unsafe {
-            match Property::get_type_from_code(self.cprop.identifier) {
+            match self.property_type() {
                 PropertyType::BinaryData => {
                     debug!("Dropping binary property: {:?}", self.cprop.value.__bindgen_anon_1.data.data);
                     let n = self.cprop.value.__bindgen_anon_1.data.len as usize;
@@ -374,9 +600,7 @@ impl Clone for Property {
         let mut cprop = self.cprop.clone();
 
         unsafe {
-            let typ = Property::get_type_from_code(self.cprop.identifier);
-
-            match typ {
+            match self.property_type() {
                 PropertyType::BinaryData => {
                     // TODO: Can we just do a low-level mem copy?
                     let n = cprop.value.__bindgen_anon_1.data.len as usize;
@@ -460,9 +684,56 @@ impl Properties {
     }
 
     /// Adds a property to the colletion.
-    pub fn push(&mut self, prop: Property) {    // TODO return a Result
-        let _rc = unsafe { ffi::MQTTProperties_add(&mut self.cprops, &prop.cprop) };
-        mem::forget(prop);
+    pub fn push(&mut self, prop: Property) -> Result<()> {
+        let rc = unsafe { ffi::MQTTProperties_add(&mut self.cprops, &prop.cprop) };
+        if rc == 0 {
+            mem::forget(prop);
+            Ok(())
+        }
+        else {
+            Err(rc.into())
+        }
+    }
+
+    /// Adds a property to the collection given the property code and value.
+    pub fn push_val<T>(&mut self, code: PropertyCode, val: T) -> Result<()>
+        where T: Any + 'static
+    {
+        if let Some(prop) = Property::new(code, val) {
+            self.push(prop)
+        }
+        else {
+            Err(INVALID_PROPERTY_ID.into())
+        }
+    }
+
+    pub fn push_int(&mut self, code: PropertyCode, val: i32) -> Result<()> {
+        match Property::new_int(code, val) {
+            Some(prop) => self.push(prop),
+            None => Err(INVALID_PROPERTY_ID.into())
+        }
+    }
+
+    pub fn push_binary<V>(&mut self, code: PropertyCode, bin: V) -> Result<()>
+            where V: Into<Binary> {
+        match Property::new_binary(code, bin) {
+            Some(prop) => self.push(prop),
+            None => Err(INVALID_PROPERTY_ID.into())
+        }
+    }
+
+    pub fn push_string(&mut self, code: PropertyCode, s: &str) -> Result<()> {
+        match Property::new_string(code, s) {
+            Some(prop) => self.push(prop),
+            None => Err(INVALID_PROPERTY_ID.into())
+        }
+    }
+
+    pub fn push_string_pair(&mut self, code: PropertyCode, key: &str, val: &str) -> Result<()> {
+        match Property::new_string_pair(code, key, val) {
+            Some(prop) => self.push(prop),
+            None => Err(INVALID_PROPERTY_ID.into())
+        }
     }
 
     /// Gets a property instance
@@ -484,42 +755,22 @@ impl Properties {
         PropertyIterator { props: self, code, idx: 0 }
     }
 
-    pub fn push_int(&mut self, code: PropertyCode, val: i32) -> Result<()> {
-        let prop = match Property::new_int(code, val) {
-            Some(p) => p,
-            None => bail!(ffi::MQTT_INVALID_PROPERTY_ID),
-        };
-        self.push(prop);
-        Ok(())
-    }
+    /*
+    pub fn get_val<T>(&self, code: PropertyCode) -> Option<T>
+        where T: Any + 'static + Send + Default
+    {
+        let mut v = T::default();
+        let x: &mut dyn Any = &mut v;
 
-    pub fn push_binary<V>(&mut self, code: PropertyCode, bin: V) -> Result<()>
-            where V: Into<Vec<u8>> {
-        let prop = match Property::new_binary(code, bin) {
-            Some(p) => p,
-            None => bail!(ffi::MQTTASYNC_FAILURE),
-        };
-        self.push(prop);
-        Ok(())
+        if let Some(val) = x.downcast_mut::<u8>() {
+            *val = 0u8;
+            Some(v)
+        }
+        else {
+            None
+        }
     }
-
-    pub fn push_string(&mut self, code: PropertyCode, s: &str) -> Result<()> {
-        let prop = match Property::new_string(code, s) {
-            Some(p) => p,
-            None => bail!(ffi::MQTTASYNC_FAILURE),
-        };
-        self.push(prop);
-        Ok(())
-    }
-
-    pub fn push_string_pair(&mut self, code: PropertyCode, key: &str, val: &str) -> Result<()> {
-        let prop = match Property::new_string_pair(code, key, val) {
-            Some(p) => p,
-            None => bail!(ffi::MQTTASYNC_FAILURE),
-        };
-        self.push(prop);
-        Ok(())
-    }
+    */
 
     /// Gets an integer value of a specific property.
     pub fn get_int(&self, code: PropertyCode) -> Option<i32> {
@@ -532,12 +783,12 @@ impl Properties {
     }
 
     /// Gets a binary value of a specific property.
-    pub fn get_binary(&self, code: PropertyCode) -> Option<Vec<u8>> {
+    pub fn get_binary(&self, code: PropertyCode) -> Option<Binary> {
         self.get(code).and_then(|prop| prop.get_binary())
     }
 
     /// Gets a binary value of a specific value when there may be more than one.
-    pub fn get_binary_at(&self, code: PropertyCode, idx: usize) -> Option<Vec<u8>> {
+    pub fn get_binary_at(&self, code: PropertyCode, idx: usize) -> Option<Binary> {
         self.get_at(code, idx).and_then(|prop| prop.get_binary())
     }
 
@@ -556,9 +807,23 @@ impl Properties {
         self.get(code).and_then(|prop| prop.get_string_pair())
     }
 
-    /// Gets a string pair for a specific property when there may ve more than one.
+    /// Gets a string pair for a specific property when there may be more than one.
     pub fn get_string_pair_at(&self, code: PropertyCode, idx: usize) -> Option<(String,String)> {
         self.get_at(code, idx).and_then(|prop| prop.get_string_pair())
+    }
+
+    /// Gets an iterator into the user property string pairs.
+    pub fn user_iter(&self) -> StringPairIterator {
+        StringPairIterator { props: self, code: PropertyCode::UserProperty, idx: 0 }
+    }
+
+    /// Searches for the specified key in the user properties and returns
+    /// the value if found.
+    pub fn find_user_property(&self, key: &str) -> Option<String> {
+        for (k, v) in self.user_iter() {
+            if k == key { return Some(v); }
+        }
+        None
     }
 }
 
@@ -608,6 +873,24 @@ impl<'a> Iterator for PropertyIterator<'a> {
 }
 
 
+/// Iterator over the values for a speciifc property
+pub struct StringPairIterator<'a> {
+    props: &'a Properties,
+    code: PropertyCode,
+    idx: usize,
+}
+
+impl<'a> Iterator for StringPairIterator<'a> {
+    type Item = (String, String);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let pair = self.props.get_string_pair_at(self.code, self.idx);
+        self.idx += 1;
+        pair
+    }
+}
+
+
 /////////////////////////////////////////////////////////////////////////////
 //                              Unit Tests
 /////////////////////////////////////////////////////////////////////////////
@@ -616,6 +899,46 @@ impl<'a> Iterator for PropertyIterator<'a> {
 mod tests {
     use super::*;
     use std::ffi::CStr;
+
+    #[test]
+    fn test_property_type_new() {
+        assert_eq!(PropertyType::new(ffi::MQTTPropertyTypes_MQTTPROPERTY_TYPE_BYTE),
+                   Some(PropertyType::Byte));
+        assert_eq!(PropertyType::new(ffi::MQTTPropertyTypes_MQTTPROPERTY_TYPE_BINARY_DATA),
+                   Some(PropertyType::BinaryData));
+
+        assert_eq!(PropertyType::new(7), None);
+    }
+
+    #[test]
+    fn test_property_code_new() {
+        assert_eq!(PropertyCode::new(ffi::MQTTPropertyCodes_MQTTPROPERTY_CODE_PAYLOAD_FORMAT_INDICATOR),
+                   Some(PropertyCode::PayloadFormatIndicator));
+        assert_eq!(PropertyCode::new(ffi::MQTTPropertyCodes_MQTTPROPERTY_CODE_AUTHENTICATION_METHOD),
+                   Some(PropertyCode::AuthenticationMethod));
+        assert_eq!(PropertyCode::new(ffi::MQTTPropertyCodes_MQTTPROPERTY_CODE_USER_PROPERTY),
+                   Some(PropertyCode::UserProperty));
+    }
+
+    #[test]
+    fn test_property_generic_new() {
+        let prop = Property::new(PropertyCode::ResponseTopic, 42u16);
+        assert!(prop.is_none());
+
+        //let prop = Property::new(PropertyCode::ResponseTopic, "events".to_string());
+        //assert!(prop.is_some());
+
+        let prop = Property::new(PropertyCode::MaximumQos, 2u8);
+        assert!(prop.is_some());
+
+        let topic = "data/temp".to_string();
+        let prop = Property::new(PropertyCode::ResponseTopic, topic.clone()).unwrap();
+        assert_eq!(prop.get_string(), Some(topic));
+
+        let topic = "data/temp";
+        let prop = Property::new(PropertyCode::ResponseTopic, topic).unwrap();
+        assert_eq!(prop.get_string(), Some(topic.to_string()));
+    }
 
     #[test]
     fn test_new_property_byte() {
@@ -628,6 +951,7 @@ mod tests {
         }
 
         assert_eq!(prop.get_int(), Some(val));
+        assert_eq!(prop.get_val::<i32>(), Some(val));
     }
 
     #[test]
@@ -665,6 +989,8 @@ mod tests {
             assert!(prop.cprop.value.__bindgen_anon_1.value.data.is_null());
             assert_eq!(prop.cprop.value.__bindgen_anon_1.value.len, 0);
         }
+        assert_eq!(prop.get_binary(), Some(val.as_bytes().to_vec()));
+        assert_eq!(prop.get_val::<Vec<u8>>(), Some(val.as_bytes().to_vec()));
     }
 
     #[test]
@@ -684,7 +1010,8 @@ mod tests {
             assert_eq!(prop.cprop.value.__bindgen_anon_1.value.len, 0);
         }
 
-        assert_eq!(val, &prop.get_string().unwrap());
+        assert_eq!(prop.get_string(), Some(val.to_string()));
+        assert_eq!(prop.get_val::<String>(), Some(val.to_string()));
     }
 
     #[test]
@@ -708,10 +1035,8 @@ mod tests {
             assert_eq!(val, s.to_str().unwrap());
         }
 
-        let (keys, vals) = prop.get_string_pair().unwrap();
-
-        assert_eq!(key, &keys);
-        assert_eq!(val, &vals);
+        assert_eq!(prop.get_string_pair(), Some((key.to_string(), val.to_string())));
+        assert_eq!(prop.get_val::<(String,String)>(), Some((key.to_string(), val.to_string())));
     }
 
     #[test]
@@ -835,7 +1160,6 @@ mod tests {
         assert!(!props.is_empty());
     }
 
-
     #[test]
     fn test_properties_get_int() {
         let code = PropertyCode::PayloadFormatIndicator;
@@ -849,7 +1173,90 @@ mod tests {
 
         let prop = props.get(code).unwrap();
         assert_eq!(prop.get_int().unwrap(), val);
+        //assert_eq!(prop.get_val::<i32>().unwrap(), val);
+    }
 
+    #[test]
+    fn test_properties_multiple() {
+        let code = PropertyCode::UserProperty;
+
+        let mut props = Properties::new();
+
+        props.push(Property::new_string_pair(code, "user0", "val0").unwrap());
+        props.push(Property::new_string_pair(code, "user1", "val1").unwrap());
+        props.push(Property::new_string_pair(code, "user2", "val2").unwrap());
+
+        assert!(!props.is_empty());
+        assert_eq!(props.len(), 3);
+
+        assert_eq!(props.get_string_pair_at(code, 0).unwrap(),
+                   ("user0".to_string(), "val0".to_string()));
+        assert_eq!(props.get_string_pair_at(code, 1).unwrap(),
+                   ("user1".to_string(), "val1".to_string()));
+        assert_eq!(props.get_string_pair_at(code, 2).unwrap(),
+                   ("user2".to_string(), "val2".to_string()));
+
+        assert_eq!(props.get_string_pair_at(code, 3), None);
+    }
+
+    #[test]
+    fn test_properties_iterator() {
+        let code = PropertyCode::UserProperty;
+
+        let mut props = Properties::new();
+
+        props.push_string_pair(code, "user0", "val0").unwrap();
+        props.push_string_pair(code, "user1", "val1").unwrap();
+        props.push_string_pair(code, "user2", "val2").unwrap();
+
+        let mut it = props.iter(code);
+
+        assert_eq!(it.next().and_then(|prop| prop.get_string_pair()),
+                   Some(("user0".to_string(), "val0".to_string())));
+        assert_eq!(it.next().and_then(|prop| prop.get_string_pair()),
+                   Some(("user1".to_string(), "val1".to_string())));
+        assert_eq!(it.next().and_then(|prop| prop.get_string_pair()),
+                   Some(("user2".to_string(), "val2".to_string())));
+
+        assert_eq!(it.next().and_then(|prop| prop.get_string_pair()), None);
+    }
+
+    #[test]
+    fn test_properties_user_iterator() {
+        let code = PropertyCode::UserProperty;
+
+        let mut props = Properties::new();
+
+        props.push_string_pair(code, "user0", "val0").unwrap();
+        props.push_string_pair(code, "user1", "val1").unwrap();
+        props.push_string_pair(code, "user2", "val2").unwrap();
+
+        let mut it = props.user_iter();
+
+        assert_eq!(it.next(),
+                   Some(("user0".to_string(), "val0".to_string())));
+        assert_eq!(it.next(),
+                   Some(("user1".to_string(), "val1".to_string())));
+        assert_eq!(it.next(),
+                   Some(("user2".to_string(), "val2".to_string())));
+
+        assert_eq!(it.next(), None);
+    }
+
+    #[test]
+    fn test_properties_user_find() {
+        let code = PropertyCode::UserProperty;
+
+        let mut props = Properties::new();
+
+        props.push(Property::new_string_pair(code, "user0", "val0").unwrap());
+        props.push(Property::new_string_pair(code, "user1", "val1").unwrap());
+        props.push(Property::new_string_pair(code, "user2", "val2").unwrap());
+
+        assert_eq!(props.find_user_property("user0"), Some("val0".to_string()));
+        assert_eq!(props.find_user_property("user1"), Some("val1".to_string()));
+        assert_eq!(props.find_user_property("user2"), Some("val2".to_string()));
+        assert_eq!(props.find_user_property("user3"), None);
     }
 }
 
