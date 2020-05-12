@@ -80,8 +80,8 @@ pub enum ReasonCode {
 
 // Some aliased ReasonCode values
 
-const NormalDisconnection: ReasonCode = ReasonCode::Success;
-const GrantedQos0: ReasonCode = ReasonCode::Success;
+pub const NormalDisconnection: ReasonCode = ReasonCode::Success;
+pub const GrantedQos0: ReasonCode = ReasonCode::Success;
 
 impl ReasonCode {
     /// Reason codes less than 0x80 indicate a successful operation.

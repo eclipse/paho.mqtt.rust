@@ -30,6 +30,7 @@ use std::time::Duration;
 use crate::{
     ffi,
     token::{Token, TokenInner},
+    reason_code::ReasonCode,
 };
 
 /// The collection of options for disconnecting from the client.
@@ -53,6 +54,11 @@ impl DisconnectOptions {
         self.copts.onSuccess = Some(TokenInner::on_success);
         self.copts.onFailure = Some(TokenInner::on_failure);
         self.copts.context = tok.into_raw();
+    }
+
+    /// Gets the reason code in the options.
+    pub fn reason_code(&self) -> ReasonCode {
+        ReasonCode::from(self.copts.reasonCode)
     }
 }
 
@@ -98,6 +104,23 @@ impl DisconnectOptionsBuilder {
         self
     }
 
+    /// Set the reason for the disconnect.
+    ///
+    /// The valid disconnect reasons are listed here in the spec:
+    /// https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901208
+    pub fn reason_code(&mut self, reason_code: ReasonCode) -> &mut DisconnectOptionsBuilder {
+        self.copts.reasonCode = reason_code as ffi::MQTTReasonCodes;
+        self
+    }
+
+    /// Tell the server to publish the will message on this disconnect.
+    ///
+    /// This sets the reason code in the options to 0x04:
+    ///   "Disconnect with Will Message"
+    pub fn publish_will_message(&mut self) -> &mut DisconnectOptionsBuilder {
+        self.reason_code(ReasonCode::DisconnectWithWillMessage)
+    }
+
     /// Finalize the builder to create the connect options.
     pub fn finalize(&self) -> DisconnectOptions {
         DisconnectOptions {
@@ -113,8 +136,11 @@ impl DisconnectOptionsBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread;
-    use std::os::raw::c_char;
+    use std::{
+        thread,
+        os::raw::c_char,
+    };
+    use crate::reason_code::NormalDisconnection;
 
     // Identifier fo a C disconnect options struct
     const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'D' as c_char ];
@@ -138,5 +164,20 @@ mod tests {
         let _ = thr.join().unwrap();
     }
 
+    #[test]
+    fn test_reason_code() {
+        let opts = DisconnectOptionsBuilder::new().finalize();
+        assert_eq!(opts.reason_code(), NormalDisconnection);
+
+        let opts = DisconnectOptionsBuilder::new()
+            .reason_code(ReasonCode::DisconnectWithWillMessage)
+            .finalize();
+        assert_eq!(opts.reason_code(), ReasonCode::DisconnectWithWillMessage);
+
+        let opts = DisconnectOptionsBuilder::new()
+            .publish_will_message()
+            .finalize();
+        assert_eq!(opts.reason_code(), ReasonCode::DisconnectWithWillMessage);
+    }
 }
 
