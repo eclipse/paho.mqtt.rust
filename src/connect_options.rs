@@ -441,7 +441,7 @@ mod tests {
         let opts = ConnectOptions::new();
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
-        assert_eq!(6, opts.copts.struct_version);
+        assert_eq!(7, opts.copts.struct_version);
         assert_eq!(ptr::null(), opts.copts.will);
         assert_eq!(ptr::null(), opts.copts.username);
         assert_eq!(ptr::null(), opts.copts.password);

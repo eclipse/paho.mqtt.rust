@@ -64,7 +64,7 @@ fn main() -> mqtt::Result<()> {
 
     // The LWT is broadcast to the group if our connection is lost
 
-    let s = format!("<<<{} was disconnected>>>", chat_user);
+    let s = format!("<<< {} left the group >>>", chat_user);
     let lwt: mqtt::Message = (chat_topic.as_str(), s.as_bytes(), QOS, false).into();
 
     // Create a client to the specified host, no persistence
@@ -120,7 +120,7 @@ fn main() -> mqtt::Result<()> {
     println!("Joining the group '{}'...", chat_group);
     topic.subscribe_with_options(NO_LOCAL).wait()?;
 
-    // Let everyone know that a new user joined  the group
+    // Let everyone know that a new user joined the group
 
     topic.publish(format!("<<< {} joined the group >>>", chat_user)).wait()?;
 
@@ -150,8 +150,11 @@ fn main() -> mqtt::Result<()> {
 
     if cli.is_connected() {
         println!("Leaving the group...");
-        topic.publish(format!("<<< {} left the group >>>", chat_user)).wait()?;
-        cli.disconnect(None).wait()?;
+        // Disconnect and tell the server to publish the LWT
+        let opts = mqtt::DisconnectOptionsBuilder::new()
+            .publish_will_message()
+            .finalize();
+        cli.disconnect(opts).wait()?;
     }
 
     Ok(())

@@ -74,7 +74,7 @@ impl Default for MQTTAsync_connectOptions {
     fn default() -> MQTTAsync_connectOptions {
         MQTTAsync_connectOptions {
             struct_id: [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'C' as c_char],
-            struct_version: 6,
+            struct_version: 7,
             keepAliveInterval: 60,
             cleansession: 1,
             maxInflight: 65535,
@@ -131,7 +131,7 @@ impl Default for MQTTAsync_SSLOptions {
     fn default() -> MQTTAsync_SSLOptions {
         MQTTAsync_SSLOptions {
             struct_id: [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'S' as c_char ],
-            struct_version: 0,
+            struct_version: 4,
             trustStore: ptr::null(),
             keyStore: ptr::null(),
             privateKey: ptr::null(),
@@ -237,7 +237,7 @@ impl Default for MQTTAsync_disconnectOptions {
     fn default() -> MQTTAsync_disconnectOptions {
         MQTTAsync_disconnectOptions {
             struct_id: [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'D' as c_char],
-            struct_version: 0,
+            struct_version: 1,
             timeout: 0,
             onSuccess: None,
             onFailure: None,

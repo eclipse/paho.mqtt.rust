@@ -202,7 +202,7 @@ mod tests {
         //let copts = ffi::MQTTAsync_SSLOptions::default();
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
-        assert_eq!(0, opts.copts.struct_version);
+        assert_eq!(4, opts.copts.struct_version);
         assert_eq!(ptr::null(), opts.copts.trustStore);
         // TODO: Check the other strings
     }
@@ -213,7 +213,7 @@ mod tests {
             .finalize();
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
-        assert_eq!(0, opts.copts.struct_version);
+        assert_eq!(4, opts.copts.struct_version);
         assert_eq!(ptr::null(), opts.copts.trustStore);
         // TODO: Check the other strings
     }

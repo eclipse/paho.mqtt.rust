@@ -460,6 +460,7 @@ impl AsyncClient {
     {
         if let Some(mut opts) = opt_opts.into() {
             debug!("Disconnecting");
+            trace!("Disconnect options: {:?}", opts);
 
             let tok = Token::new();
             opts.set_token(tok.clone());

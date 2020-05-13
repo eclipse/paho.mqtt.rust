@@ -31,19 +31,28 @@ use crate::{
     ffi,
     token::{Token, TokenInner},
     reason_code::ReasonCode,
+    properties::Properties,
 };
 
 /// The collection of options for disconnecting from the client.
 #[derive(Debug)]
 pub struct DisconnectOptions {
     /// The underlying C disconnect options
-    pub copts: ffi::MQTTAsync_disconnectOptions,
+    pub(crate) copts: ffi::MQTTAsync_disconnectOptions,
+    props: Properties,
 }
 
 impl DisconnectOptions {
     /// Create a new `DisconnectOptions`
-    pub fn new() -> DisconnectOptions {
-        DisconnectOptions::default()
+    pub fn new() -> Self {
+        let opts = Self::default();
+        Self::fixup(opts)
+    }
+
+    // Ensures that the underlying C struct points to cached values
+    fn fixup(mut opts: Self) -> Self {
+        opts.copts.properties = opts.props.cprops.clone();
+        opts
     }
 
     /// Sets the token to ber used for connect completion callbacks.
@@ -60,35 +69,41 @@ impl DisconnectOptions {
     pub fn reason_code(&self) -> ReasonCode {
         ReasonCode::from(self.copts.reasonCode)
     }
+
+    /// Gets the properties in the message
+    pub fn properties(&self) -> &Properties {
+        &self.props
+    }
 }
 
 impl Default for DisconnectOptions {
-    fn default() -> DisconnectOptions {
-        DisconnectOptions {
+    fn default() -> Self {
+        let opts = DisconnectOptions {
             copts: ffi::MQTTAsync_disconnectOptions::default(),
-        }
+            props: Properties::default(),
+        };
+        Self::fixup(opts)
     }
 }
 
 unsafe impl Send for DisconnectOptions {}
 unsafe impl Sync for DisconnectOptions {}
 
-
 /////////////////////////////////////////////////////////////////////////////
 //                              Builder
 /////////////////////////////////////////////////////////////////////////////
 
 /// Builder to create the options for disconnecting from an MQTT server.
+#[derive(Debug, Default)]
 pub struct DisconnectOptionsBuilder {
     copts: ffi::MQTTAsync_disconnectOptions,
+    props: Properties,
 }
 
 impl DisconnectOptionsBuilder {
     /// Create a new `DisconnectOptionsBuilder`
-    pub fn new() -> DisconnectOptionsBuilder {
-        DisconnectOptionsBuilder {
-            copts: ffi::MQTTAsync_disconnectOptions::default(),
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Sets the time interval to allow the disconnect to complete.
@@ -98,7 +113,7 @@ impl DisconnectOptionsBuilder {
     ///
     /// `timeout` The time interval to allow the disconnect to
     ///           complete. This has a resolution of seconds.
-    pub fn timeout(&mut self, timeout: Duration) -> &mut DisconnectOptionsBuilder {
+    pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
         let secs = timeout.as_secs();
         self.copts.timeout = if secs == 0 { 1 } else { secs as i32 };
         self
@@ -108,7 +123,7 @@ impl DisconnectOptionsBuilder {
     ///
     /// The valid disconnect reasons are listed here in the spec:
     /// https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901208
-    pub fn reason_code(&mut self, reason_code: ReasonCode) -> &mut DisconnectOptionsBuilder {
+    pub fn reason_code(&mut self, reason_code: ReasonCode) -> &mut Self {
         self.copts.reasonCode = reason_code as ffi::MQTTReasonCodes;
         self
     }
@@ -117,15 +132,28 @@ impl DisconnectOptionsBuilder {
     ///
     /// This sets the reason code in the options to 0x04:
     ///   "Disconnect with Will Message"
-    pub fn publish_will_message(&mut self) -> &mut DisconnectOptionsBuilder {
+    pub fn publish_will_message(&mut self) -> &mut Self {
         self.reason_code(ReasonCode::DisconnectWithWillMessage)
     }
 
-    /// Finalize the builder to create the connect options.
+    /// Sets the collection of properties for the disconnect.
+    ///
+    /// # Arguments
+    ///
+    /// `props` The collection of properties to include with the
+    ///     disconnect message.
+    pub fn properties(&mut self, props: Properties) -> &mut Self {
+        self.props = props;
+        self
+    }
+
+    /// Finalize the builder to create the disconnect options.
     pub fn finalize(&self) -> DisconnectOptions {
-        DisconnectOptions {
+        let opts = DisconnectOptions {
             copts: self.copts.clone(),
-        }
+            props: self.props.clone(),
+        };
+        DisconnectOptions::fixup(opts)
     }
 }
 
@@ -138,19 +166,23 @@ mod tests {
     use super::*;
     use std::{
         thread,
-        os::raw::c_char,
+        os::raw::{c_char, c_int},
     };
-    use crate::reason_code::NormalDisconnection;
+    use crate::{
+        reason_code::NormalDisconnection,
+        properties::PropertyCode,
+    };
 
     // Identifier fo a C disconnect options struct
     const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'D' as c_char ];
+    const STRUCT_VERSION: c_int = 1;
 
     #[test]
     fn test_new() {
         let opts = DisconnectOptions::new();
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
-        assert_eq!(0, opts.copts.struct_version);
+        assert_eq!(STRUCT_VERSION, opts.copts.struct_version);
     }
 
     #[test]
@@ -159,7 +191,7 @@ mod tests {
 
         let thr = thread::spawn(move || {
             assert_eq!(STRUCT_ID, opts.copts.struct_id);
-            assert_eq!(0, opts.copts.struct_version);
+            assert_eq!(STRUCT_VERSION, opts.copts.struct_version);
         });
         let _ = thr.join().unwrap();
     }
@@ -178,6 +210,44 @@ mod tests {
             .publish_will_message()
             .finalize();
         assert_eq!(opts.reason_code(), ReasonCode::DisconnectWithWillMessage);
+    }
+
+    #[test]
+    fn test_properties() {
+        let opts = DisconnectOptions::new();
+        assert!(opts.properties().is_empty());
+        assert_eq!(opts.properties().len(), 0);
+
+        let opts = DisconnectOptionsBuilder::new().finalize();
+        assert!(opts.properties().is_empty());
+        assert_eq!(opts.properties().len(), 0);
+
+        let mut props = Properties::new();
+        props.push_int(PropertyCode::SessionExpiryInterval, 1000).unwrap();
+        props.push_val(PropertyCode::ReasonString, "causeIwanna").unwrap();
+
+        let opts = DisconnectOptionsBuilder::new()
+            .properties(props)
+            .finalize();
+
+        let props = opts.properties();
+
+        assert!(!props.is_empty());
+        assert_eq!(props.len(), 2);
+
+        assert_eq!(props.get_int(PropertyCode::SessionExpiryInterval), Some(1000));
+        assert_eq!(props.get_val::<String>(PropertyCode::ReasonString),
+                   Some("causeIwanna".to_string()));
+
+        assert_eq!(props.get_int(PropertyCode::ContentType), None);
+
+        let props = Properties::from_c_struct(&opts.copts.properties);
+        assert_eq!(props.len(), 2);
+
+        assert_eq!(props.get_int(PropertyCode::SessionExpiryInterval), Some(1000));
+        assert_eq!(props.get_val::<String>(PropertyCode::ReasonString),
+                   Some("causeIwanna".to_string()));
+
     }
 }
 

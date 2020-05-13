@@ -694,11 +694,11 @@ pub struct Properties {
 
 impl Properties {
     /// Creates a new, empty collection of properties.
-    pub fn new() -> Properties {
+    pub fn new() -> Self {
         Properties::default()
     }
 
-    pub fn from_c_struct(cprops: &ffi::MQTTProperties) -> Properties {
+    pub fn from_c_struct(cprops: &ffi::MQTTProperties) -> Self {
         // This does a deep copy in the C lib
         let cprops = unsafe { ffi::MQTTProperties_copy(cprops) };
         Properties { cprops, }
