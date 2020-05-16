@@ -52,11 +52,11 @@ impl Message {
     /// * `topic` The topic on which the message is published.
     /// * `payload` The binary payload of the message
     /// * `qos` The quality of service for message delivery (0, 1, or 2)
-    pub fn new<S,V>(topic: S, payload: V, qos: i32) -> Message
+    pub fn new<S,V>(topic: S, payload: V, qos: i32) -> Self
         where S: Into<String>,
               V: Into<Vec<u8>>
     {
-        let msg = Message {
+        let msg = Self {
             cmsg: ffi::MQTTAsync_message {
                 qos,
                 ..ffi::MQTTAsync_message::default()
@@ -65,7 +65,7 @@ impl Message {
             payload: payload.into(),
             props: Properties::default(),
         };
-        Message::fixup(msg)
+        Self::fixup(msg)
     }
 
     /// Creates a new message that will be retained by the broker.
@@ -77,11 +77,11 @@ impl Message {
     /// * `payload` The binary payload of the message
     /// * `qos` The quality of service for message delivery (0, 1, or 2)
     ///
-    pub fn new_retained<S,V>(topic: S, payload: V, qos: i32) -> Message
+    pub fn new_retained<S,V>(topic: S, payload: V, qos: i32) -> Self
         where S: Into<String>,
               V: Into<Vec<u8>>
     {
-        let msg = Message {
+        let msg = Self {
             cmsg: ffi::MQTTAsync_message {
                 qos,
                 retained: 1,
@@ -91,7 +91,7 @@ impl Message {
             payload: payload.into(),
             props: Properties::default(),
         };
-        Message::fixup(msg)
+        Self::fixup(msg)
     }
 
     /// Creates a new message from C language components.
@@ -100,7 +100,7 @@ impl Message {
     ///
     /// * `topic` The topic on which the message is published.
     /// * `msg` The message struct from the C library
-    pub unsafe fn from_c_parts(topic: CString, cmsg: &ffi::MQTTAsync_message) -> Message {
+    pub unsafe fn from_c_parts(topic: CString, cmsg: &ffi::MQTTAsync_message) -> Self {
         let len = cmsg.payloadlen as usize;
         let payload =  slice::from_raw_parts(cmsg.payload as *mut u8, len);
 
@@ -112,11 +112,11 @@ impl Message {
             payload: payload.to_vec(),
             props: Properties::from_c_struct(&cmsg.properties),
         };
-        Message::fixup(msg)
+        Self::fixup(msg)
     }
 
     // Ensures that the underlying C struct points to cached values
-    fn fixup(mut msg: Message) -> Message {
+    fn fixup(mut msg: Self) -> Self {
         msg.cmsg.payload = msg.payload.as_mut_ptr() as *mut c_void;
         msg.cmsg.payloadlen = msg.payload.len() as i32;
         msg.cmsg.properties = msg.props.cprops.clone();
@@ -175,14 +175,14 @@ impl Default for Message {
 }
 
 impl Clone for Message {
-    fn clone(&self) -> Message {
-        let msg = Message {
+    fn clone(&self) -> Self {
+        let msg = Self {
             cmsg: self.cmsg.clone(),
             topic: self.topic.clone(),
             payload: self.payload.clone(),
             props: self.props.clone(),
         };
-        Message::fixup(msg)
+        Self::fixup(msg)
     }
 }
 
@@ -191,19 +191,19 @@ unsafe impl Sync for Message {}
 
 impl<'a, 'b> From<(&'a str, &'b [u8])> for Message {
     fn from((topic, payload): (&'a str, &'b [u8])) -> Self {
-        let msg = Message {
+        let msg = Self {
             cmsg: ffi::MQTTAsync_message::default(),
             topic: CString::new(topic).unwrap(),
             payload: payload.to_vec(),
             props: Properties::default(),
         };
-        Message::fixup(msg)
+        Self::fixup(msg)
     }
 }
 
 impl<'a, 'b> From<(&'a str, &'b [u8], i32, bool)> for Message {
     fn from((topic, payload, qos, retained): (&'a str, &'b [u8], i32, bool)) -> Self {
-        let mut msg = Message {
+        let mut msg = Self {
             cmsg: ffi::MQTTAsync_message::default(),
             topic: CString::new(topic).unwrap(),
             payload: payload.to_vec(),
@@ -211,7 +211,7 @@ impl<'a, 'b> From<(&'a str, &'b [u8], i32, bool)> for Message {
         };
         msg.cmsg.qos = qos;
         msg.cmsg.retained = if retained { 1 } else { 0 };
-        Message::fixup(msg)
+        Self::fixup(msg)
     }
 }
 
@@ -242,8 +242,8 @@ pub struct MessageBuilder {
 impl MessageBuilder
 {
     /// Create a new message builder.
-    pub fn new() -> MessageBuilder {
-        MessageBuilder {
+    pub fn new() -> Self {
+        Self {
             topic: String::new(),
             payload: Vec::new(),
             qos: 0,
@@ -257,7 +257,7 @@ impl MessageBuilder
     /// # Arguments
     ///
     /// `topic` The topic on which the message should be published.
-    pub fn topic<T>(mut self, topic: T) -> MessageBuilder
+    pub fn topic<T>(mut self, topic: T) -> Self
         where T: Into<String>
     {
         self.topic = topic.into();
@@ -269,7 +269,7 @@ impl MessageBuilder
     /// # Arguments
     ///
     /// `payload` The binary payload of the message
-    pub fn payload<V>(mut self, payload: V) -> MessageBuilder
+    pub fn payload<V>(mut self, payload: V) -> Self
         where V: Into<Vec<u8>>
     {
         self.payload = payload.into();
@@ -281,7 +281,7 @@ impl MessageBuilder
     /// # Arguments
     ///
     /// `qos` The quality of service for the message.
-    pub fn qos(mut self, qos: i32) -> MessageBuilder {
+    pub fn qos(mut self, qos: i32) -> Self {
         self.qos = qos;
         self
     }
@@ -293,7 +293,7 @@ impl MessageBuilder
     ///
     /// `retained` Set true if the message should be retained by the broker,
     ///            false if not.
-    pub fn retained(mut self, retained: bool) -> MessageBuilder {
+    pub fn retained(mut self, retained: bool) -> Self {
         self.retained = retained;
         self
     }
@@ -303,7 +303,7 @@ impl MessageBuilder
     /// # Arguments
     ///
     /// `props` The collection of properties to include with the message.
-    pub fn properties(mut self, props: Properties) -> MessageBuilder {
+    pub fn properties(mut self, props: Properties) -> Self {
         self.props = props;
         self
     }
