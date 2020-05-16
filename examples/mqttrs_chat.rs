@@ -11,6 +11,7 @@
 //!  - Using the "Topic" type to publish and subscribe
 //!  - Using asynchronous tokens
 //!  - Handling message and disconnect callbacks with closures
+//!  - v5 properties, like `WillDelayInterval` and `SessionExpiraryInterval`
 //
 
 /*******************************************************************************
@@ -58,19 +59,30 @@ fn main() -> mqtt::Result<()> {
     let chat_group = args[1].to_string();
     let chat_topic = format!("chat/{}", chat_group);
 
+    let client_id = format!("mqttrs_chat-{}-{}", chat_user, chat_group);
+
     const QOS: i32 = 1;
     const MQTTV5: u32 = 5;
     const NO_LOCAL: bool = true;
 
     // The LWT is broadcast to the group if our connection is lost
+    // But wait 30sec for reconnect before broadcasting it.
 
-    let s = format!("<<< {} left the group >>>", chat_user);
-    let lwt: mqtt::Message = (chat_topic.as_str(), s.as_bytes(), QOS, false).into();
+    let mut lwt_props = mqtt::Properties::new();
+    lwt_props.push_int(mqtt::PropertyCode::WillDelayInterval, 10).unwrap();
+
+    let lwt = mqtt::MessageBuilder::new()
+        .topic(&chat_topic)
+        .payload(format!("<<< {} left the group >>>", chat_user))
+        .qos(QOS)
+        .properties(lwt_props)
+        .finalize();
 
     // Create a client to the specified host, no persistence
     let create_opts = mqtt::CreateOptionsBuilder::new()
         .mqtt_version(MQTTV5)
         .server_uri(host)
+        .client_id(client_id)
         .persistence(mqtt::PersistenceType::None)
         .finalize();
 
@@ -80,11 +92,15 @@ fn main() -> mqtt::Result<()> {
         process::exit(1);
     });
 
+    let mut props = mqtt::Properties::new();
+    props.push_int(mqtt::PropertyCode::SessionExpiryInterval, 60).unwrap();
+
     // Connect with default options
     let conn_opts = mqtt::ConnectOptionsBuilder::new()
         .mqtt_version(MQTTV5)
         .keep_alive_interval(Duration::from_secs(20))
-        .clean_start(true)
+        .clean_start(false)
+        .properties(props)
         .will_message(lwt)
         .finalize();
 
@@ -150,7 +166,7 @@ fn main() -> mqtt::Result<()> {
 
     if cli.is_connected() {
         println!("Leaving the group...");
-        // Disconnect and tell the server to publish the LWT
+        // Disconnect and tell the server to publish the LWT (after the expiry)
         let opts = mqtt::DisconnectOptionsBuilder::new()
             .publish_will_message()
             .finalize();

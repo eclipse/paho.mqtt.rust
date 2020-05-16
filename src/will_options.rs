@@ -38,6 +38,7 @@ use std::{
 use crate::{
     ffi,
     message::Message,
+    properties::Properties,
 };
 
 /// The options for the Last Will and Testament (LWT).
@@ -62,6 +63,7 @@ pub struct WillOptions {
     pub(crate) copts: ffi::MQTTAsync_willOptions,
     topic: CString,
     payload: Vec<u8>,
+    props: Properties,
 }
 
 impl WillOptions {
@@ -83,6 +85,7 @@ impl WillOptions {
             },
             topic: CString::new(topic.into()).unwrap(),
             payload: payload.into(),
+            props: Properties::default(),
         };
         WillOptions::fixup(opts)
     }
@@ -106,6 +109,7 @@ impl WillOptions {
             },
             topic: CString::new(topic.into()).unwrap(),
             payload: payload.into(),
+            props: Properties::default(),
         };
         WillOptions::fixup(opts)
     }
@@ -125,6 +129,7 @@ impl WillOptions {
             ptr::null()
         };
         opts.copts.payload.len = opts.payload.len() as i32;
+        // Note: For some reason, properties aren't in the
         opts
     }
 
@@ -153,6 +158,11 @@ impl WillOptions {
     pub fn retained(&self) -> bool {
         self.copts.retained != 0
     }
+
+    /// Gets the properties for the will message.
+    pub fn properties(&self) -> &Properties {
+        &self.props
+    }
 }
 
 impl Default for WillOptions {
@@ -162,6 +172,7 @@ impl Default for WillOptions {
             copts: ffi::MQTTAsync_willOptions::default(),
             topic: CString::new("").unwrap(),
             payload: Vec::new(),
+            props: Properties::default(),
         };
         WillOptions::fixup(opts)
     }
@@ -176,6 +187,7 @@ impl Clone for WillOptions {
             copts: self.copts.clone(),
             topic: self.topic.clone(),
             payload: self.payload.clone(),
+            props: self.props.clone(),
         };
         WillOptions::fixup(will)
     }
@@ -195,6 +207,7 @@ impl From<Message> for WillOptions {
             },
             topic: msg.topic,
             payload: msg.payload,
+            props: msg.props,
         };
         WillOptions::fixup(will)
     }

@@ -52,10 +52,15 @@ To keep up with the latest announcements for this project, follow:
 
 ### Unreleased Features in this Branch
 
-- Upgraded Tokens to implement Futures 0.3
+- Upgraded crate to 2018 Edition 
+- Upgraded Tokens to implement Futures 0.3. (async/await compatible!)
 - Error type based on _thiserror_
-- Upgraded to 
-
+- Added some missing/forgotten MQTT v5 support:
+    - Connect and Will properties in connect options
+    - Reason code and properties in disconnect options
+- Examples using async/await
+- Removed old asynchronous (futures 0.1-style) examples
+    
 ### What's new in v0.7
 
 Version 0.7 brings full support for MQTT v5, including:

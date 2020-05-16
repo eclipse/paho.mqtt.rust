@@ -42,6 +42,7 @@ use crate::{
     will_options::WillOptions,
     ssl_options::SslOptions,
     string_collection::StringCollection,
+    properties::Properties,
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -61,6 +62,8 @@ pub struct ConnectOptions {
     user_name: Option<CString>,
     password: Option<CString>,
     server_uris: StringCollection,
+    props: Option<Box<Properties>>,
+    will_props: Option<Box<Properties>>,
 }
 
 impl ConnectOptions {
@@ -109,6 +112,21 @@ impl ConnectOptions {
             opts.copts.serverURIs = ptr::null();
             opts.copts.serverURIcount = 0;
         }
+        // Paho C v1.3.2 seems to require NULL for "no properties"
+        // Giving a pointer to an empty struct segfaults.
+        opts.copts.connectProperties = if let Some(ref mut props) = opts.props {
+            &mut props.cprops
+        }
+        else {
+            ptr::null_mut()
+        };
+
+        opts.copts.willProperties = if let Some(ref mut will_props) = opts.will_props {
+            &mut will_props.cprops
+        }
+        else {
+            ptr::null_mut()
+        };
 
         opts
     }
@@ -117,6 +135,7 @@ impl ConnectOptions {
     pub fn clean_session(&self) -> bool {
         self.copts.cleansession != 0
     }
+
     /// This sets the "clean session" behavior for connecting to the server.
     /// When set to true, this directs the server to throw away any state
     /// related to the client, as determined by the client identifier.
@@ -146,30 +165,34 @@ impl ConnectOptions {
 }
 
 impl Default for ConnectOptions {
-    fn default() -> ConnectOptions {
-        let opts = ConnectOptions {
+    fn default() -> Self {
+        let opts = Self {
             copts: ffi::MQTTAsync_connectOptions::default(),
             will: None,
             ssl: None,
             user_name: None,
             password: None,
             server_uris: StringCollection::default(),
+            props: None,
+            will_props: None,
         };
-        ConnectOptions::fixup(opts)
+        Self::fixup(opts)
     }
 }
 
 impl Clone for ConnectOptions {
-    fn clone(&self) -> ConnectOptions {
-        let opts = ConnectOptions {
+    fn clone(&self) -> Self {
+        let opts = Self {
             copts: self.copts.clone(),
             will: self.will.clone(),
             ssl: self.ssl.clone(),
             user_name: self.user_name.clone(),
             password: self.password.clone(),
             server_uris: self.server_uris.clone(),
+            props: self.props.clone(),
+            will_props: self.will_props.clone(),
         };
-        ConnectOptions::fixup(opts)
+        Self::fixup(opts)
     }
 }
 
@@ -182,6 +205,7 @@ unsafe impl Sync for ConnectOptions {}
 /////////////////////////////////////////////////////////////////////////////
 
 /// Builder to create the options to connect to the MQTT server.
+#[derive(Default)]
 pub struct ConnectOptionsBuilder {
     copts: ffi::MQTTAsync_connectOptions,
     will: Option<WillOptions>,
@@ -189,19 +213,14 @@ pub struct ConnectOptionsBuilder {
     user_name: Option<String>,
     password: Option<String>,
     server_uris: StringCollection,
+    props: Option<Properties>,
+    will_props: Option<Properties>,
 }
 
 impl ConnectOptionsBuilder {
     /// Creates a new `ConnectOptionsBuilder`
-    pub fn new() -> ConnectOptionsBuilder {
-        ConnectOptionsBuilder {
-            copts: ffi::MQTTAsync_connectOptions::default(),
-            will: None,
-            ssl: None,
-            user_name: None,
-            password: None,
-            server_uris: StringCollection::default(),
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Sets the keep alive interval for the client session.
@@ -211,7 +230,7 @@ impl ConnectOptionsBuilder {
     /// `keep_alive_interval` The maximum time that should pass without
     ///                       communication between the client and server.
     ///                       This has a resolution in seconds.
-    pub fn keep_alive_interval(&mut self, keep_alive_interval: Duration) -> &mut ConnectOptionsBuilder {
+    pub fn keep_alive_interval(&mut self, keep_alive_interval: Duration) -> &mut Self {
         let secs = keep_alive_interval.as_secs();
         self.copts.keepAliveInterval = if secs == 0 { 1 } else { secs as i32 };
         self
@@ -219,22 +238,26 @@ impl ConnectOptionsBuilder {
 
     /// Sets the 'clean session' flag to send to the broker.
     ///
+    /// This is for MQTT v3.x connections, only.
+    ///
     /// # Arguments
     ///
     /// `clean` Whether the broker should remove any previously-stored
     ///         information for this client.
-    pub fn clean_session(&mut self, clean: bool) -> &mut ConnectOptionsBuilder {
+    pub fn clean_session(&mut self, clean: bool) -> &mut Self {
         self.copts.cleansession = if clean { 1 } else { 0 };
         self
     }
 
     /// Sets the 'clean start' flag to send to the broker.
     ///
+    /// This is for MQTT v5 connections only.
+    ///
     /// # Arguments
     ///
     /// `clean` Whether the broker should remove any previously-stored
     ///         information for this client.
-    pub fn clean_start(&mut self, clean: bool) -> &mut ConnectOptionsBuilder {
+    pub fn clean_start(&mut self, clean: bool) -> &mut Self {
         self.copts.cleanstart = if clean { 1 } else { 0 };
         self
     }
@@ -246,7 +269,7 @@ impl ConnectOptionsBuilder {
     ///
     /// `max_inflight` The maximum number of messages that can be in-flight
     ///                at any given time with this client.
-    pub fn max_inflight(&mut self, max_inflight: i32) -> &mut ConnectOptionsBuilder {
+    pub fn max_inflight(&mut self, max_inflight: i32) -> &mut Self {
         self.copts.maxInflight = max_inflight;
         self
     }
@@ -257,7 +280,7 @@ impl ConnectOptionsBuilder {
     ///
     /// `will` The LWT options for the connection.
     #[deprecated(note="Pass in a message with `will_message` instead")]
-    pub fn will_options(&mut self, will: WillOptions) -> &mut ConnectOptionsBuilder {
+    pub fn will_options(&mut self, will: WillOptions) -> &mut Self {
         self.will = Some(will);
         self
     }
@@ -267,7 +290,8 @@ impl ConnectOptionsBuilder {
     /// # Arguments
     ///
     /// `will` The LWT options for the connection.
-    pub fn will_message(&mut self, will: Message) -> &mut ConnectOptionsBuilder {
+    pub fn will_message(&mut self, will: Message) -> &mut Self {
+        self.will_props = Some(will.properties().clone());
         let will = WillOptions::from(will);
         self.will = Some(will);
         self
@@ -278,7 +302,7 @@ impl ConnectOptionsBuilder {
     /// # Arguments
     ///
     /// `ssl` The SSL options for the connection.
-    pub fn ssl_options(&mut self, ssl: SslOptions) -> &mut ConnectOptionsBuilder {
+    pub fn ssl_options(&mut self, ssl: SslOptions) -> &mut Self {
         self.ssl = Some(ssl);
         self
     }
@@ -290,7 +314,7 @@ impl ConnectOptionsBuilder {
     ///
     /// `user_name` The user name to send to the broker.
     ///
-    pub fn user_name<S>(&mut self, user_name: S) -> &mut ConnectOptionsBuilder
+    pub fn user_name<S>(&mut self, user_name: S) -> &mut Self
         where S: Into<String>
     {
         self.user_name = Some(user_name.into());
@@ -304,7 +328,7 @@ impl ConnectOptionsBuilder {
     ///
     /// `password` The password to send to the broker.
     ///
-    pub fn password<S>(&mut self, password: S) -> &mut ConnectOptionsBuilder
+    pub fn password<S>(&mut self, password: S) -> &mut Self
         where S: Into<String>
     {
         self.password = Some(password.into());
@@ -318,7 +342,7 @@ impl ConnectOptionsBuilder {
     /// `timeout` The time interval to allow the connect to
     ///           complete. This has a resolution of seconds.
     ///
-    pub fn connect_timeout(&mut self, timeout: Duration) -> &mut ConnectOptionsBuilder {
+    pub fn connect_timeout(&mut self, timeout: Duration) -> &mut Self {
         let secs = timeout.as_secs();
         self.copts.connectTimeout = if secs == 0 { 1 } else { secs as i32 };
         self
@@ -329,7 +353,7 @@ impl ConnectOptionsBuilder {
     /// # Arguments
     ///
     /// `interval` The retry interval. This has a resolution of seconds.
-    pub fn retry_interval(&mut self, interval: Duration) -> &mut ConnectOptionsBuilder {
+    pub fn retry_interval(&mut self, interval: Duration) -> &mut Self {
         let secs = interval.as_secs();
         self.copts.connectTimeout = if secs == 0 { 1 } else { secs as i32 };
         self
@@ -342,7 +366,7 @@ impl ConnectOptionsBuilder {
     /// `server_uris` The addresses of the brokers to which this client
     ///               should connect.
     //
-    pub fn server_uris<T>(&mut self, server_uris: &[T]) -> &mut ConnectOptionsBuilder
+    pub fn server_uris<T>(&mut self, server_uris: &[T]) -> &mut Self
         where T: AsRef<str>
     {
         self.server_uris = StringCollection::new(server_uris);
@@ -359,7 +383,7 @@ impl ConnectOptionsBuilder {
     ///       * (4) only try v3.1.1
     ///       * (5) only try v5
     ///
-    pub fn mqtt_version(&mut self, ver: u32) -> &mut ConnectOptionsBuilder {
+    pub fn mqtt_version(&mut self, ver: u32) -> &mut Self {
         self.copts.MQTTVersion = ver as i32;
 
         if ver < ffi::MQTTVERSION_5 {
@@ -382,7 +406,7 @@ impl ConnectOptionsBuilder {
     ///                      seconds.
     pub fn automatic_reconnect(&mut self, min_retry_interval: Duration,
                                           max_retry_interval: Duration)
-                -> &mut ConnectOptionsBuilder
+                -> &mut Self
     {
         self.copts.automaticReconnect = 1;  // true
 
@@ -394,27 +418,45 @@ impl ConnectOptionsBuilder {
         self
     }
 
+    /// Sets the collection of properties for the connections.
+    ///
+    /// # Arguments
+    ///
+    /// `props` The collection of properties to include with the connect message.
+    pub fn properties(&mut self, props: Properties) -> &mut Self {
+        self.props = Some(props);
+        self
+    }
+
     /// Finalize the builder to create the connect options.
     pub fn finalize(&self) -> ConnectOptions {
         let opts = ConnectOptions {
             copts: self.copts.clone(),
             will: if let Some(ref will_opts) = self.will {
-                    Some(Box::new(will_opts.clone()))
-                }
-                else { None },
+                      Some(Box::new(will_opts.clone()))
+                  }
+                  else { None },
             ssl: if let Some(ref ssl_opts) = self.ssl {
-                    Some(Box::new(ssl_opts.clone()))
-                }
-                else { None },
+                     Some(Box::new(ssl_opts.clone()))
+                 }
+                 else { None },
             user_name: if let Some(ref user_name) = self.user_name {
-                    Some(CString::new(user_name.clone()).unwrap())
-                }
-                else { None },
+                           Some(CString::new(user_name.clone()).unwrap())
+                       }
+                       else { None },
             password: if let Some(ref password) = self.password {
-                    Some(CString::new(password.clone()).unwrap())
-                }
-                else { None },
+                          Some(CString::new(password.clone()).unwrap())
+                      }
+                      else { None },
             server_uris: self.server_uris.clone(),
+            props: if let Some(ref props) = self.props {
+                       Some(Box::new(props.clone()))
+                   }
+                   else { None },
+            will_props: if let Some(ref will_props) = self.will_props {
+                            Some(Box::new(will_props.clone()))
+                        }
+                        else { None },
         };
         ConnectOptions::fixup(opts)
     }
@@ -426,11 +468,17 @@ impl ConnectOptionsBuilder {
 
 #[cfg(test)]
 mod tests {
-    use std::thread;
-    use std::ffi::{CStr};
-    use std::os::raw::c_char;
-    use crate::ssl_options::SslOptionsBuilder;
-    use crate::types::*;
+    use std::{
+        thread,
+        ffi::CStr,
+        os::raw::c_char,
+    };
+    use crate::{
+        ssl_options::SslOptionsBuilder,
+        message::MessageBuilder,
+        types::*,
+        properties::*,
+    };
     use super::*;
 
     // Identifier fo a C connect options struct
@@ -442,17 +490,25 @@ mod tests {
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
         assert_eq!(7, opts.copts.struct_version);
-        assert_eq!(ptr::null(), opts.copts.will);
-        assert_eq!(ptr::null(), opts.copts.username);
-        assert_eq!(ptr::null(), opts.copts.password);
-        assert_eq!(ptr::null(), opts.copts.ssl);
+        assert!(opts.copts.will.is_null());
 
-        assert_eq!(ptr::null_mut(), opts.copts.context);
+        assert!(opts.copts.username.is_null());
+        assert!(opts.copts.password.is_null());
+        assert!(opts.copts.ssl.is_null());
+
+        assert!(opts.copts.context.is_null());
 
         assert_eq!(0, opts.copts.serverURIcount);
-        assert_eq!(ptr::null(), opts.copts.serverURIs);
+        assert!(opts.copts.serverURIs.is_null());
 
         assert_eq!(0, opts.copts.MQTTVersion);
+        assert_eq!(0, opts.copts.automaticReconnect);
+
+        assert!(opts.copts.httpHeaders.is_null());
+        assert_eq!(0, opts.copts.cleanstart);
+
+        assert!(opts.copts.connectProperties.is_null());
+        assert!(opts.copts.willProperties.is_null());
     }
 
     #[test]
@@ -587,6 +643,57 @@ mod tests {
 
         assert_eq!(CONNECT_TIMEOUT_SECS as i32, opts.copts.connectTimeout);
     }
+
+    #[test]
+    fn test_connect_properties() {
+        let mut props = Properties::new();
+        props.push_int(PropertyCode::SessionExpiryInterval, 60).unwrap();
+
+        let opts = ConnectOptionsBuilder::new()
+            .properties(props)
+            .finalize();
+
+        if let Some(ref props) = opts.props {
+            assert_eq!(1, props.len());
+            assert_eq!(Some(60), props.get_int(PropertyCode::SessionExpiryInterval));
+
+            assert!(!opts.copts.connectProperties.is_null());
+            assert_eq!(&props.cprops as *const _ as *mut ffi::MQTTProperties,
+                       opts.copts.connectProperties);
+        }
+        else {
+            assert!(false)
+        };
+    }
+
+    #[test]
+    fn test_will_properties() {
+        let mut props = Properties::new();
+        props.push_int(PropertyCode::WillDelayInterval, 60).unwrap();
+
+        let lwt = MessageBuilder::new()
+            .topic("event/failure")
+            .properties(props)
+            .finalize();
+
+        let opts = ConnectOptionsBuilder::new()
+            .will_message(lwt)
+            .finalize();
+
+        if let Some(ref will_props) = opts.will_props {
+            assert_eq!(1, will_props.len());
+            assert_eq!(Some(60), will_props.get_int(PropertyCode::WillDelayInterval));
+
+            assert!(!opts.copts.willProperties.is_null());
+            assert_eq!(&will_props.cprops as *const _ as *mut ffi::MQTTProperties,
+                       opts.copts.willProperties);
+        }
+        else {
+            assert!(false)
+        };
+    }
+
+
 /*
     #[test]
     fn test_clone() {
