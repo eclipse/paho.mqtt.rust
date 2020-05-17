@@ -23,6 +23,7 @@ use std::{
     ptr,
     ffi::{CString},
     os::raw::{c_char},
+    pin::Pin,
 };
 
 use crate::ffi;
@@ -40,6 +41,11 @@ use crate::ffi;
 #[derive(Debug)]
 pub struct SslOptions {
     pub(crate) copts: ffi::MQTTAsync_SSLOptions,
+    data: Pin<Box<SslOptionsData>>,
+}
+
+#[derive(Debug, Default, Clone)]
+struct SslOptionsData {
     trust_store: CString,
     key_store: CString,
     private_key: CString,
@@ -48,16 +54,9 @@ pub struct SslOptions {
 }
 
 impl SslOptions {
-    pub fn new() -> SslOptions {
-        let opts = SslOptions {
-            copts: ffi::MQTTAsync_SSLOptions::default(),
-            trust_store: CString::new("").unwrap(),
-            key_store: CString::new("").unwrap(),
-            private_key: CString::new("").unwrap(),
-            private_key_password: CString::new("").unwrap(),
-            enabled_cipher_suites: CString::new("").unwrap(),
-        };
-        SslOptions::fixup(opts)
+    /// Creates a new set of default SSL options
+    pub fn new() -> Self {
+        Self::default()
     }
 
     // The C library expects unset values in the SSL options struct to be
@@ -67,33 +66,34 @@ impl SslOptions {
     }
 
     // Updates the underlying C structure to match the cached strings.
-    fn fixup(mut opts: SslOptions) -> SslOptions {
-        opts.copts.trustStore = SslOptions::c_str(&opts.trust_store);
-        opts.copts.keyStore = SslOptions::c_str(&opts.key_store);
-        opts.copts.privateKey = SslOptions::c_str(&opts.private_key);
-        opts.copts.privateKeyPassword = SslOptions::c_str(&opts.private_key_password);
-        opts.copts.enabledCipherSuites = SslOptions::c_str(&opts.enabled_cipher_suites);
-        opts
+    fn from_data(mut copts: ffi::MQTTAsync_SSLOptions, data: SslOptionsData) -> Self {
+        let data = Box::pin(data);
+        copts.trustStore = SslOptions::c_str(&data.trust_store);
+        copts.keyStore = SslOptions::c_str(&data.key_store);
+        copts.privateKey = SslOptions::c_str(&data.private_key);
+        copts.privateKeyPassword = SslOptions::c_str(&data.private_key_password);
+        copts.enabledCipherSuites = SslOptions::c_str(&data.enabled_cipher_suites);
+        Self { copts, data }
     }
 
     pub fn trust_store(&self) -> String {
-        self.trust_store.to_str().unwrap().to_string()
+        self.data.trust_store.to_str().unwrap().to_string()
     }
 
     pub fn key_store(&self) -> String {
-        self.key_store.to_str().unwrap().to_string()
+        self.data.key_store.to_str().unwrap().to_string()
     }
 
     pub fn private_key(&self) -> String {
-        self.private_key.to_str().unwrap().to_string()
+        self.data.private_key.to_str().unwrap().to_string()
     }
 
     pub fn private_key_password(&self) -> String {
-        self.private_key_password.to_str().unwrap().to_string()
+        self.data.private_key_password.to_str().unwrap().to_string()
     }
 
     pub fn enabled_cipher_suites(&self) -> String {
-        self.enabled_cipher_suites.to_str().unwrap().to_string()
+        self.data.enabled_cipher_suites.to_str().unwrap().to_string()
     }
 
     pub fn enable_server_cert_auth(&self) -> bool {
@@ -101,17 +101,21 @@ impl SslOptions {
     }
 }
 
+impl Default for SslOptions {
+    fn default() -> Self {
+        Self::from_data(
+            ffi::MQTTAsync_SSLOptions::default(),
+            SslOptionsData::default()
+        )
+    }
+}
+
 impl Clone for SslOptions {
-    fn clone(&self) -> SslOptions {
-        let ssl = SslOptions {
-            copts: self.copts.clone(),
-            trust_store: self.trust_store.clone(),
-            key_store: self.key_store.clone(),
-            private_key: self.private_key.clone(),
-            private_key_password: self.private_key_password.clone(),
-            enabled_cipher_suites: self.enabled_cipher_suites.clone(),
-        };
-        SslOptions::fixup(ssl)
+    fn clone(&self) -> Self {
+        Self::from_data(
+            self.copts.clone(),
+            (&*self.data).clone()
+        )
     }
 }
 
@@ -123,64 +127,60 @@ unsafe impl Sync for SslOptions {}
 //                              Builder
 /////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug)]
+/// Builder to create SSL Options.
+#[derive(Default)]
 pub struct SslOptionsBuilder {
-    trust_store: String,
-    key_store: String,
-    private_key: String,
-    private_key_password: String,
-    enabled_cipher_suites: String,
-    enable_server_cert_auth: bool,
+    copts: ffi::MQTTAsync_SSLOptions,
+    data: SslOptionsData,
 }
 
 impl SslOptionsBuilder {
-    pub fn new() -> SslOptionsBuilder {
-        SslOptionsBuilder {
-            trust_store: "".to_string(),
-            key_store: "".to_string(),
-            private_key: "".to_string(),
-            private_key_password: "".to_string(),
-            enabled_cipher_suites: "".to_string(),
-            enable_server_cert_auth: true,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    pub fn trust_store(&mut self, trust_store: &str) -> &mut SslOptionsBuilder {
-        self.trust_store = trust_store.to_string();
+    pub fn trust_store<S>(&mut self, trust_store: S) -> &mut Self
+        where S: Into<String>
+    {
+        self.data.trust_store = CString::new(trust_store.into()).unwrap();
         self
     }
 
-    pub fn key_store(&mut self, key_store: &str) -> &mut SslOptionsBuilder {
-        self.key_store = key_store.to_string();
+    pub fn key_store<S>(&mut self, key_store: S) -> &mut Self
+        where S: Into<String>
+    {
+        self.data.key_store = CString::new(key_store.into()).unwrap();
         self
     }
 
-    pub fn private_key(&mut self, private_key: &str) -> &mut SslOptionsBuilder {
-        self.private_key = private_key.to_string();
+    pub fn private_key<S>(&mut self, private_key: S) -> &mut Self
+        where S: Into<String>
+    {
+        self.data.private_key = CString::new(private_key.into()).unwrap();
         self
     }
 
-    pub fn private_key_password(&mut self, private_key_password: &str) -> &mut SslOptionsBuilder {
-        self.private_key_password = private_key_password.to_string();
+    pub fn private_key_password<S>(&mut self, private_key_password: S) -> &mut Self
+        where S: Into<String>
+    {
+        self.data.private_key_password =
+            CString::new(private_key_password.into()).unwrap();
         self
     }
 
-    pub fn enabled_cipher_suites(&mut self, enabled_cipher_suites: &str) -> &mut SslOptionsBuilder {
-        self.enabled_cipher_suites = enabled_cipher_suites.to_string();
+    pub fn enabled_cipher_suites<S>(&mut self, enabled_cipher_suites: S) -> &mut Self
+        where S: Into<String>
+    {
+        self.data.enabled_cipher_suites =
+            CString::new(enabled_cipher_suites.into()).unwrap();
         self
     }
 
     pub fn finalize(&self) -> SslOptions {
-        let mut opts = SslOptions {
-            copts: ffi::MQTTAsync_SSLOptions::default(),
-            trust_store: CString::new(self.trust_store.clone()).unwrap(),
-            key_store: CString::new(self.key_store.clone()).unwrap(),
-            private_key: CString::new(self.private_key.clone()).unwrap(),
-            private_key_password: CString::new(self.private_key_password.clone()).unwrap(),
-            enabled_cipher_suites: CString::new(self.enabled_cipher_suites.clone()).unwrap(),
-        };
-        opts.copts.enableServerCertAuth = if self.enable_server_cert_auth { 1 } else { 0 };
-        SslOptions::fixup(opts)
+        SslOptions::from_data(
+            self.copts.clone(),
+            self.data.clone()
+        )
     }
 }
 
@@ -225,7 +225,7 @@ mod tests {
             .trust_store(TRUST_STORE)
             .finalize();
 
-        assert_eq!(TRUST_STORE, opts.trust_store.to_str().unwrap());
+        assert_eq!(TRUST_STORE, opts.data.trust_store.to_str().unwrap());
         let ts = unsafe { CStr::from_ptr(opts.copts.trustStore) };
         assert_eq!(TRUST_STORE, ts.to_str().unwrap());
     }
@@ -237,7 +237,7 @@ mod tests {
             .key_store(KEY_STORE)
             .finalize();
 
-        assert_eq!(KEY_STORE, opts.key_store.to_str().unwrap());
+        assert_eq!(KEY_STORE, opts.data.key_store.to_str().unwrap());
     }
 
     // TODO: Test the other builder initializers
@@ -250,7 +250,7 @@ mod tests {
             .finalize();
 
         let opts = org_opts;
-        assert_eq!(TRUST_STORE, opts.trust_store.to_str().unwrap());
+        assert_eq!(TRUST_STORE, opts.data.trust_store.to_str().unwrap());
         let ts = unsafe { CStr::from_ptr(opts.copts.trustStore) };
         assert_eq!(TRUST_STORE, ts.to_str().unwrap());
     }
@@ -268,7 +268,7 @@ mod tests {
             org_opts.clone()
         };
 
-        assert_eq!(TRUST_STORE, opts.trust_store.to_str().unwrap());
+        assert_eq!(TRUST_STORE, opts.data.trust_store.to_str().unwrap());
         let ts = unsafe { CStr::from_ptr(opts.copts.trustStore) };
         assert_eq!(TRUST_STORE, ts.to_str().unwrap());
     }

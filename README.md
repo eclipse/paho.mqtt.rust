@@ -60,7 +60,9 @@ To keep up with the latest announcements for this project, follow:
     - Reason code and properties in disconnect options
 - Examples using async/await
 - Removed old asynchronous (futures 0.1-style) examples
-    
+- Message and option structs were reimplemented internally with pinned inner data structs.
+- SslOptionsBuilder using `Into<String>` for parameters
+
 ### What's new in v0.7
 
 Version 0.7 brings full support for MQTT v5, including:
