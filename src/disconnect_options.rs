@@ -45,14 +45,13 @@ pub struct DisconnectOptions {
 impl DisconnectOptions {
     /// Create a new `DisconnectOptions`
     pub fn new() -> Self {
-        let opts = Self::default();
-        Self::fixup(opts)
+        Self::default()
     }
 
     // Ensures that the underlying C struct points to cached values
-    fn fixup(mut opts: Self) -> Self {
-        opts.copts.properties = opts.props.cprops.clone();
-        opts
+    fn from_data(mut copts: ffi::MQTTAsync_disconnectOptions, props: Properties) -> Self {
+        copts.properties = props.cprops.clone();
+        Self { copts, props }
     }
 
     /// Sets the token to ber used for connect completion callbacks.
@@ -78,11 +77,19 @@ impl DisconnectOptions {
 
 impl Default for DisconnectOptions {
     fn default() -> Self {
-        let opts = DisconnectOptions {
-            copts: ffi::MQTTAsync_disconnectOptions::default(),
-            props: Properties::default(),
-        };
-        Self::fixup(opts)
+        Self::from_data(
+            ffi::MQTTAsync_disconnectOptions::default(),
+            Properties::default(),
+        )
+    }
+}
+
+impl Clone for DisconnectOptions {
+    fn clone(&self) -> Self {
+        Self::from_data(
+            self.copts.clone(),
+            self.props.clone()
+        )
     }
 }
 
@@ -149,11 +156,10 @@ impl DisconnectOptionsBuilder {
 
     /// Finalize the builder to create the disconnect options.
     pub fn finalize(&self) -> DisconnectOptions {
-        let opts = DisconnectOptions {
-            copts: self.copts.clone(),
-            props: self.props.clone(),
-        };
-        DisconnectOptions::fixup(opts)
+        DisconnectOptions::from_data(
+            self.copts.clone(),
+            self.props.clone()
+        )
     }
 }
 
