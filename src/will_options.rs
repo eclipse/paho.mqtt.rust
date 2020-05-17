@@ -30,14 +30,14 @@
 
 use std::{
     ptr,
-    ffi::CString,
     os::raw::c_void,
     borrow::Cow,
+    pin::Pin,
 };
 
 use crate::{
     ffi,
-    message::Message,
+    message::{Message, MessageData},
     properties::Properties,
 };
 
@@ -61,8 +61,7 @@ use crate::{
 #[derive(Debug)]
 pub struct WillOptions {
     pub(crate) copts: ffi::MQTTAsync_willOptions,
-    topic: CString,
-    payload: Vec<u8>,
+    data: Pin<Box<MessageData>>,
     props: Properties,
 }
 
@@ -78,16 +77,11 @@ impl WillOptions {
         where S: Into<String>,
               V: Into<Vec<u8>>
     {
-        let opts = WillOptions {
-            copts: ffi::MQTTAsync_willOptions {
-                qos,
-                ..ffi::MQTTAsync_willOptions::default()
-            },
-            topic: CString::new(topic.into()).unwrap(),
-            payload: payload.into(),
-            props: Properties::default(),
+        let copts = ffi::MQTTAsync_willOptions {
+            qos,
+            ..ffi::MQTTAsync_willOptions::default()
         };
-        WillOptions::fixup(opts)
+        Self::from_data(copts, MessageData::new(topic, payload))
     }
 
     /// Creates a new WillOptions message with the 'retain' flag set.
@@ -101,52 +95,53 @@ impl WillOptions {
         where S: Into<String>,
               V: Into<Vec<u8>>
     {
-        let opts = WillOptions {
-            copts: ffi::MQTTAsync_willOptions {
-                retained: 1,
-                qos,
-                ..ffi::MQTTAsync_willOptions::default()
-            },
-            topic: CString::new(topic.into()).unwrap(),
-            payload: payload.into(),
-            props: Properties::default(),
-        };
-        WillOptions::fixup(opts)
+        let mut opts = Self::new(topic, payload, qos);
+        opts.copts.retained = 1;
+        opts
     }
 
     // Updates the C struct from the cached topic and payload vars
-    fn fixup(mut opts: WillOptions) -> WillOptions {
-        opts.copts.topicName = if opts.topic.as_bytes().len() != 0 {
-            opts.topic.as_ptr()
+    fn from_data(copts: ffi::MQTTAsync_willOptions, data: MessageData) -> Self {
+        Self::from_pinned_data(copts, Box::pin(data))
+    }
+
+    // Updates the C struct from the cached topic and payload vars
+    fn from_pinned_data(
+        mut copts: ffi::MQTTAsync_willOptions,
+        data: Pin<Box<MessageData>>
+    ) -> Self {
+        copts.topicName = if data.topic.as_bytes().len() != 0 {
+            data.topic.as_ptr()
         }
         else {
             ptr::null()
         };
-        opts.copts.payload.data = if opts.payload.len() != 0 {
-            opts.payload.as_ptr() as *const c_void
+        copts.payload.len = data.payload.len() as i32;
+        copts.payload.data = if copts.payload.len != 0 {
+            data.payload.as_ptr() as *const c_void
         }
         else {
             ptr::null()
         };
-        opts.copts.payload.len = opts.payload.len() as i32;
-        // Note: For some reason, properties aren't in the
-        opts
+        // Note: For some reason, properties aren't in the will options
+        //   They're in the connect options
+        Self { copts, data, props: Properties::default() }
     }
 
     /// Gets the topic string for the LWT
     fn topic(&self) -> &str {
-        self.topic.to_str().unwrap()
+        self.data.topic.to_str().unwrap()
     }
 
     /// Gets the payload of the LWT
     pub fn payload(&self) -> &[u8] {
-        &self.payload
+        &self.data.payload
     }
 
     /// Gets the payload of the message as a string.
     /// Note that this clones the payload.
     pub fn payload_str(&self) -> Cow<'_, str> {
-        String::from_utf8_lossy(&self.payload)
+        String::from_utf8_lossy(&self.data.payload)
     }
 
     /// Returns the Quality of Service (QOS) for the message.
@@ -167,14 +162,11 @@ impl WillOptions {
 
 impl Default for WillOptions {
     /// Creates a WillOptions struct with default options
-    fn default() -> WillOptions {
-        let opts = WillOptions {
-            copts: ffi::MQTTAsync_willOptions::default(),
-            topic: CString::new("").unwrap(),
-            payload: Vec::new(),
-            props: Properties::default(),
-        };
-        WillOptions::fixup(opts)
+    fn default() -> Self {
+        Self::from_data(
+            ffi::MQTTAsync_willOptions::default(),
+            MessageData::default()
+        )
     }
 }
 
@@ -182,14 +174,11 @@ impl Clone for WillOptions {
     /// Creates a clone of the WillOptions struct.
     /// This clones the cached values and updates the C struct to refer
     /// to them.
-    fn clone(&self) -> WillOptions {
-        let will = WillOptions {
-            copts: self.copts.clone(),
-            topic: self.topic.clone(),
-            payload: self.payload.clone(),
-            props: self.props.clone(),
-        };
-        WillOptions::fixup(will)
+    fn clone(&self) -> Self {
+        Self::from_data(
+            self.copts.clone(),
+            (&*self.data).clone()
+        )
     }
 }
 
@@ -199,17 +188,12 @@ unsafe impl Sync for WillOptions {}
 impl From<Message> for WillOptions {
     /// Create `WillOptions` from a `Message`
     fn from(msg: Message) -> Self {
-        let will = WillOptions {
-            copts: ffi::MQTTAsync_willOptions {
-                qos: msg.cmsg.qos,
-                retained: msg.cmsg.retained,
-                ..ffi::MQTTAsync_willOptions::default()
-            },
-            topic: msg.topic,
-            payload: msg.payload,
-            props: msg.props,
+        let copts = ffi::MQTTAsync_willOptions {
+            qos: msg.cmsg.qos,
+            retained: msg.cmsg.retained,
+            ..ffi::MQTTAsync_willOptions::default()
         };
-        WillOptions::fixup(will)
+        Self::from_pinned_data(copts, msg.data)
     }
 }
 
@@ -254,8 +238,8 @@ mod tests {
         assert_eq!(copts.payload.len, opts.copts.payload.len);
         assert_eq!(copts.payload.data, opts.copts.payload.data);
 
-        assert_eq!(&[] as &[u8], opts.topic.as_bytes());
-        assert_eq!(&[] as &[u8], opts.payload.as_slice());
+        assert_eq!(&[] as &[u8], opts.data.topic.as_bytes());
+        assert_eq!(&[] as &[u8], opts.data.payload.as_slice());
     }
 
     #[test]
@@ -265,11 +249,11 @@ mod tests {
         assert_eq!(STRUCT_ID, msg.copts.struct_id);
         assert_eq!(STRUCT_VERSION, msg.copts.struct_version);
 
-        assert_eq!(TOPIC, msg.topic.to_str().unwrap());
-        assert_eq!(PAYLOAD, msg.payload.as_slice());
+        assert_eq!(TOPIC, msg.data.topic.to_str().unwrap());
+        assert_eq!(PAYLOAD, msg.data.payload.as_slice());
 
-        assert_eq!(msg.payload.len() as i32, msg.copts.payload.len);
-        assert_eq!(msg.payload.as_ptr() as *const c_void, msg.copts.payload.data);
+        assert_eq!(msg.data.payload.len() as i32, msg.copts.payload.len);
+        assert_eq!(msg.data.payload.as_ptr() as *const c_void, msg.copts.payload.data);
 
         assert_eq!(QOS, msg.copts.qos);
         assert!(msg.copts.retained == 0);
@@ -282,11 +266,11 @@ mod tests {
         assert_eq!(STRUCT_ID, msg.copts.struct_id);
         assert_eq!(STRUCT_VERSION, msg.copts.struct_version);
 
-        assert_eq!(TOPIC, msg.topic.to_str().unwrap());
-        assert_eq!(PAYLOAD, msg.payload.as_slice());
+        assert_eq!(TOPIC, msg.data.topic.to_str().unwrap());
+        assert_eq!(PAYLOAD, msg.data.payload.as_slice());
 
-        assert_eq!(msg.payload.len() as i32, msg.copts.payload.len);
-        assert_eq!(msg.payload.as_ptr() as *const c_void, msg.copts.payload.data);
+        assert_eq!(msg.data.payload.len() as i32, msg.copts.payload.len);
+        assert_eq!(msg.data.payload.as_ptr() as *const c_void, msg.copts.payload.data);
 
         assert_eq!(QOS, msg.copts.qos);
         assert!(msg.copts.retained != 0);
@@ -304,11 +288,11 @@ mod tests {
 
         let opts = WillOptions::from(msg);
 
-        assert_eq!(TOPIC, opts.topic.to_str().unwrap());
-        assert_eq!(PAYLOAD, opts.payload.as_slice());
+        assert_eq!(TOPIC, opts.data.topic.to_str().unwrap());
+        assert_eq!(PAYLOAD, opts.data.payload.as_slice());
 
-        assert_eq!(opts.payload.len() as i32, opts.copts.payload.len);
-        assert_eq!(opts.payload.as_ptr() as *const c_void, opts.copts.payload.data);
+        assert_eq!(opts.data.payload.len() as i32, opts.copts.payload.len);
+        assert_eq!(opts.data.payload.as_ptr() as *const c_void, opts.copts.payload.data);
 
         assert_eq!(QOS, opts.copts.qos);
         assert!(opts.copts.retained != 0);
@@ -329,11 +313,11 @@ mod tests {
         let org_opts = WillOptions::from(msg);
         let opts = org_opts;
 
-        assert_eq!(TOPIC, opts.topic.to_str().unwrap());
-        assert_eq!(PAYLOAD, opts.payload.as_slice());
+        assert_eq!(TOPIC, opts.data.topic.to_str().unwrap());
+        assert_eq!(PAYLOAD, opts.data.payload.as_slice());
 
-        assert_eq!(opts.payload.len() as i32, opts.copts.payload.len);
-        assert_eq!(opts.payload.as_ptr() as *const c_void, opts.copts.payload.data);
+        assert_eq!(opts.data.payload.len() as i32, opts.copts.payload.len);
+        assert_eq!(opts.data.payload.as_ptr() as *const c_void, opts.copts.payload.data);
 
         assert_eq!(QOS, opts.copts.qos);
         assert!(opts.copts.retained != 0);
@@ -356,11 +340,11 @@ mod tests {
             org_opts.clone()
         };
 
-        assert_eq!(TOPIC, opts.topic.to_str().unwrap());
-        assert_eq!(PAYLOAD, opts.payload.as_slice());
+        assert_eq!(TOPIC, opts.data.topic.to_str().unwrap());
+        assert_eq!(PAYLOAD, opts.data.payload.as_slice());
 
-        assert_eq!(opts.payload.len() as i32, opts.copts.payload.len);
-        assert_eq!(opts.payload.as_ptr() as *const c_void, opts.copts.payload.data);
+        assert_eq!(opts.data.payload.len() as i32, opts.copts.payload.len);
+        assert_eq!(opts.data.payload.as_ptr() as *const c_void, opts.copts.payload.data);
 
         assert_eq!(QOS, opts.copts.qos);
         assert!(opts.copts.retained != 0);

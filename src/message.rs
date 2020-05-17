@@ -25,6 +25,7 @@ use std::{
     os::raw::c_void,
     convert::From,
     borrow::Cow,
+    pin::Pin,
     fmt,
 };
 
@@ -39,9 +40,28 @@ use crate::{
 #[derive(Debug)]
 pub struct Message {
     pub(crate) cmsg: ffi::MQTTAsync_message,
+    pub(crate) data: Pin<Box<MessageData>>
+}
+
+/// Cache of data values that the C msg struct point to.
+#[derive(Debug, Default, Clone)]
+pub(crate) struct MessageData {
     pub(crate) topic: CString,
     pub(crate) payload: Vec<u8>,
     pub(crate) props: Properties,
+}
+
+impl MessageData {
+    pub(crate) fn new<S,V>(topic: S, payload: V) -> Self
+        where S: Into<String>,
+              V: Into<Vec<u8>>
+    {
+        Self {
+            topic: CString::new(topic.into()).unwrap(),
+            payload: payload.into(),
+            props: Properties::default(),
+        }
+    }
 }
 
 impl Message {
@@ -56,16 +76,12 @@ impl Message {
         where S: Into<String>,
               V: Into<Vec<u8>>
     {
-        let msg = Self {
-            cmsg: ffi::MQTTAsync_message {
-                qos,
-                ..ffi::MQTTAsync_message::default()
-            },
-            topic: CString::new(topic.into()).unwrap(),
-            payload: payload.into(),
-            props: Properties::default(),
+        let cmsg = ffi::MQTTAsync_message {
+            qos,
+            ..ffi::MQTTAsync_message::default()
         };
-        Self::fixup(msg)
+        let data = MessageData::new(topic, payload);
+        Self::from_data(cmsg, data)
     }
 
     /// Creates a new message that will be retained by the broker.
@@ -81,17 +97,25 @@ impl Message {
         where S: Into<String>,
               V: Into<Vec<u8>>
     {
-        let msg = Self {
-            cmsg: ffi::MQTTAsync_message {
-                qos,
-                retained: 1,
-                ..ffi::MQTTAsync_message::default()
-            },
-            topic: CString::new(topic.into()).unwrap(),
-            payload: payload.into(),
-            props: Properties::default(),
+        let cmsg = ffi::MQTTAsync_message {
+            qos,
+            retained: 1,
+            ..ffi::MQTTAsync_message::default()
         };
-        Self::fixup(msg)
+        let data = MessageData::new(topic, payload);
+        Self::from_data(cmsg, data)
+    }
+
+    /// Creates a message from the underlying parts.
+    ///
+    /// This fixes up the pointers in the C msg struct to point to the
+    /// the individual components in the data, all of which get pinned.
+    fn from_data(mut cmsg: ffi::MQTTAsync_message, data: MessageData) -> Self {
+        let data = Box::pin(data);
+        cmsg.payload = data.payload.as_ptr() as *const _ as *mut c_void;
+        cmsg.payloadlen = data.payload.len() as i32;
+        cmsg.properties = data.props.cprops.clone();
+        Self { cmsg, data, }
     }
 
     /// Creates a new message from C language components.
@@ -102,37 +126,26 @@ impl Message {
     /// * `msg` The message struct from the C library
     pub unsafe fn from_c_parts(topic: CString, cmsg: &ffi::MQTTAsync_message) -> Self {
         let len = cmsg.payloadlen as usize;
-        let payload =  slice::from_raw_parts(cmsg.payload as *mut u8, len);
 
-        let cmsg = cmsg.clone();
-
-        let msg = Message {
-            cmsg,
+        let data = MessageData {
             topic,
-            payload: payload.to_vec(),
+            payload: slice::from_raw_parts(cmsg.payload as *mut u8, len).to_vec(),
             props: Properties::from_c_struct(&cmsg.properties),
-        };
-        Self::fixup(msg)
-    }
+         };
 
-    // Ensures that the underlying C struct points to cached values
-    fn fixup(mut msg: Self) -> Self {
-        msg.cmsg.payload = msg.payload.as_mut_ptr() as *mut c_void;
-        msg.cmsg.payloadlen = msg.payload.len() as i32;
-        msg.cmsg.properties = msg.props.cprops.clone();
-        msg
+        Self::from_data(cmsg.clone(), data)
     }
 
     /// Gets the topic for the message.
     /// Note that this copies the topic.
     pub fn topic(&self) -> &str {
-        self.topic.to_str().unwrap()
+        self.data.topic.to_str().unwrap()
     }
 
     /// Gets the payload of the message.
     /// This returns the payload as a binary vector.
     pub fn payload(&self) -> &[u8] {
-        self.payload.as_slice()
+        self.data.payload.as_slice()
     }
 
     /// Gets the payload of the message as a string.
@@ -143,7 +156,7 @@ impl Message {
     /// Otherwise, it will replace any invalid UTF-8 sequences with U+FFFD
     /// REPLACEMENT CHARACTER and return a `Cow::Owned(String)` with the result.
     pub fn payload_str(&self) -> Cow<'_, str> {
-        String::from_utf8_lossy(&self.payload)
+        String::from_utf8_lossy(&self.data.payload)
     }
 
     /// Returns the Quality of Service (QOS) for the message.
@@ -158,31 +171,25 @@ impl Message {
 
     /// Gets the properties in the message
     pub fn properties(&self) -> &Properties {
-        &self.props
+        &self.data.props
     }
 }
 
 impl Default for Message {
     fn default() -> Message {
-        let msg = Message {
-            cmsg: ffi::MQTTAsync_message::default(),
-            topic: CString::new("").unwrap(),
-            payload: Vec::new(),
-            props: Properties::default(),
-        };
-        Message::fixup(msg)
+        Self::from_data(
+            ffi::MQTTAsync_message::default(),
+            MessageData::default()
+        )
     }
 }
 
 impl Clone for Message {
     fn clone(&self) -> Self {
-        let msg = Self {
-            cmsg: self.cmsg.clone(),
-            topic: self.topic.clone(),
-            payload: self.payload.clone(),
-            props: self.props.clone(),
-        };
-        Self::fixup(msg)
+        Self::from_data(
+            self.cmsg.clone(),
+            (&*self.data).clone()
+        )
     }
 }
 
@@ -191,34 +198,28 @@ unsafe impl Sync for Message {}
 
 impl<'a, 'b> From<(&'a str, &'b [u8])> for Message {
     fn from((topic, payload): (&'a str, &'b [u8])) -> Self {
-        let msg = Self {
-            cmsg: ffi::MQTTAsync_message::default(),
-            topic: CString::new(topic).unwrap(),
-            payload: payload.to_vec(),
-            props: Properties::default(),
-        };
-        Self::fixup(msg)
+        Self::from_data(
+            ffi::MQTTAsync_message::default(),
+            MessageData::new(topic, payload),
+        )
     }
 }
 
 impl<'a, 'b> From<(&'a str, &'b [u8], i32, bool)> for Message {
     fn from((topic, payload, qos, retained): (&'a str, &'b [u8], i32, bool)) -> Self {
-        let mut msg = Self {
-            cmsg: ffi::MQTTAsync_message::default(),
-            topic: CString::new(topic).unwrap(),
-            payload: payload.to_vec(),
-            props: Properties::default(),
+        let cmsg = ffi::MQTTAsync_message {
+            qos,
+            retained: if retained { 1 } else { 0 },
+            ..ffi::MQTTAsync_message::default()
         };
-        msg.cmsg.qos = qos;
-        msg.cmsg.retained = if retained { 1 } else { 0 };
-        Self::fixup(msg)
+        Self::from_data(cmsg, MessageData::new(topic, payload))
     }
 }
 
 impl fmt::Display for Message
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let topic = match self.topic.as_c_str().to_str() {
+        let topic = match self.data.topic.as_c_str().to_str() {
             Ok(s) => s,
             Err(_) => return Err(fmt::Error),
         };
@@ -310,15 +311,17 @@ impl MessageBuilder
 
     /// Finalize the builder to create the message.
     pub fn finalize(self) -> Message {
-        let mut msg = Message {
-            cmsg: ffi::MQTTAsync_message::default(),
+        let cmsg = ffi::MQTTAsync_message {
+            qos: self.qos,
+            retained: if self.retained { 1 } else { 0 },
+            ..ffi::MQTTAsync_message::default()
+        };
+        let data = MessageData {
             topic: CString::new(self.topic).unwrap(),
             payload: self.payload,
             props: self.props,
         };
-        msg.cmsg.qos = self.qos;
-        msg.cmsg.retained = if self.retained { 1 } else { 0 };
-        Message::fixup(msg)
+        Message::from_data(cmsg, data)
     }
 }
 
@@ -353,11 +356,11 @@ mod tests {
         assert_eq!(STRUCT_ID, msg.cmsg.struct_id);
         assert_eq!(STRUCT_VER, msg.cmsg.struct_version);
 
-        assert_eq!(TOPIC, msg.topic.to_str().unwrap());
-        assert_eq!(PAYLOAD, msg.payload.as_slice());
+        assert_eq!(TOPIC, msg.data.topic.to_str().unwrap());
+        assert_eq!(PAYLOAD, msg.data.payload.as_slice());
 
-        assert_eq!(msg.payload.len() as i32, msg.cmsg.payloadlen);
-        assert_eq!(msg.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
+        assert_eq!(msg.data.payload.len() as i32, msg.cmsg.payloadlen);
+        assert_eq!(msg.data.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
 
         assert_eq!(QOS, msg.cmsg.qos);
         assert!(msg.cmsg.retained == 0);
@@ -368,11 +371,11 @@ mod tests {
         let msg = Message::from((TOPIC, PAYLOAD));
 
         // The topic is only kept in the Rust struct as a CString
-        assert_eq!(TOPIC, msg.topic.to_str().unwrap());
-        assert_eq!(PAYLOAD, msg.payload.as_slice());
+        assert_eq!(TOPIC, msg.data.topic.to_str().unwrap());
+        assert_eq!(PAYLOAD, msg.data.payload.as_slice());
 
-        assert_eq!(msg.payload.len() as i32, msg.cmsg.payloadlen);
-        assert_eq!(msg.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
+        assert_eq!(msg.data.payload.len() as i32, msg.cmsg.payloadlen);
+        assert_eq!(msg.data.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
     }
 
     #[test]
@@ -380,11 +383,11 @@ mod tests {
         let msg = Message::from((TOPIC, PAYLOAD, QOS, RETAINED));
 
         // The topic is only kept in the Rust struct as a CString
-        assert_eq!(TOPIC, msg.topic.to_str().unwrap());
-        assert_eq!(PAYLOAD, msg.payload.as_slice());
+        assert_eq!(TOPIC, msg.data.topic.to_str().unwrap());
+        assert_eq!(PAYLOAD, msg.data.payload.as_slice());
 
-        assert_eq!(msg.payload.len() as i32, msg.cmsg.payloadlen);
-        assert_eq!(msg.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
+        assert_eq!(msg.data.payload.len() as i32, msg.cmsg.payloadlen);
+        assert_eq!(msg.data.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
 
         assert_eq!(QOS, msg.cmsg.qos);
         assert!(msg.cmsg.retained != 0);
@@ -401,9 +404,9 @@ mod tests {
         assert_eq!(cmsg.struct_id, msg.cmsg.struct_id);
         assert_eq!(cmsg.struct_version, msg.cmsg.struct_version);
 
-        assert_eq!(0, msg.topic.as_bytes().len());
-        assert_eq!(&[] as &[u8], msg.topic.as_bytes());
-        assert_eq!(&[] as &[u8], msg.payload.as_slice());
+        assert_eq!(0, msg.data.topic.as_bytes().len());
+        assert_eq!(&[] as &[u8], msg.data.topic.as_bytes());
+        assert_eq!(&[] as &[u8], msg.data.payload.as_slice());
     }
 
     #[test]
@@ -414,7 +417,7 @@ mod tests {
                     .topic(TOPIC).finalize();
 
         // The topic is only kept in the Rust struct as a CString
-        assert_eq!(TOPIC, msg.topic.to_str().unwrap());
+        assert_eq!(TOPIC, msg.data.topic.to_str().unwrap());
         assert_eq!(TOPIC, msg.topic());
     }
 
@@ -425,11 +428,11 @@ mod tests {
         let msg = MessageBuilder::new()
                     .payload(PAYLOAD).finalize();
 
-        assert_eq!(PAYLOAD, msg.payload.as_slice());
+        assert_eq!(PAYLOAD, msg.data.payload.as_slice());
         assert_eq!(PAYLOAD, msg.payload());
 
-        assert_eq!(msg.payload.len() as i32, msg.cmsg.payloadlen);
-        assert_eq!(msg.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
+        assert_eq!(msg.data.payload.len() as i32, msg.cmsg.payloadlen);
+        assert_eq!(msg.data.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
     }
 
     #[test]
@@ -470,11 +473,11 @@ mod tests {
         let msg = org_msg;
 
         // The topic is only kept in the Rust struct as a CString
-        assert_eq!(TOPIC, msg.topic.to_str().unwrap());
-        assert_eq!(PAYLOAD, msg.payload.as_slice());
+        assert_eq!(TOPIC, msg.data.topic.to_str().unwrap());
+        assert_eq!(PAYLOAD, msg.data.payload.as_slice());
 
-        assert_eq!(msg.payload.len() as i32, msg.cmsg.payloadlen);
-        assert_eq!(msg.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
+        assert_eq!(msg.data.payload.len() as i32, msg.cmsg.payloadlen);
+        assert_eq!(msg.data.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
 
         assert_eq!(QOS, msg.cmsg.qos);
         assert!(msg.cmsg.retained != 0);
@@ -501,11 +504,11 @@ mod tests {
             org_msg.clone()
         };
 
-        assert_eq!(TOPIC, msg.topic.to_str().unwrap());
-        assert_eq!(PAYLOAD, msg.payload.as_slice());
+        assert_eq!(TOPIC, msg.data.topic.to_str().unwrap());
+        assert_eq!(PAYLOAD, msg.data.payload.as_slice());
 
-        assert_eq!(msg.payload.len() as i32, msg.cmsg.payloadlen);
-        assert_eq!(msg.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
+        assert_eq!(msg.data.payload.len() as i32, msg.cmsg.payloadlen);
+        assert_eq!(msg.data.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
 
         assert_eq!(QOS, msg.cmsg.qos);
         assert!(msg.cmsg.retained != 0);
@@ -519,8 +522,8 @@ mod tests {
         let msg = Message::new(TOPIC, PAYLOAD, QOS);
 
         let thr = thread::spawn(move || {
-            assert_eq!(TOPIC, msg.topic.to_str().unwrap());
-            assert_eq!(PAYLOAD, msg.payload.as_slice());
+            assert_eq!(TOPIC, msg.data.topic.to_str().unwrap());
+            assert_eq!(PAYLOAD, msg.data.payload.as_slice());
             assert_eq!(QOS, msg.qos());
         });
         let _ = thr.join().unwrap();

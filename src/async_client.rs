@@ -631,7 +631,8 @@ impl AsyncClient {
 
         let rc = unsafe {
             let msg = tok.message();
-            ffi::MQTTAsync_sendMessage(self.inner.handle, msg.topic.as_ptr(),
+            ffi::MQTTAsync_sendMessage(self.inner.handle,
+                                       msg.topic().as_ptr() as *const c_char,
                                        &msg.cmsg, &mut rsp_opts.copts)
         };
 
