@@ -5,7 +5,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2019 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2020 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -29,6 +29,7 @@ use std::{
     time::Duration,
     ffi::CString,
     os::raw::c_int,
+    pin::Pin,
 };
 
 use crate::{
@@ -56,79 +57,90 @@ pub struct ConnectOptions {
     /// The underlying C options structure.
     /// The 'will', 'ssl', 'username', and 'password' fields should
     /// be NULL (not empty) if unused.
-    pub copts: ffi::MQTTAsync_connectOptions,
-    will: Option<Box<WillOptions>>,
-    ssl: Option<Box<SslOptions>>,
+    pub(crate) copts: ffi::MQTTAsync_connectOptions,
+    data: Pin<Box<ConnectOptionsData>>,
+}
+
+/// Cached data for the connect options.
+#[derive(Debug, Default, Clone)]
+struct ConnectOptionsData {
+    will: Option<WillOptions>,
+    ssl: Option<SslOptions>,
     user_name: Option<CString>,
     password: Option<CString>,
     server_uris: StringCollection,
-    props: Option<Box<Properties>>,
-    will_props: Option<Box<Properties>>,
+    props: Option<Properties>,
+    will_props: Option<Properties>,
 }
 
 impl ConnectOptions {
     /// Creates a new, default set of connect options.
-    pub fn new() -> ConnectOptions {
+    pub fn new() -> Self {
         ConnectOptions::default()
     }
 
     // Fixes up the underlying C struct to point to our cached values.
     // This should be called any time a cached object is modified.
-    fn fixup(mut opts: ConnectOptions) -> ConnectOptions {
-        opts.copts.will = if let Some(ref mut will_opts) = opts.will {
+    fn from_data(
+        mut copts: ffi::MQTTAsync_connectOptions,
+        data: ConnectOptionsData
+    ) -> Self {
+        let mut data = Box::pin(data);
+
+        copts.will = if let Some(ref mut will_opts) = data.will {
             &mut will_opts.copts
         }
         else {
             ptr::null_mut()
         };
 
-        opts.copts.ssl = if let Some(ref mut ssl_opts) = opts.ssl {
+        copts.ssl = if let Some(ref mut ssl_opts) = data.ssl {
             &mut ssl_opts.copts
         }
         else {
             ptr::null_mut()
         };
 
-        opts.copts.username = if let Some(ref user_name) = opts.user_name {
+        copts.username = if let Some(ref user_name) = data.user_name {
             user_name.as_ptr()
         }
         else {
             ptr::null()
         };
 
-        opts.copts.password = if let Some(ref password) = opts.password {
+        copts.password = if let Some(ref password) = data.password {
             password.as_ptr()
         }
         else {
             ptr::null()
         };
 
-        let n = opts.server_uris.len();
+        let n = data.server_uris.len();
+
         if n != 0 {
-            opts.copts.serverURIs = opts.server_uris.as_c_arr_mut_ptr();
-            opts.copts.serverURIcount = n as c_int;
+            copts.serverURIs = data.server_uris.as_c_arr_mut_ptr();
+            copts.serverURIcount = n as c_int;
         }
         else {
-            opts.copts.serverURIs = ptr::null();
-            opts.copts.serverURIcount = 0;
+            copts.serverURIs = ptr::null();
+            copts.serverURIcount = 0;
         }
-        // Paho C v1.3.2 seems to require NULL for "no properties"
-        // Giving a pointer to an empty struct segfaults.
-        opts.copts.connectProperties = if let Some(ref mut props) = opts.props {
+
+        copts.connectProperties = if let Some(ref mut props) = data.props {
             &mut props.cprops
         }
         else {
             ptr::null_mut()
         };
 
-        opts.copts.willProperties = if let Some(ref mut will_props) = opts.will_props {
+        copts.willProperties = if let Some(ref mut will_props) = data.will_props {
             &mut will_props.cprops
         }
         else {
             ptr::null_mut()
         };
 
-        opts
+        Self { copts, data }
     }
 
     /// Gets the "clean session" setting in the options.
@@ -166,33 +178,19 @@ impl ConnectOptions {
 
 impl Default for ConnectOptions {
     fn default() -> Self {
-        let opts = Self {
-            copts: ffi::MQTTAsync_connectOptions::default(),
-            will: None,
-            ssl: None,
-            user_name: None,
-            password: None,
-            server_uris: StringCollection::default(),
-            props: None,
-            will_props: None,
-        };
-        Self::fixup(opts)
+        Self::from_data(
+            ffi::MQTTAsync_connectOptions::default(),
+            ConnectOptionsData::default()
+        )
     }
 }
 
 impl Clone for ConnectOptions {
     fn clone(&self) -> Self {
-        let opts = Self {
-            copts: self.copts.clone(),
-            will: self.will.clone(),
-            ssl: self.ssl.clone(),
-            user_name: self.user_name.clone(),
-            password: self.password.clone(),
-            server_uris: self.server_uris.clone(),
-            props: self.props.clone(),
-            will_props: self.will_props.clone(),
-        };
-        Self::fixup(opts)
+        Self::from_data(
+            self.copts.clone(),
+            (&*self.data).clone()
+        )
     }
 }
 
@@ -208,13 +206,7 @@ unsafe impl Sync for ConnectOptions {}
 #[derive(Default)]
 pub struct ConnectOptionsBuilder {
     copts: ffi::MQTTAsync_connectOptions,
-    will: Option<WillOptions>,
-    ssl: Option<SslOptions>,
-    user_name: Option<String>,
-    password: Option<String>,
-    server_uris: StringCollection,
-    props: Option<Properties>,
-    will_props: Option<Properties>,
+    data: ConnectOptionsData,
 }
 
 impl ConnectOptionsBuilder {
@@ -281,7 +273,7 @@ impl ConnectOptionsBuilder {
     /// `will` The LWT options for the connection.
     #[deprecated(note="Pass in a message with `will_message` instead")]
     pub fn will_options(&mut self, will: WillOptions) -> &mut Self {
-        self.will = Some(will);
+        self.data.will = Some(will);
         self
     }
 
@@ -291,9 +283,8 @@ impl ConnectOptionsBuilder {
     ///
     /// `will` The LWT options for the connection.
     pub fn will_message(&mut self, will: Message) -> &mut Self {
-        self.will_props = Some(will.properties().clone());
-        let will = WillOptions::from(will);
-        self.will = Some(will);
+        self.data.will_props = Some(will.properties().clone());
+        self.data.will = Some(WillOptions::from(will));
         self
     }
 
@@ -303,7 +294,7 @@ impl ConnectOptionsBuilder {
     ///
     /// `ssl` The SSL options for the connection.
     pub fn ssl_options(&mut self, ssl: SslOptions) -> &mut Self {
-        self.ssl = Some(ssl);
+        self.data.ssl = Some(ssl);
         self
     }
 
@@ -317,7 +308,8 @@ impl ConnectOptionsBuilder {
     pub fn user_name<S>(&mut self, user_name: S) -> &mut Self
         where S: Into<String>
     {
-        self.user_name = Some(user_name.into());
+        let user_name = CString::new(user_name.into()).unwrap();
+        self.data.user_name = Some(user_name);
         self
     }
 
@@ -331,7 +323,8 @@ impl ConnectOptionsBuilder {
     pub fn password<S>(&mut self, password: S) -> &mut Self
         where S: Into<String>
     {
-        self.password = Some(password.into());
+        let password = CString::new(password.into()).unwrap();
+        self.data.password = Some(password);
         self
     }
 
@@ -369,7 +362,7 @@ impl ConnectOptionsBuilder {
     pub fn server_uris<T>(&mut self, server_uris: &[T]) -> &mut Self
         where T: AsRef<str>
     {
-        self.server_uris = StringCollection::new(server_uris);
+        self.data.server_uris = StringCollection::new(server_uris);
         self
     }
 
@@ -424,41 +417,16 @@ impl ConnectOptionsBuilder {
     ///
     /// `props` The collection of properties to include with the connect message.
     pub fn properties(&mut self, props: Properties) -> &mut Self {
-        self.props = Some(props);
+        self.data.props = Some(props);
         self
     }
 
     /// Finalize the builder to create the connect options.
     pub fn finalize(&self) -> ConnectOptions {
-        let opts = ConnectOptions {
-            copts: self.copts.clone(),
-            will: if let Some(ref will_opts) = self.will {
-                      Some(Box::new(will_opts.clone()))
-                  }
-                  else { None },
-            ssl: if let Some(ref ssl_opts) = self.ssl {
-                     Some(Box::new(ssl_opts.clone()))
-                 }
-                 else { None },
-            user_name: if let Some(ref user_name) = self.user_name {
-                           Some(CString::new(user_name.clone()).unwrap())
-                       }
-                       else { None },
-            password: if let Some(ref password) = self.password {
-                          Some(CString::new(password.clone()).unwrap())
-                      }
-                      else { None },
-            server_uris: self.server_uris.clone(),
-            props: if let Some(ref props) = self.props {
-                       Some(Box::new(props.clone()))
-                   }
-                   else { None },
-            will_props: if let Some(ref will_props) = self.will_props {
-                            Some(Box::new(will_props.clone()))
-                        }
-                        else { None },
-        };
-        ConnectOptions::fixup(opts)
+        ConnectOptions::from_data(
+            self.copts.clone(),
+            self.data.clone()
+        )
     }
 }
 
@@ -524,7 +492,7 @@ mod tests {
 
         assert!(!opts.copts.ssl.is_null());
 
-        if let Some(ref ssl_opts) = opts.ssl {
+        if let Some(ref ssl_opts) = opts.data.ssl {
             // TODO: Test that ssl_opts.get_trust_store() is TRUST_STORE?
             assert!(true);
             assert_eq!(&ssl_opts.copts as *const _, opts.copts.ssl);
@@ -546,7 +514,7 @@ mod tests {
 
         assert!(!opts.copts.username.is_null());
 
-        if let Some(ref user_name) = opts.user_name {
+        if let Some(ref user_name) = opts.data.user_name {
             assert_eq!(NAME, user_name.to_str().unwrap());
 
             let s = unsafe { CStr::from_ptr(opts.copts.username) };
@@ -566,7 +534,7 @@ mod tests {
 
         assert!(!opts.copts.password.is_null());
 
-        if let Some(ref password) = opts.password {
+        if let Some(ref password) = opts.data.password {
             assert_eq!(PSWD, password.to_str().unwrap());
 
             let s = unsafe { CStr::from_ptr(opts.copts.password) };
@@ -625,16 +593,16 @@ mod tests {
         assert_eq!(0, opts.copts.cleansession);
         assert_eq!(MAX_INFLIGHT, opts.copts.maxInflight);
 
-        assert_eq!(USER_NAME, opts.user_name.as_ref().unwrap().to_str().unwrap());
-        assert_eq!(PASSWORD, opts.password.as_ref().unwrap().to_str().unwrap());
+        assert_eq!(USER_NAME, opts.data.user_name.as_ref().unwrap().to_str().unwrap());
+        assert_eq!(PASSWORD, opts.data.password.as_ref().unwrap().to_str().unwrap());
 
-        if let Some(ref user_name) = opts.user_name {
+        if let Some(ref user_name) = opts.data.user_name {
             assert_eq!(user_name.as_ptr(), opts.copts.username)
         }
         else {
             assert!(false)
         };
-        if let Some(ref password) = opts.password {
+        if let Some(ref password) = opts.data.password {
             assert_eq!(password.as_ptr(), opts.copts.password)
         }
         else {
@@ -653,7 +621,7 @@ mod tests {
             .properties(props)
             .finalize();
 
-        if let Some(ref props) = opts.props {
+        if let Some(ref props) = opts.data.props {
             assert_eq!(1, props.len());
             assert_eq!(Some(60), props.get_int(PropertyCode::SessionExpiryInterval));
 
@@ -680,7 +648,7 @@ mod tests {
             .will_message(lwt)
             .finalize();
 
-        if let Some(ref will_props) = opts.will_props {
+        if let Some(ref will_props) = opts.data.will_props {
             assert_eq!(1, will_props.len());
             assert_eq!(Some(60), will_props.get_int(PropertyCode::WillDelayInterval));
 
