@@ -43,6 +43,7 @@ use crate::{
     will_options::WillOptions,
     ssl_options::SslOptions,
     string_collection::StringCollection,
+    name_value::NameValueCollection,
     properties::Properties,
 };
 
@@ -72,6 +73,7 @@ struct ConnectOptionsData {
     server_uris: StringCollection,
     props: Option<Properties>,
     will_props: Option<Properties>,
+    http_headers: Option<NameValueCollection>,
 }
 
 impl ConnectOptions {
@@ -139,6 +141,13 @@ impl ConnectOptions {
         }
         else {
             ptr::null_mut()
+        };
+
+        copts.httpHeaders = if let Some(ref mut http_headers) = data.http_headers {
+            http_headers.as_c_arr_ptr()
+        }
+        else {
+            ptr::null()
         };
 
         Self { copts, data }
@@ -419,6 +428,17 @@ impl ConnectOptionsBuilder {
     /// `props` The collection of properties to include with the connect message.
     pub fn properties(&mut self, props: Properties) -> &mut Self {
         self.data.props = Some(props);
+        self
+    }
+
+    /// Sets the additional HTTP headers that will be sent in the
+    /// WebSocket opening handshake.
+    pub fn http_headers<N,V>(&mut self, coll: &[(N,V)]) -> &mut Self
+        where N: AsRef<str>,
+              V: AsRef<str>,
+    {
+        let coll = NameValueCollection::new(coll);
+        self.data.http_headers = Some(coll);
         self
     }
 

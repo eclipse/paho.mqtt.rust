@@ -251,6 +251,7 @@ impl Default for MQTTAsync_disconnectOptions {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// Persistence
 
 impl Default for MQTTClient_persistence {
     fn default() -> Self {
@@ -265,6 +266,21 @@ impl Default for MQTTClient_persistence {
             pclear: None,
             pcontainskey: None,
         }
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Misc Data Structures
+
+impl MQTTAsync_nameValue {
+    pub fn new(name: *const c_char, value: *const c_char) -> Self {
+        Self { name, value }
+    }
+}
+
+impl Default for MQTTAsync_nameValue {
+    fn default() -> Self {
+        Self { name: ptr::null(), value: ptr::null() }
     }
 }
 

@@ -98,8 +98,8 @@ impl StringCollection
     // Updates the cached vector to correspond to the string.
     fn from_data(data: StringCollectionData) -> Self {
         let data = Box::pin(data);
-        let c_coll = StringCollection::to_c_vec(&data.coll);
-        let c_mut_coll = StringCollection::to_c_mut_vec(&data.coll);
+        let c_coll = Self::to_c_vec(&data.coll);
+        let c_mut_coll = Self::to_c_mut_vec(&data.coll);
         Self { c_coll, c_mut_coll, data }
     }
 

@@ -114,6 +114,7 @@ pub mod errors;
 /// Utility for creating string collections (to pass to the C library).
 pub mod string_collection;
 
-#[cfg(test)]
-mod tests {
-}
+/// Utility for creating name/value string pair collections
+/// (to pass to the C library).
+pub mod name_value;
+

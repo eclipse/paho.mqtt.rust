@@ -58,10 +58,11 @@ To keep up with the latest announcements for this project, follow:
 - Added some missing/forgotten MQTT v5 support:
     - Connect and Will properties in connect options
     - Reason code and properties in disconnect options
+- Ability to set additional HTTP headers in a Websocket opening handshake.
 - Examples using async/await
 - Removed old asynchronous (futures 0.1-style) examples
 - Message and option structs were reimplemented internally with pinned inner data structs.
-- SslOptionsBuilder using `Into<String>` for parameters
+- SslOptionsBuilder using `Into<String>` for parameters.
 
 ### What's new in v0.7
 
