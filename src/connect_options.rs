@@ -58,6 +58,7 @@ pub struct ConnectOptions {
     /// The 'will', 'ssl', 'username', and 'password' fields should
     /// be NULL (not empty) if unused.
     pub(crate) copts: ffi::MQTTAsync_connectOptions,
+    /// The pinned data cache
     data: Pin<Box<ConnectOptionsData>>,
 }
 

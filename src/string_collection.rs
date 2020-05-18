@@ -10,7 +10,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2020 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -28,22 +28,29 @@
 use std::{
     ffi::CString,
     os::raw::c_char,
+    pin::Pin,
 };
 
-/// A collection of C-compatible (NUL-terminated) strings that is useful with
-/// C API's that require an array of strings, normally specified as:
+/// A collection of C-compatible (NUL-terminated) strings that is useful
+/// with C API's that require an array of strings, normally specified as:
 /// `const char* arr[]` or  `const char** arr`
 #[derive(Debug)]
 pub struct StringCollection
 {
+    /// A vector cache of pointers into the data `coll`
+    /// This must be updated any time the data is modified.
+    c_coll: Vec<*const c_char>,
+    /// A vector cache of mut pointers into the data `coll`
+    /// This must be updated any time the data is modified.
+    c_mut_coll: Vec<*mut c_char>,
+    /// The pinned data cache
+    data: Pin<Box<StringCollectionData>>,
+}
+
+#[derive(Debug, Default, Clone)]
+struct StringCollectionData {
     /// The owned NUL-terminated strings
     coll: Vec<CString>,
-    /// A vector cache of pointers into `coll`
-    /// This must be updated any time `coll` is modified.
-    c_coll: Vec<*const c_char>,
-    /// A vector cache of mut pointers into `coll`
-    /// This must be updated any time `coll` is modified.
-    c_mut_coll: Vec<*mut c_char>,
 }
 
 impl StringCollection
@@ -54,15 +61,13 @@ impl StringCollection
     ///
     /// `coll` A collection of string references.
     ///
-    pub fn new<T>(coll: &[T]) -> StringCollection
+    pub fn new<T>(coll: &[T]) -> Self
         where T: AsRef<str>
     {
-        let sc = StringCollection {
-            coll: StringCollection::to_cstring(coll),
-            c_coll: Vec::new(),
-            c_mut_coll: Vec::new(),
+        let data = StringCollectionData {
+            coll: Self::to_cstring(coll),
         };
-        StringCollection::fixup(sc)
+        Self::from_data(data)
     }
 
     // Convert a collection of string references to a vector of CStrings.
@@ -91,16 +96,15 @@ impl StringCollection
     }
 
     // Updates the cached vector to correspond to the string.
-    fn fixup(mut coll: StringCollection) -> StringCollection {
-        coll.c_coll = StringCollection::to_c_vec(&coll.coll);
-        coll.c_mut_coll = StringCollection::to_c_mut_vec(&coll.coll);
-        coll
+    fn from_data(data: StringCollectionData) -> Self {
+        let data = Box::pin(data);
+        let c_coll = StringCollection::to_c_vec(&data.coll);
+        let c_mut_coll = StringCollection::to_c_mut_vec(&data.coll);
+        Self { c_coll, c_mut_coll, data }
     }
 
     /// Gets the number of strings in the collection.
-    pub fn len(&self) -> usize {
-        self.coll.len()
-    }
+    pub fn len(&self) -> usize { self.data.coll.len() }
 
     /// Gets the collection as a pointer to const C string pointers.
     ///
@@ -131,25 +135,15 @@ impl StringCollection
 
 impl Default for StringCollection
 {
-    fn default() -> StringCollection {
-        let sc = StringCollection {
-            coll: Vec::new(),
-            c_coll: Vec::new(),
-            c_mut_coll: Vec::new(),
-        };
-        StringCollection::fixup(sc)
+    fn default() -> Self {
+        Self::from_data(StringCollectionData::default())
     }
 }
 
 impl Clone for StringCollection
 {
-    fn clone(&self) -> StringCollection {
-        let sc = StringCollection {
-            coll: self.coll.clone(),
-            c_coll: Vec::new(),
-            c_mut_coll: Vec::new(),
-        };
-        StringCollection::fixup(sc)
+    fn clone(&self) -> Self {
+        Self::from_data((&*self.data).clone())
     }
 }
 
@@ -179,16 +173,17 @@ mod tests {
         let sc = StringCollection::new(&v);
 
         assert_eq!(n, sc.len());
-        assert_eq!(n, sc.coll.len());
         assert_eq!(n, sc.c_coll.len());
+        assert_eq!(n, sc.c_mut_coll.len());
+        assert_eq!(n, sc.data.coll.len());
 
-        assert_eq!(v[0].as_bytes(), sc.coll[0].as_bytes());
-        assert_eq!(v[1].as_bytes(), sc.coll[1].as_bytes());
-        assert_eq!(v[2].as_bytes(), sc.coll[2].as_bytes());
+        assert_eq!(v[0].as_bytes(), sc.data.coll[0].as_bytes());
+        assert_eq!(v[1].as_bytes(), sc.data.coll[1].as_bytes());
+        assert_eq!(v[2].as_bytes(), sc.data.coll[2].as_bytes());
 
-        assert_eq!(sc.coll[0].as_ptr(), sc.c_coll[0]);
-        assert_eq!(sc.coll[1].as_ptr(), sc.c_coll[1]);
-        assert_eq!(sc.coll[2].as_ptr(), sc.c_coll[2]);
+        assert_eq!(sc.data.coll[0].as_ptr(), sc.c_coll[0]);
+        assert_eq!(sc.data.coll[1].as_ptr(), sc.c_coll[1]);
+        assert_eq!(sc.data.coll[2].as_ptr(), sc.c_coll[2]);
     }
 
     #[test]
@@ -199,16 +194,17 @@ mod tests {
         let sc = StringCollection::new(&v);
 
         assert_eq!(n, sc.len());
-        assert_eq!(n, sc.coll.len());
         assert_eq!(n, sc.c_coll.len());
+        assert_eq!(n, sc.c_mut_coll.len());
+        assert_eq!(n, sc.data.coll.len());
 
-        assert_eq!(v[0].as_bytes(), sc.coll[0].as_bytes());
-        assert_eq!(v[1].as_bytes(), sc.coll[1].as_bytes());
-        assert_eq!(v[2].as_bytes(), sc.coll[2].as_bytes());
+        assert_eq!(v[0].as_bytes(), sc.data.coll[0].as_bytes());
+        assert_eq!(v[1].as_bytes(), sc.data.coll[1].as_bytes());
+        assert_eq!(v[2].as_bytes(), sc.data.coll[2].as_bytes());
 
-        assert_eq!(sc.coll[0].as_ptr(), sc.c_coll[0]);
-        assert_eq!(sc.coll[1].as_ptr(), sc.c_coll[1]);
-        assert_eq!(sc.coll[2].as_ptr(), sc.c_coll[2]);
+        assert_eq!(sc.data.coll[0].as_ptr(), sc.c_coll[0]);
+        assert_eq!(sc.data.coll[1].as_ptr(), sc.c_coll[1]);
+        assert_eq!(sc.data.coll[2].as_ptr(), sc.c_coll[2]);
     }
 
     #[test]
@@ -221,16 +217,17 @@ mod tests {
         let sc = org_sc;
 
         assert_eq!(n, sc.len());
-        assert_eq!(n, sc.coll.len());
         assert_eq!(n, sc.c_coll.len());
+        assert_eq!(n, sc.c_mut_coll.len());
+        assert_eq!(n, sc.data.coll.len());
 
-        assert_eq!(v[0].as_bytes(), sc.coll[0].as_bytes());
-        assert_eq!(v[1].as_bytes(), sc.coll[1].as_bytes());
-        assert_eq!(v[2].as_bytes(), sc.coll[2].as_bytes());
+        assert_eq!(v[0].as_bytes(), sc.data.coll[0].as_bytes());
+        assert_eq!(v[1].as_bytes(), sc.data.coll[1].as_bytes());
+        assert_eq!(v[2].as_bytes(), sc.data.coll[2].as_bytes());
 
-        assert_eq!(sc.coll[0].as_ptr(), sc.c_coll[0]);
-        assert_eq!(sc.coll[1].as_ptr(), sc.c_coll[1]);
-        assert_eq!(sc.coll[2].as_ptr(), sc.c_coll[2]);
+        assert_eq!(sc.data.coll[0].as_ptr(), sc.c_coll[0]);
+        assert_eq!(sc.data.coll[1].as_ptr(), sc.c_coll[1]);
+        assert_eq!(sc.data.coll[2].as_ptr(), sc.c_coll[2]);
     }
 
     #[test]
@@ -244,16 +241,17 @@ mod tests {
         };
 
         assert_eq!(n, sc.len());
-        assert_eq!(n, sc.coll.len());
         assert_eq!(n, sc.c_coll.len());
+        assert_eq!(n, sc.c_mut_coll.len());
+        assert_eq!(n, sc.data.coll.len());
 
-        assert_eq!(v[0].as_bytes(), sc.coll[0].as_bytes());
-        assert_eq!(v[1].as_bytes(), sc.coll[1].as_bytes());
-        assert_eq!(v[2].as_bytes(), sc.coll[2].as_bytes());
+        assert_eq!(v[0].as_bytes(), sc.data.coll[0].as_bytes());
+        assert_eq!(v[1].as_bytes(), sc.data.coll[1].as_bytes());
+        assert_eq!(v[2].as_bytes(), sc.data.coll[2].as_bytes());
 
-        assert_eq!(sc.coll[0].as_ptr(), sc.c_coll[0]);
-        assert_eq!(sc.coll[1].as_ptr(), sc.c_coll[1]);
-        assert_eq!(sc.coll[2].as_ptr(), sc.c_coll[2]);
+        assert_eq!(sc.data.coll[0].as_ptr(), sc.c_coll[0]);
+        assert_eq!(sc.data.coll[1].as_ptr(), sc.c_coll[1]);
+        assert_eq!(sc.data.coll[2].as_ptr(), sc.c_coll[2]);
     }
 }
 
