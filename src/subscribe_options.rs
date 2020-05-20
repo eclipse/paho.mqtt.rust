@@ -24,7 +24,10 @@
 //! These are defined in section 3.8.3.1 of the MQTT v5 spec.
 //! The defaults use the behavior that was present in MQTT v3.1.1.
 
-use ffi;
+use crate::{
+    ffi,
+    to_c_bool,
+};
 
 /// Don't receive our own publications
 pub const SUBSCRIBE_NO_LOCAL: bool = true;
@@ -77,7 +80,7 @@ impl From<bool> for SubscribeOptions {
 impl From<(bool,bool)> for SubscribeOptions {
 	fn from((no_local, retain_as_published): (bool, bool)) -> Self {
 		let mut opts = SubscribeOptions::new(no_local);
-		opts.copts.retainAsPublished = if retain_as_published { 1 } else { 0 };
+		opts.copts.retainAsPublished = to_c_bool(retain_as_published) as u8;
 		opts
 	}
 }
@@ -108,7 +111,7 @@ impl SubscribeOptionsBuilder {
     /// Set so that the client doesn't receive its own messages that it
     /// publishes on the topic.
     pub fn no_local(mut self, on: bool) -> Self {
-        self.copts.noLocal = if on { 1 } else { 0 };
+        self.copts.noLocal = to_c_bool(on) as u8;
         self
     }
 
@@ -117,7 +120,7 @@ impl SubscribeOptionsBuilder {
     /// only set on publications sent by a broker if in response to a
     /// subscribe request.
     pub fn retain_as_published(mut self, retain: bool) -> Self {
-        self.copts.retainAsPublished = if retain { 1 } else { 0 };
+        self.copts.retainAsPublished = to_c_bool(retain) as u8;
         self
     }
 

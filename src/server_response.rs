@@ -35,6 +35,7 @@ use std::ffi::CStr;
 
 use crate::{
     ffi,
+    from_c_bool,
     properties::{Properties},
 };
 
@@ -111,7 +112,7 @@ impl ServerResponse {
                 RequestResponse::Connect(
                     CStr::from_ptr(rsp.alt.connect.serverURI).to_string_lossy().to_string(),
                     rsp.alt.connect.MQTTVersion,
-                    rsp.alt.connect.sessionPresent != 0
+                    from_c_bool(rsp.alt.connect.sessionPresent)
                 )
             },
             ServerRequest::Subscribe => RequestResponse::Subscribe(rsp.alt.qos),
@@ -146,7 +147,7 @@ impl ServerResponse {
                 RequestResponse::Connect(
                     CStr::from_ptr(rsp.alt.connect.serverURI).to_string_lossy().to_string(),
                     rsp.alt.connect.MQTTVersion,
-                    rsp.alt.connect.sessionPresent != 0
+                    from_c_bool(rsp.alt.connect.sessionPresent)
                 )
             },
             ServerRequest::Subscribe => RequestResponse::Subscribe(rsp.reasonCode as i32),

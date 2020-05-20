@@ -4,7 +4,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2019 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2020 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -26,7 +26,12 @@ use std::{
     pin::Pin,
 };
 
-use crate::ffi;
+use crate::{
+    ffi,
+    to_c_bool,
+    from_c_bool,
+};
+
 
 // Implementation note:
 // The C library seems to require the SSL Options struct to provide valid
@@ -35,6 +40,7 @@ use crate::ffi;
 // struct needs to be fixed up to always point to the cached CString 
 // values.
 // Caching the CStrings in the struct with the fixed-up pointers in the 
+// underlying C struct.
 // 
 
 /// The options for SSL socket connections to the broker.
@@ -51,6 +57,17 @@ struct SslOptionsData {
     private_key: CString,
     private_key_password: CString,
     enabled_cipher_suites: CString,
+    ca_path: CString,
+}
+
+/// The SSL/TLS versions that can be requested.
+#[repr(u32)]
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum SslVersion {
+    Default = ffi::MQTT_SSL_VERSION_DEFAULT,
+    Tls_1_0 = ffi::MQTT_SSL_VERSION_TLS_1_0,
+    Tls_1_1 = ffi::MQTT_SSL_VERSION_TLS_1_1,
+    Tls_1_2 = ffi::MQTT_SSL_VERSION_TLS_1_2,
 }
 
 impl SslOptions {
@@ -68,36 +85,48 @@ impl SslOptions {
     // Updates the underlying C structure to match the cached strings.
     fn from_data(mut copts: ffi::MQTTAsync_SSLOptions, data: SslOptionsData) -> Self {
         let data = Box::pin(data);
-        copts.trustStore = SslOptions::c_str(&data.trust_store);
-        copts.keyStore = SslOptions::c_str(&data.key_store);
-        copts.privateKey = SslOptions::c_str(&data.private_key);
-        copts.privateKeyPassword = SslOptions::c_str(&data.private_key_password);
-        copts.enabledCipherSuites = SslOptions::c_str(&data.enabled_cipher_suites);
+        copts.trustStore = Self::c_str(&data.trust_store);
+        copts.keyStore = Self::c_str(&data.key_store);
+        copts.privateKey = Self::c_str(&data.private_key);
+        copts.privateKeyPassword = Self::c_str(&data.private_key_password);
+        copts.enabledCipherSuites = Self::c_str(&data.enabled_cipher_suites);
+        copts.CApath = Self::c_str(&data.ca_path);
         Self { copts, data }
     }
 
+    /// Set the name of the PEM file containing the public
+    /// digital certificates trusted by the client.
     pub fn trust_store(&self) -> String {
         self.data.trust_store.to_str().unwrap().to_string()
     }
 
+    /// Get the name of the PEM file containing the public
+    /// certificate chain of the client.
     pub fn key_store(&self) -> String {
         self.data.key_store.to_str().unwrap().to_string()
     }
 
+    /// The PEM file containing the client's private key, if not included
+    /// in the Key Store.
     pub fn private_key(&self) -> String {
         self.data.private_key.to_str().unwrap().to_string()
     }
 
-    pub fn private_key_password(&self) -> String {
-        self.data.private_key_password.to_str().unwrap().to_string()
-    }
-
+    /// Gets the list of cipher suites that the client will present to
+    /// the server during the SSL handshake.
     pub fn enabled_cipher_suites(&self) -> String {
         self.data.enabled_cipher_suites.to_str().unwrap().to_string()
     }
 
+    /// Determine if the client will verify the server certificate.
     pub fn enable_server_cert_auth(&self) -> bool {
-        self.copts.enableServerCertAuth != 0
+        from_c_bool(self.copts.enableServerCertAuth)
+    }
+
+    /// Gets the directory containing CA certificates in PEM format,
+    /// if set.
+    pub fn ca_path(&self) -> String {
+        self.data.ca_path.to_str().unwrap().to_string()
     }
 }
 
@@ -135,10 +164,13 @@ pub struct SslOptionsBuilder {
 }
 
 impl SslOptionsBuilder {
+    /// Creates a new builder with default options.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set the name of the file in PEM format containing the public
+    /// digital certificates trusted by the client.
     pub fn trust_store<S>(&mut self, trust_store: S) -> &mut Self
         where S: Into<String>
     {
@@ -146,6 +178,10 @@ impl SslOptionsBuilder {
         self
     }
 
+    /// Set the name of the file in PEM format containing the public
+    /// certificate chain of the client.
+    ///
+    /// It may also include the client's private key.
     pub fn key_store<S>(&mut self, key_store: S) -> &mut Self
         where S: Into<String>
     {
@@ -153,6 +189,8 @@ impl SslOptionsBuilder {
         self
     }
 
+    /// If not included in the Key Store, this setting points to the file
+    /// in PEM format containing the client's private key.
     pub fn private_key<S>(&mut self, private_key: S) -> &mut Self
         where S: Into<String>
     {
@@ -160,6 +198,7 @@ impl SslOptionsBuilder {
         self
     }
 
+    /// The password to load the client's privateKey if it's encrypted.
     pub fn private_key_password<S>(&mut self, private_key_password: S) -> &mut Self
         where S: Into<String>
     {
@@ -168,6 +207,16 @@ impl SslOptionsBuilder {
         self
     }
 
+    /// The list of cipher suites that the client will present to the server
+    /// during the SSL handshake.
+    ///
+    /// For a full explanation of the cipher list format, please see the
+    /// OpenSSL on-line documentation:
+	/// http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
+	///
+    /// If this setting is ommitted, its default value will be "ALL", that is,
+    /// all the cipher suites -excluding those offering no encryption- will
+    /// be considered.
     pub fn enabled_cipher_suites<S>(&mut self, enabled_cipher_suites: S) -> &mut Self
         where S: Into<String>
     {
@@ -176,6 +225,44 @@ impl SslOptionsBuilder {
         self
     }
 
+    /// Enable or disable verification of the server certificate
+    pub fn enable_server_cert_auth(&mut self, on: bool) -> &mut Self {
+        self.copts.enableServerCertAuth = to_c_bool(on);
+        self
+    }
+
+    /// The SSL/TLS version to use.
+    pub fn ssl_version(&mut self, ver: SslVersion) -> &mut Self {
+        self.copts.sslVersion = ver as i32;
+        self
+    }
+
+    /// Whether to carry out post-connect checks, including that a
+    /// certificate matches the given host name.
+    pub fn verify(&mut self, on: bool) -> &mut Self {
+        self.copts.verify = to_c_bool(on);
+        self
+    }
+
+    /// If set, this points to a directory containing CA certificates
+    /// in PEM format.
+    pub fn ca_path<S>(&mut self, ca_path: S) -> &mut Self
+        where S: Into<String>
+    {
+        self.data.ca_path = CString::new(ca_path.into()).unwrap();
+        self
+    }
+
+    /// Don't load the default SSL CA.
+    ///
+    /// This should be used together with PSK to make sure
+    /// regular servers with certificate in place is not accepted.
+    pub fn disable_default_trust_store(&mut self, disable: bool) -> &mut Self {
+        self.copts.disableDefaultTrustStore = to_c_bool(disable);
+        self
+    }
+
+    /// Create the SSL options from the builder.
     pub fn finalize(&self) -> SslOptions {
         SslOptions::from_data(
             self.copts.clone(),
@@ -203,14 +290,13 @@ mod tests {
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
         assert_eq!(4, opts.copts.struct_version);
-        assert_eq!(ptr::null(), opts.copts.trustStore);
+        assert!(opts.copts.trustStore.is_null());
         // TODO: Check the other strings
     }
 
     #[test]
     fn test_builder_dflt() {
-        let opts = SslOptionsBuilder::new()
-            .finalize();
+        let opts = SslOptionsBuilder::new().finalize();
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
         assert_eq!(4, opts.copts.struct_version);
@@ -222,37 +308,52 @@ mod tests {
     fn test_builder_trust_store() {
         const TRUST_STORE: &str = "some_file.crt";
         let opts = SslOptionsBuilder::new()
-            .trust_store(TRUST_STORE)
-            .finalize();
+            .trust_store(TRUST_STORE).finalize();
 
         assert_eq!(TRUST_STORE, opts.data.trust_store.to_str().unwrap());
-        let ts = unsafe { CStr::from_ptr(opts.copts.trustStore) };
-        assert_eq!(TRUST_STORE, ts.to_str().unwrap());
+
+        let s = unsafe { CStr::from_ptr(opts.copts.trustStore) };
+        assert_eq!(TRUST_STORE, s.to_str().unwrap());
     }
 
     #[test]
     fn test_builder_key_store() {
         const KEY_STORE: &str = "some_file.crt";
-        let opts = SslOptionsBuilder::new()
-            .key_store(KEY_STORE)
-            .finalize();
+        let opts = SslOptionsBuilder::new().key_store(KEY_STORE).finalize();
 
         assert_eq!(KEY_STORE, opts.data.key_store.to_str().unwrap());
+
+        let s = unsafe { CStr::from_ptr(opts.copts.keyStore) };
+        assert_eq!(KEY_STORE, s.to_str().unwrap());
+    }
+
+    #[test]
+    fn test_verify() {
+        let opts = SslOptionsBuilder::new().verify(true).finalize();
+        assert!(from_c_bool(opts.copts.verify));
+    }
+
+    #[test]
+    fn test_disable_default_trust_store() {
+        let opts = SslOptionsBuilder::new()
+            .disable_default_trust_store(true).finalize();
+        assert!(from_c_bool(opts.copts.disableDefaultTrustStore));
     }
 
     // TODO: Test the other builder initializers
 
     #[test]
-    fn test_copy() {
+    fn test_move() {
         const TRUST_STORE: &str = "some_file.crt";
         let org_opts = SslOptionsBuilder::new()
-            .trust_store(TRUST_STORE)
-            .finalize();
+            .trust_store(TRUST_STORE).finalize();
 
         let opts = org_opts;
+
         assert_eq!(TRUST_STORE, opts.data.trust_store.to_str().unwrap());
-        let ts = unsafe { CStr::from_ptr(opts.copts.trustStore) };
-        assert_eq!(TRUST_STORE, ts.to_str().unwrap());
+
+        let s = unsafe { CStr::from_ptr(opts.copts.trustStore) };
+        assert_eq!(TRUST_STORE, s.to_str().unwrap());
     }
 
     #[test]
@@ -262,15 +363,15 @@ mod tests {
         // before testing the clone.
         let opts = {
             let org_opts = SslOptionsBuilder::new()
-                .trust_store(TRUST_STORE)
-                .finalize();
+                .trust_store(TRUST_STORE).finalize();
 
             org_opts.clone()
         };
 
         assert_eq!(TRUST_STORE, opts.data.trust_store.to_str().unwrap());
-        let ts = unsafe { CStr::from_ptr(opts.copts.trustStore) };
-        assert_eq!(TRUST_STORE, ts.to_str().unwrap());
+
+        let s = unsafe { CStr::from_ptr(opts.copts.trustStore) };
+        assert_eq!(TRUST_STORE, s.to_str().unwrap());
     }
 }
 

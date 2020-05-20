@@ -34,6 +34,8 @@ use std::{
 
 use crate::{
     ffi,
+    to_c_bool,
+    from_c_bool,
     token::{
         ConnectToken,
         Token,
@@ -155,7 +157,7 @@ impl ConnectOptions {
 
     /// Gets the "clean session" setting in the options.
     pub fn clean_session(&self) -> bool {
-        self.copts.cleansession != 0
+        from_c_bool(self.copts.cleansession)
     }
 
     /// This sets the "clean session" behavior for connecting to the server.
@@ -164,7 +166,7 @@ impl ConnectOptions {
     /// When set to false, the server keeps the state information and
     /// resumes the previous session.
     pub fn set_clean_session(&mut self, clean: bool) {
-        self.copts.cleansession = if clean { 1 } else { 0 }
+        self.copts.cleansession = to_c_bool(clean);
     }
 
     /// Sets the token to ber used for connect completion callbacks.
@@ -247,7 +249,7 @@ impl ConnectOptionsBuilder {
     /// `clean` Whether the broker should remove any previously-stored
     ///         information for this client.
     pub fn clean_session(&mut self, clean: bool) -> &mut Self {
-        self.copts.cleansession = if clean { 1 } else { 0 };
+        self.copts.cleansession = to_c_bool(clean);
         self
     }
 
@@ -260,7 +262,7 @@ impl ConnectOptionsBuilder {
     /// `clean` Whether the broker should remove any previously-stored
     ///         information for this client.
     pub fn clean_start(&mut self, clean: bool) -> &mut Self {
-        self.copts.cleanstart = if clean { 1 } else { 0 };
+        self.copts.cleanstart = to_c_bool(clean);
         self
     }
 

@@ -4,7 +4,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2020 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -53,6 +53,8 @@ pub use crate::reason_code::*;         //{ReasonCode}
 pub use crate::types::*;               //...
 pub use crate::client_persistence::*;
 pub use crate::errors::*;              //{Result, Error, ErrorKind};
+
+use std::os::raw::c_int;
 
 mod macros;
 
@@ -118,3 +120,14 @@ pub mod string_collection;
 /// (to pass to the C library).
 pub mod name_value;
 
+// --------------------------------------------------------------------------
+
+/// Convert a Rust bool to a Paho C boolean
+pub fn to_c_bool(on: bool) -> c_int {
+    if on { 1 } else { 0 }
+}
+
+/// Converts a C integer boolean to a Rust bool
+pub fn from_c_bool(on: c_int) -> bool {
+    on != 0
+}

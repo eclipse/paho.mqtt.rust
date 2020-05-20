@@ -31,6 +31,7 @@ use std::{
 
 use crate::{
     ffi,
+    to_c_bool,
     properties::Properties,
 };
 
@@ -209,7 +210,7 @@ impl<'a, 'b> From<(&'a str, &'b [u8], i32, bool)> for Message {
     fn from((topic, payload, qos, retained): (&'a str, &'b [u8], i32, bool)) -> Self {
         let cmsg = ffi::MQTTAsync_message {
             qos,
-            retained: if retained { 1 } else { 0 },
+            retained: to_c_bool(retained),
             ..ffi::MQTTAsync_message::default()
         };
         Self::from_data(cmsg, MessageData::new(topic, payload))
@@ -313,7 +314,7 @@ impl MessageBuilder
     pub fn finalize(self) -> Message {
         let cmsg = ffi::MQTTAsync_message {
             qos: self.qos,
-            retained: if self.retained { 1 } else { 0 },
+            retained: to_c_bool(self.retained),
             ..ffi::MQTTAsync_message::default()
         };
         let data = MessageData {
