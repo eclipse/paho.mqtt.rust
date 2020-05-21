@@ -8,7 +8,7 @@
 //!   - Connecting to an MQTT server/broker securely
 //!   - Setting SSL/TLS options
 //!   - Publishing messages asynchronously
-//!   - Using asynchronous tokens
+//!   - Using using async/await
 //!
 //! We can test this using mosquitto configured with certificates in the
 //! Paho C library. The C library has an SSL/TSL test suite, and we can use
@@ -18,6 +18,10 @@
 //!
 //! Then use the files "test-root-ca.crt" and "client.pem" from the directory
 //! (paho.mqtt.c/test/ssl) for the trust and key stores for this program.
+//!
+//! Note that this configuration also works with secure websocket connection.
+//! Use the connection string:
+//!     wss://localhost:18885
 //!
 
 /*******************************************************************************
@@ -36,7 +40,8 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{time, env, process};
+use std::{env, process};
+use futures::executor::block_on;
 use paho_mqtt as mqtt;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -76,44 +81,41 @@ fn main() -> mqtt::Result<()> {
 
     println!("Connecting to host: '{}'", host);
 
-    // Create a client & define connect options
-    let cli = mqtt::AsyncClientBuilder::new()
-                    .server_uri(&host)
-                    .client_id("ssl_publish_rs")
-                    .offline_buffering(true)
-                    .finalize();
+    // Run the client in an async block
 
-    let ssl_opts = mqtt::SslOptionsBuilder::new()
-        .trust_store(trust_store)?
-        .key_store(key_store)?
-        .finalize();
+    if let Err(err) = block_on(async {
+        // Create a client & define connect options
+        let cli = mqtt::AsyncClientBuilder::new()
+                        .server_uri(&host)
+                        .client_id("ssl_publish_rs")
+                        .offline_buffering(true)
+                        .finalize();
 
-    let conn_opts = mqtt::ConnectOptionsBuilder::new()
-        .ssl_options(ssl_opts)
-        .user_name("testuser")
-        .password("testpassword")
-        .finalize();
+        let ssl_opts = mqtt::SslOptionsBuilder::new()
+            .trust_store(trust_store)?
+            .key_store(key_store)?
+            .finalize();
 
-    let tok = cli.connect(conn_opts);
-    if let Err(e) = tok.wait() {
-        println!("Error connecting: {:?}", e);
-        process::exit(1);
+        let conn_opts = mqtt::ConnectOptionsBuilder::new()
+            .ssl_options(ssl_opts)
+            .user_name("testuser")
+            .password("testpassword")
+            .finalize();
+
+        cli.connect(conn_opts).await?;
+
+        let msg = mqtt::MessageBuilder::new()
+            .topic("test")
+            .payload("Hello secure world!")
+            .qos(1)
+            .finalize();
+
+        cli.publish(msg).await?;
+        cli.disconnect(None).await?;
+
+        Ok::<(), mqtt::Error>(())
+    }) {
+        eprintln!("{}", err);
     }
-
-    let msg = mqtt::MessageBuilder::new()
-        .topic("test")
-        .payload("Hello secure world!")
-        .qos(1)
-        .finalize();
-
-    if let Err(e) = cli.publish(msg).wait() {
-        println!("Error sending message: {:?}", e);
-    }
-
-    let disconn_opts = mqtt::DisconnectOptionsBuilder::new()
-        .timeout(time::Duration::from_millis(1000))
-        .finalize();
-
-    cli.disconnect(disconn_opts).wait()?;
     Ok(())
 }
