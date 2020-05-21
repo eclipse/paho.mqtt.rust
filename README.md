@@ -40,7 +40,7 @@ Work has started to move the library to modern Rust, including:
 
 That should hopefully be complete by late May 2020.
 
-The previous release, version 0.7.x brought full support for MQTT v5.
+The previous release, version 0.7.x brought support for MQTT v5.
 
 To keep up with the latest announcements for this project, follow:
 
@@ -62,7 +62,7 @@ To keep up with the latest announcements for this project, follow:
 - Examples using async/await
 - Removed old asynchronous (futures 0.1-style) examples
 - Message and option structs were reimplemented internally with pinned inner data structs.
-- SslOptionsBuilder using `Into<String>` for parameters.
+- `SslOptions` using `Path` and `PathBuf` for file names in the API instead of `String`. 
 
 ### What's new in v0.7
 

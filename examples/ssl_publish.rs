@@ -41,7 +41,7 @@ use paho_mqtt as mqtt;
 
 /////////////////////////////////////////////////////////////////////////////
 
-fn main() {
+fn main() -> mqtt::Result<()> {
     // Initialize the logger from the environment
     env_logger::init();
 
@@ -51,27 +51,27 @@ fn main() {
     const KEY_STORE: &str = "client.pem";
 
     // We assume that we are in a valid directory.
-    let mut trust_store = env::current_dir().unwrap();
+    let mut trust_store = env::current_dir()?;
     trust_store.push(TRUST_STORE);
+
+    let mut key_store = env::current_dir()?;
+    key_store.push(KEY_STORE);
 
     if !trust_store.exists() {
         println!("The trust store file does not exist: {:?}", trust_store);
-        println!("  Get a copy from \"paho.mqtt.c/test/ssl/test-root-ca.crt\"");
+        println!("  Get a copy from \"paho.mqtt.c/test/ssl/{}\"", TRUST_STORE);
         process::exit(1);
     }
 
-    let mut key_store = env::current_dir().unwrap();
-    key_store.push(KEY_STORE);
-
     if !key_store.exists() {
         println!("The key store file does not exist: {:?}", key_store);
-        println!("  Get a copy from \"paho.mqtt.c/test/ssl/client.pem\"");
+        println!("  Get a copy from \"paho.mqtt.c/test/ssl/{}\"", KEY_STORE);
         process::exit(1);
     }
 
     // Let the user override the host, but note the "ssl://" protocol.
     let host = env::args().nth(1).unwrap_or_else(||
-        "ssl://localhost:18885".to_string()
+        "ssl://localhost:18884".to_string()
     );
 
     println!("Connecting to host: '{}'", host);
@@ -84,8 +84,8 @@ fn main() {
                     .finalize();
 
     let ssl_opts = mqtt::SslOptionsBuilder::new()
-        .trust_store(trust_store.to_str().unwrap())
-        .key_store(key_store.to_str().unwrap())
+        .trust_store(trust_store)?
+        .key_store(key_store)?
         .finalize();
 
     let conn_opts = mqtt::ConnectOptionsBuilder::new()
@@ -114,6 +114,6 @@ fn main() {
         .timeout(time::Duration::from_millis(1000))
         .finalize();
 
-    let tok = cli.disconnect(disconn_opts);
-    tok.wait().unwrap();
+    cli.disconnect(disconn_opts).wait()?;
+    Ok(())
 }

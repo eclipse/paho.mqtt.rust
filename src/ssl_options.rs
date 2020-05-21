@@ -20,16 +20,19 @@
  *******************************************************************************/
 
 use std::{
+    io,
     ptr,
     ffi::{CString},
     os::raw::{c_char},
     pin::Pin,
+    path::{Path, PathBuf},
 };
 
 use crate::{
     ffi,
     to_c_bool,
     from_c_bool,
+    errors::Result,
 };
 
 
@@ -96,20 +99,20 @@ impl SslOptions {
 
     /// Set the name of the PEM file containing the public
     /// digital certificates trusted by the client.
-    pub fn trust_store(&self) -> String {
-        self.data.trust_store.to_str().unwrap().to_string()
+    pub fn trust_store(&self) -> PathBuf {
+        PathBuf::from(&self.data.trust_store.to_str().unwrap())
     }
 
     /// Get the name of the PEM file containing the public
     /// certificate chain of the client.
-    pub fn key_store(&self) -> String {
-        self.data.key_store.to_str().unwrap().to_string()
+    pub fn key_store(&self) -> PathBuf {
+        PathBuf::from(&self.data.key_store.to_str().unwrap())
     }
 
     /// The PEM file containing the client's private key, if not included
     /// in the Key Store.
-    pub fn private_key(&self) -> String {
-        self.data.private_key.to_str().unwrap().to_string()
+    pub fn private_key(&self) -> PathBuf {
+        PathBuf::from(&self.data.private_key.to_str().unwrap())
     }
 
     /// Gets the list of cipher suites that the client will present to
@@ -125,8 +128,8 @@ impl SslOptions {
 
     /// Gets the directory containing CA certificates in PEM format,
     /// if set.
-    pub fn ca_path(&self) -> String {
-        self.data.ca_path.to_str().unwrap().to_string()
+    pub fn ca_path(&self) -> PathBuf {
+        PathBuf::from(&self.data.ca_path.to_str().unwrap())
     }
 }
 
@@ -171,31 +174,40 @@ impl SslOptionsBuilder {
 
     /// Set the name of the file in PEM format containing the public
     /// digital certificates trusted by the client.
-    pub fn trust_store<S>(&mut self, trust_store: S) -> &mut Self
-        where S: Into<String>
+    pub fn trust_store<P>(&mut self, trust_store: P) -> Result<&mut Self>
+        where P: AsRef<Path>
     {
-        self.data.trust_store = CString::new(trust_store.into()).unwrap();
-        self
+        self.data.trust_store = CString::new(
+            trust_store.as_ref().to_str()
+                .ok_or(io::Error::new(io::ErrorKind::Other, "Path string error"))?
+        )?;
+        Ok(self)
     }
 
     /// Set the name of the file in PEM format containing the public
     /// certificate chain of the client.
     ///
     /// It may also include the client's private key.
-    pub fn key_store<S>(&mut self, key_store: S) -> &mut Self
-        where S: Into<String>
+    pub fn key_store<P>(&mut self, key_store: P) -> Result<&mut Self>
+        where P: AsRef<Path>
     {
-        self.data.key_store = CString::new(key_store.into()).unwrap();
-        self
+        self.data.key_store = CString::new(
+            key_store.as_ref().to_str()
+                .ok_or(io::Error::new(io::ErrorKind::Other, "Path string error"))?
+        )?;
+        Ok(self)
     }
 
     /// If not included in the Key Store, this setting points to the file
     /// in PEM format containing the client's private key.
-    pub fn private_key<S>(&mut self, private_key: S) -> &mut Self
-        where S: Into<String>
+    pub fn private_key<P>(&mut self, private_key: P) -> Result<&mut Self>
+        where P: AsRef<Path>
     {
-        self.data.private_key = CString::new(private_key.into()).unwrap();
-        self
+        self.data.private_key = CString::new(
+            private_key.as_ref().to_str()
+                .ok_or(io::Error::new(io::ErrorKind::Other, "Path string error"))?
+        )?;
+        Ok(self)
     }
 
     /// The password to load the client's privateKey if it's encrypted.
@@ -246,11 +258,14 @@ impl SslOptionsBuilder {
 
     /// If set, this points to a directory containing CA certificates
     /// in PEM format.
-    pub fn ca_path<S>(&mut self, ca_path: S) -> &mut Self
-        where S: Into<String>
+    pub fn ca_path<P>(&mut self, ca_path: P) -> Result<&mut Self>
+        where P: AsRef<Path>
     {
-        self.data.ca_path = CString::new(ca_path.into()).unwrap();
-        self
+        self.data.ca_path = CString::new(
+            ca_path.as_ref().to_str()
+                .ok_or(io::Error::new(io::ErrorKind::Other, "Path string error"))?
+        )?;
+        Ok(self)
     }
 
     /// Don't load the default SSL CA.
@@ -308,7 +323,7 @@ mod tests {
     fn test_builder_trust_store() {
         const TRUST_STORE: &str = "some_file.crt";
         let opts = SslOptionsBuilder::new()
-            .trust_store(TRUST_STORE).finalize();
+            .trust_store(TRUST_STORE).unwrap().finalize();
 
         assert_eq!(TRUST_STORE, opts.data.trust_store.to_str().unwrap());
 
@@ -319,7 +334,8 @@ mod tests {
     #[test]
     fn test_builder_key_store() {
         const KEY_STORE: &str = "some_file.crt";
-        let opts = SslOptionsBuilder::new().key_store(KEY_STORE).finalize();
+        let opts = SslOptionsBuilder::new()
+            .key_store(KEY_STORE).unwrap().finalize();
 
         assert_eq!(KEY_STORE, opts.data.key_store.to_str().unwrap());
 
@@ -346,7 +362,7 @@ mod tests {
     fn test_move() {
         const TRUST_STORE: &str = "some_file.crt";
         let org_opts = SslOptionsBuilder::new()
-            .trust_store(TRUST_STORE).finalize();
+            .trust_store(TRUST_STORE).unwrap().finalize();
 
         let opts = org_opts;
 
@@ -363,7 +379,7 @@ mod tests {
         // before testing the clone.
         let opts = {
             let org_opts = SslOptionsBuilder::new()
-                .trust_store(TRUST_STORE).finalize();
+                .trust_store(TRUST_STORE).unwrap().finalize();
 
             org_opts.clone()
         };

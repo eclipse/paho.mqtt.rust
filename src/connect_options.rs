@@ -506,7 +506,7 @@ mod tests {
     fn test_ssl() {
         const TRUST_STORE: &str = "some_file.crt";
         let ssl_opts = SslOptionsBuilder::new()
-            .trust_store(TRUST_STORE)
+            .trust_store(TRUST_STORE).unwrap()
             .finalize();
 
         let opts = ConnectOptionsBuilder::new()
