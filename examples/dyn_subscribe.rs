@@ -89,11 +89,16 @@ fn main() {
         "tcp://localhost:1883".to_string()
     );
 
+    let topics: Vec<String> = DFLT_TOPICS.iter()
+        .map(|s| s.to_string())
+        .collect();
+
     // Create the client. Use an ID for a persistent session.
     // A real system should try harder to use a unique ID.
     let create_opts = mqtt::CreateOptionsBuilder::new()
         .server_uri(host)
         .client_id("rust_dyn_subscribe")
+        .user_data(Box::new(topics))
         .finalize();
 
     // Create the client connection
@@ -101,9 +106,6 @@ fn main() {
         println!("Error creating the client: {:?}", e);
         process::exit(1);
     });
-
-    let topics: Vec<String> = DFLT_TOPICS.iter().map(|s| s.to_string()).collect();
-    cli.set_user_data(Box::new(topics));
 
     // Set a closure to be called whenever the client connection is established.
     cli.set_connected_callback(|_cli: &mqtt::AsyncClient| {

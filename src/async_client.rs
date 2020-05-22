@@ -53,12 +53,12 @@ use std::{
     sync::{Arc, Mutex, RwLock},
     ffi::{CString, CStr},
     os::raw::{c_void, c_char, c_int},
-    any::Any,
 };
 use futures::stream::Stream;
 
 use crate::{
     ffi,
+    UserData,
     create_options::{
         CreateOptions,
         PersistenceType
@@ -143,12 +143,6 @@ struct CallbackContext
     on_message_arrived: Option<Box<MessageArrivedCallback>>,
 }
 
-/// Generic type for arbitrary user-supplied data.
-///
-/// The application can use a type compatible with this to store in the
-/// client as "user data" to be accessed from callbacks, etc.
-pub type UserData = Box<dyn Any + 'static + Send + Sync>;
-
 
 impl AsyncClient {
     /// Creates a new MQTT client which can connect to an MQTT broker.
@@ -163,6 +157,8 @@ impl AsyncClient {
         let mut opts = opts.into();
         debug!("Create options: {:?}", opts);
 
+        let user_data = opts.user_data.unwrap_or(Box::new(()));
+
         let mut cli = InnerAsyncClient {
             handle: ptr::null_mut(),
             opts: Mutex::new(ConnectOptions::new()),
@@ -170,7 +166,7 @@ impl AsyncClient {
             server_uri: CString::new(opts.server_uri)?,
             client_id: CString::new(opts.client_id)?,
             user_persistence: None,
-            user_data: RwLock::new(Box::new(())),
+            user_data: RwLock::new(user_data),
         };
 
         let (ptype, pptr) = match opts.persistence {
@@ -369,7 +365,14 @@ impl AsyncClient {
     /// deadlock the callback thread when accessing the user data.
     pub fn set_user_data(&self, data: UserData) {
         *self.inner.user_data.write().unwrap() = data;
+    }
 
+    /// Removes the user data from the client.
+    ///
+    /// This drops the existing user data by overwriting it with
+    /// a boxed unit value.
+    pub fn clear_user_data(&self) {
+        self.set_user_data(Box::new(()));
     }
 
     /// Connects to an MQTT broker using the specified connect options.

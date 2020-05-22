@@ -54,7 +54,10 @@ pub use crate::types::*;               //...
 pub use crate::client_persistence::*;
 pub use crate::errors::*;              //{Result, Error, ErrorKind};
 
-use std::os::raw::c_int;
+use std::{
+    os::raw::c_int,
+    any::Any,
+};
 
 mod macros;
 
@@ -119,6 +122,15 @@ pub mod string_collection;
 /// Utility for creating name/value string pair collections
 /// (to pass to the C library).
 pub mod name_value;
+
+// --------------------------------------------------------------------------
+
+/// Generic type for arbitrary user-supplied data.
+///
+/// The application can use a type compatible with this to store in the
+/// client as "user data" to be accessed from callbacks, etc.
+pub type UserData = Box<dyn Any + 'static + Send + Sync>;
+
 
 // --------------------------------------------------------------------------
 

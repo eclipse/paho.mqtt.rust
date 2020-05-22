@@ -27,6 +27,7 @@ use std::{
 
 use crate::{
     ffi,
+    UserData,
     client_persistence::ClientPersistence,
 };
 
@@ -57,6 +58,12 @@ impl fmt::Debug for PersistenceType {
 	}
 }
 
+impl Default for PersistenceType {
+    fn default() -> Self {
+        PersistenceType::File
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////
 //							Create Options
 /////////////////////////////////////////////////////////////////////////////
@@ -64,7 +71,7 @@ impl fmt::Debug for PersistenceType {
 /// The options for creating an MQTT client.
 /// This can be constructed using a
 /// [CreateOptionsBuilder](struct.CreateOptionsBuilder.html).
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CreateOptions {
 	/// The underlying C option structure
 	pub(crate) copts: ffi::MQTTAsync_createOptions,
@@ -75,6 +82,8 @@ pub struct CreateOptions {
 	pub(crate) client_id: String,
 	/// The type of persistence used by the client.
 	pub(crate) persistence: PersistenceType,
+
+    pub(crate) user_data: Option<UserData>,
 }
 
 impl CreateOptions {
@@ -117,6 +126,7 @@ impl From<(String, String)> for CreateOptions {
 	}
 }
 
+/*
 impl Default for CreateOptions {
 	/// Constructs a set of CreatieOptions with reasonable defaults.
 	fn default() -> CreateOptions {
@@ -128,6 +138,7 @@ impl Default for CreateOptions {
 		}
 	}
 }
+*/
 
 /////////////////////////////////////////////////////////////////////////////
 //								Builder
@@ -148,23 +159,18 @@ impl Default for CreateOptions {
 /// let cli = mqtt::AsyncClient::new(opts).unwrap();
 /// ```
 
+#[derive(Default)]
 pub struct CreateOptionsBuilder {
 	copts: ffi::MQTTAsync_createOptions,
 	server_uri: String,
 	client_id: String,
 	persistence: PersistenceType,
+    user_data: Option<UserData>
 }
 
 impl CreateOptionsBuilder {
 	/// Constructs a builder with default options.
-	pub fn new() -> CreateOptionsBuilder {
-		CreateOptionsBuilder {
-			copts: ffi::MQTTAsync_createOptions::default(),
-			server_uri: "".to_string(),
-			client_id: "".to_string(),
-			persistence: PersistenceType::File,
-		}
-	}
+	pub fn new() -> Self { Self::default() }
 
 	/// Sets the the URI to the MQTT broker.
 	/// Alternately, the application can specify multiple servers via the
@@ -176,7 +182,7 @@ impl CreateOptionsBuilder {
 	///              _protocol://host:port_, where the protocol can be
 	///              _tcp_ or _ssl_, and the host can be an IP address
 	///              or domain name.
-	pub fn server_uri<S>(mut self, server_uri: S) -> CreateOptionsBuilder
+	pub fn server_uri<S>(mut self, server_uri: S) -> Self
 			where S: Into<String> {
 		self.server_uri = server_uri.into();
 		self
@@ -198,7 +204,7 @@ impl CreateOptionsBuilder {
 	///
 	/// `client_id` A UTF-8 string identifying the client to the server.
 	///
-	pub fn client_id<S>(mut self, client_id: S) -> CreateOptionsBuilder
+	pub fn client_id<S>(mut self, client_id: S) -> Self
 			where S: Into<String> {
 		self.client_id = client_id.into();
 		self
@@ -213,7 +219,7 @@ impl CreateOptionsBuilder {
 	///
 	/// `persist` The type of persistence to use.
 	///
-	pub fn persistence(mut self, persist: PersistenceType) -> CreateOptionsBuilder {
+	pub fn persistence(mut self, persist: PersistenceType) -> Self {
 		self.persistence = persist;
 		self
 	}
@@ -227,7 +233,7 @@ impl CreateOptionsBuilder {
 	///
 	/// `persist` An application-defined custom persistence store.
 	///
-	pub fn user_persistence<T>(mut self, persistence: T) -> CreateOptionsBuilder
+	pub fn user_persistence<T>(mut self, persistence: T) -> Self
 			where T: ClientPersistence + 'static
 	{
 		let persistence: Box<Box<dyn ClientPersistence>> = Box::new(Box::new(persistence));
@@ -246,7 +252,7 @@ impl CreateOptionsBuilder {
 	/// `n` The maximum number of messages that can be buffered. Setting this
 	///     to zero disables off-line buffering.
 	///
-	pub fn max_buffered_messages(mut self, n: i32) -> CreateOptionsBuilder {
+	pub fn max_buffered_messages(mut self, n: i32) -> Self {
 		self.copts.maxBufferedMessages = n;
 		self.copts.sendWhileDisconnected = if n == 0 { 0 } else { 1 };
 		self
@@ -262,8 +268,14 @@ impl CreateOptionsBuilder {
     ///       * (4) only try v3.1.1
     ///       * (5) only try v5
     ///
-    pub fn mqtt_version(mut self, ver: u32) -> CreateOptionsBuilder {
+    pub fn mqtt_version(mut self, ver: u32) -> Self {
         self.copts.MQTTVersion = ver as c_int;
+        self
+    }
+
+    /// Sets the uer-defined data structure for the client.
+    pub fn user_data(mut self, data: UserData) -> Self {
+        self.user_data = Some(data);
         self
     }
 
@@ -274,6 +286,7 @@ impl CreateOptionsBuilder {
 			server_uri: self.server_uri,
 			client_id: self.client_id,
 			persistence: self.persistence,
+            user_data: self.user_data,
 		}
 	}
 }
@@ -311,7 +324,7 @@ mod tests {
 
 		assert_eq!("", &opts.server_uri);
 		assert_eq!("", &opts.client_id);
-		//assert_eq!(PersistenceType::File, opts.persistence);
+		//assert_eq!(PersistenceType::default(), opts.persistence);
 	}
 
 	#[test]
