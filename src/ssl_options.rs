@@ -55,11 +55,17 @@ pub struct SslOptions {
 
 #[derive(Debug, Default, Clone)]
 struct SslOptionsData {
+    // File name of the trust store.
     trust_store: CString,
+    // File name of the clien't public key store.
     key_store: CString,
+    // File name for the private key, if not in key store.
     private_key: CString,
+    // Password for the private key, if any.
     private_key_password: CString,
+    // The list of cipher quites that the client presents to the server.
     enabled_cipher_suites: CString,
+    // The path to the CA certificates, if specified.
     ca_path: CString,
 }
 

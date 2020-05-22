@@ -47,6 +47,7 @@ use crate::{
     string_collection::StringCollection,
     name_value::NameValueCollection,
     properties::Properties,
+    types::*,
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -92,32 +93,24 @@ impl ConnectOptions {
     ) -> Self {
         let mut data = Box::pin(data);
 
-        copts.will = if let Some(ref mut will_opts) = data.will {
-            &mut will_opts.copts
-        }
-        else {
-            ptr::null_mut()
+        copts.will = match data.will {
+            Some(ref mut will_opts) => &mut will_opts.copts,
+            _ => ptr::null_mut()
         };
 
-        copts.ssl = if let Some(ref mut ssl_opts) = data.ssl {
-            &mut ssl_opts.copts
-        }
-        else {
-            ptr::null_mut()
+        copts.ssl = match data.ssl {
+            Some(ref mut ssl_opts) => &mut ssl_opts.copts,
+            _ => ptr::null_mut(),
         };
 
-        copts.username = if let Some(ref user_name) = data.user_name {
-            user_name.as_ptr()
-        }
-        else {
-            ptr::null()
+        copts.username = match data.user_name {
+            Some(ref user_name) => user_name.as_ptr(),
+            _ => ptr::null(),
         };
 
-        copts.password = if let Some(ref password) = data.password {
-            password.as_ptr()
-        }
-        else {
-            ptr::null()
+        copts.password = match data.password {
+            Some(ref password) => password.as_ptr(),
+            _ => ptr::null()
         };
 
         let n = data.server_uris.len();
@@ -131,25 +124,28 @@ impl ConnectOptions {
             copts.serverURIcount = 0;
         }
 
-        copts.connectProperties = if let Some(ref mut props) = data.props {
-            &mut props.cprops
+        copts.connectProperties = ptr::null_mut();
+        if copts.MQTTVersion >= MQTT_VERSION_5 as i32 {
+            if let Some(ref mut props) = data.props {
+                copts.connectProperties = &mut props.cprops
+            }
         }
-        else {
-            ptr::null_mut()
+
+        copts.willProperties = ptr::null_mut();
+        if copts.MQTTVersion >= MQTT_VERSION_5 as i32 {
+            if let Some(ref mut will_props) = data.will_props {
+                copts.willProperties = &mut will_props.cprops
+            }
+        }
+
+        copts.httpHeaders = match data.http_headers {
+            Some(ref mut http_headers) => http_headers.as_c_arr_ptr(),
+            _ => ptr::null(),
         };
 
-        copts.willProperties = if let Some(ref mut will_props) = data.will_props {
-            &mut will_props.cprops
-        }
-        else {
-            ptr::null_mut()
-        };
-
-        copts.httpHeaders = if let Some(ref mut http_headers) = data.http_headers {
-            http_headers.as_c_arr_ptr()
-        }
-        else {
-            ptr::null()
+        copts.httpHeaders = match data.http_headers {
+            Some(ref mut http_headers) => http_headers.as_c_arr_ptr(),
+            _ => ptr::null()
         };
 
         Self { copts, data }
@@ -640,8 +636,10 @@ mod tests {
         let mut props = Properties::new();
         props.push_int(PropertyCode::SessionExpiryInterval, 60).unwrap();
 
+        // Remember, you can only set properties on a v5 connection.
         let opts = ConnectOptionsBuilder::new()
-            .properties(props)
+            .properties(props)      // Note: Order shouldn't matter when
+            .mqtt_version(MQTT_VERSION_5)   // building options
             .finalize();
 
         if let Some(ref props) = opts.data.props {
@@ -667,7 +665,9 @@ mod tests {
             .properties(props)
             .finalize();
 
+        // Remember, you can only set properties on a v5 connection.
         let opts = ConnectOptionsBuilder::new()
+            .mqtt_version(MQTT_VERSION_5)
             .will_message(lwt)
             .finalize();
 

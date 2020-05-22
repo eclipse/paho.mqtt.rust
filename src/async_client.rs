@@ -50,9 +50,10 @@ use std::{
     slice,
     mem,
     time::Duration,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
     ffi::{CString, CStr},
     os::raw::{c_void, c_char, c_int},
+    any::Any,
 };
 use futures::stream::Stream;
 
@@ -88,6 +89,30 @@ use crate::{
 /////////////////////////////////////////////////////////////////////////////
 // AsynClient
 
+/// An asynchronous MQTT connection client.
+#[derive(Clone)]
+pub struct AsyncClient {
+    pub(crate) inner: Arc<InnerAsyncClient>,
+}
+
+/// Implementation details for the asynchronous MQTT connection client.
+pub(crate) struct InnerAsyncClient {
+    // The handle to the Paho C client
+    handle: ffi::MQTTAsync,
+    // The options for connecting to the broker
+    opts: Mutex<ConnectOptions>,
+    // The context to give to the C callbacks
+    callback_context: Mutex<CallbackContext>,
+    // The server URI
+    server_uri: CString,
+    // The MQTT client ID name
+    client_id: CString,
+    // The user persistence (if any)
+    user_persistence: Option<Box<UserPersistence>>,
+    // Arbitrary, user-supplied data
+    user_data: RwLock<UserData>,
+}
+
 /// User callback type for when the client is connected.
 pub type ConnectedCallback = dyn FnMut(&AsyncClient) + 'static;
 
@@ -118,27 +143,12 @@ struct CallbackContext
     on_message_arrived: Option<Box<MessageArrivedCallback>>,
 }
 
-/// An asynchronous MQTT connection client.
-pub(crate) struct InnerAsyncClient {
-    // The handle to the Paho C client
-    handle: ffi::MQTTAsync,
-    // The options for connecting to the broker
-    opts: Mutex<ConnectOptions>,
-    // The context to give to the C callbacks
-    callback_context: Mutex<CallbackContext>,
-    // The server URI
-    server_uri: CString,
-    // The MQTT client ID name
-    client_id: CString,
-    // The user persistence (if any)
-    user_persistence: Option<Box<UserPersistence>>
-}
+/// Generic type for arbitrary user-supplied data.
+///
+/// The application can use a type compatible with this to store in the
+/// client as "user data" to be accessed from callbacks, etc.
+pub type UserData = Box<dyn Any + 'static + Send + Sync>;
 
-/// An asynchronous MQTT connection client.
-#[derive(Clone)]
-pub struct AsyncClient {
-    pub(crate) inner: Arc<InnerAsyncClient>,
-}
 
 impl AsyncClient {
     /// Creates a new MQTT client which can connect to an MQTT broker.
@@ -153,15 +163,14 @@ impl AsyncClient {
         let mut opts = opts.into();
         debug!("Create options: {:?}", opts);
 
-        // TODO: Don't unwrap() CStrings. Return error instead.
-
         let mut cli = InnerAsyncClient {
             handle: ptr::null_mut(),
             opts: Mutex::new(ConnectOptions::new()),
             callback_context: Mutex::new(CallbackContext::default()),
-            server_uri: CString::new(opts.server_uri).unwrap(),
-            client_id: CString::new(opts.client_id).unwrap(),
+            server_uri: CString::new(opts.server_uri)?,
+            client_id: CString::new(opts.client_id)?,
             user_persistence: None,
+            user_data: RwLock::new(Box::new(())),
         };
 
         let (ptype, pptr) = match opts.persistence {
@@ -337,6 +346,32 @@ impl AsyncClient {
         lkopts.copts.MQTTVersion as u32
     }
 
+    /// Get access to the user-defined data in the client.
+    ///
+    /// This returns a reference to aread/write lock around the user data so
+    /// that the application can access the data, as needed from any outside
+    /// thread or a callback.
+    ///
+    /// Note that it's up to the application to ensure that it doesn't
+    /// deadlock the callback thread when accessing the user data.
+    pub fn user_data(&self) -> &RwLock<UserData> {
+        &self.inner.user_data
+    }
+
+    /// Sets the user data for the client.
+    ///
+    /// The aplication can add an arbitrary data object to the client that
+    /// can then be referenced or updated in any external thread or client
+    /// callback. The data is kept in it's own reader-writer lock in the
+    /// client and can be accessed or updated using that lock.
+    ///
+    /// Note that it's up to the application to ensure that it doesn't
+    /// deadlock the callback thread when accessing the user data.
+    pub fn set_user_data(&self, data: UserData) {
+        *self.inner.user_data.write().unwrap() = data;
+
+    }
+
     /// Connects to an MQTT broker using the specified connect options.
     ///
     /// # Arguments
@@ -384,7 +419,7 @@ impl AsyncClient {
         where FS: Fn(&AsyncClient,u16) + 'static,
               FF: Fn(&AsyncClient,u16,i32) + 'static
     {
-        debug!("Connecting handle: {:?}", self.inner.handle);
+        debug!("Connecting handle with callbacks: {:?}", self.inner.handle);
         debug!("Connect opts: {:?}", opts);
         unsafe {
             if !opts.copts.will.is_null() {
@@ -396,7 +431,6 @@ impl AsyncClient {
         let tok = Token::from_client(self, ServerRequest::Connect, success_cb, failure_cb);
         opts.set_token(tok.clone());
 
-        debug!("Connect opts: {:?}", opts);
         {
             let mut lkopts = self.inner.opts.lock().unwrap();
             *lkopts = opts.clone();
@@ -1041,6 +1075,7 @@ impl AsyncClientBuilder {
             server_uri: CString::new(self.server_uri.clone()).unwrap(),
             client_id: CString::new(self.client_id.clone()).unwrap(),
             user_persistence: None,
+            user_data: RwLock::new(Box::new(())),
         };
 
         // TODO We wouldn't need this if C options were immutable in call
@@ -1106,8 +1141,8 @@ mod tests {
 
     #[test]
     fn test_create() {
-        let client = AsyncClient::new("tcp://localhost:1883");
-        assert!(client.is_ok(), "Error in creating simple async client, do you have a running MQTT server on localhost:1883?");
+        let cli = AsyncClient::new("tcp://localhost:1883");
+        assert!(cli.is_ok(), "Error in creating simple async client, do you have a running MQTT server on localhost:1883?");
     }
 
     #[test]
@@ -1120,6 +1155,46 @@ mod tests {
         match tok.wait() {
             Ok(_) => (),
             Err(e) => println!("(Error) {}", e)
+        }
+    }
+
+    #[test]
+    fn test_user_data() {
+        let cli = AsyncClient::new("tcp://localhost:1883").unwrap();
+
+        const DATA_STR: &str = "Hello world!";
+        let data = Box::new(DATA_STR);
+
+        cli.set_user_data(data);
+        {
+            let rdata = cli.user_data().read().unwrap();
+            assert!(rdata.downcast_ref::<&str>().is_some());
+            assert_eq!(&DATA_STR, rdata.downcast_ref::<&str>().unwrap());
+        }
+
+        let data_vec = vec!["zero", "one", "two"];
+        let data = Box::new(data_vec);
+
+        cli.set_user_data(data);
+        {
+            let rdata = cli.user_data().read().unwrap();
+            if let Some(v) = rdata.downcast_ref::<Vec<&str>>() {
+                assert_eq!(3, v.len());
+                assert_eq!("zero", v[0]);
+                assert_eq!("one",  v[1]);
+                assert_eq!("two",  v[2]);
+            }
+            else {
+                assert!(false);
+            }
+        }
+        {
+            let mut rdata = cli.user_data().write().unwrap();
+            if let Some(v) = rdata.downcast_mut::<Vec<&str>>() {
+                v.push("three");
+                assert_eq!(4, v.len());
+                assert_eq!("three", v[3]);
+            }
         }
     }
 

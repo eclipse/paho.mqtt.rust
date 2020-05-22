@@ -57,11 +57,9 @@ fn main() {
         // Connect and wait for it to complete or fail
         cli.connect(conn_opts).await?;
 
-        const QOS: i32 = 1;
-
         // Create a message and publish it
         println!("Publishing a message on the 'test' topic");
-        let msg = mqtt::Message::new("test", "Hello Rust MQTT world!", QOS);
+        let msg = mqtt::Message::new("test", "Hello Rust MQTT world!", mqtt::QOS_1);
         cli.publish(msg).await?;
 
         // Disconnect from the broker
