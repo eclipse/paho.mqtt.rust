@@ -5,7 +5,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2019 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2019-2020 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -22,7 +22,11 @@
 
 //! Response options for the Paho MQTT Rust client library.
 
-use std::os::raw::c_int;
+use std::{
+    ptr,
+    pin::Pin,
+    os::raw::c_int,
+};
 
 use crate::{
     ffi,
@@ -37,7 +41,13 @@ use crate::{
 #[derive(Debug)]
 pub struct ResponseOptions {
     pub(crate) copts: ffi::MQTTAsync_responseOptions,
-    sub_opts: Vec<ffi::MQTTSubscribe_options>,
+    data: Pin<Box<ResponseOptionsData>>,
+}
+
+/// Cached data for the response options
+#[derive(Debug, Default, Clone)]
+struct ResponseOptionsData {
+    sub_opts: Option<Vec<ffi::MQTTSubscribe_options>>,
 }
 
 impl ResponseOptions {
@@ -52,30 +62,51 @@ impl ResponseOptions {
     pub(crate) fn new<T>(tok: T, mqtt_version: u32) -> Self
         where T: Into<Token>
     {
-        let tok = tok.into();
-        let context = tok.into_raw();
+        let copts = Self::c_options(tok, mqtt_version);
+        Self::from_data(copts, ResponseOptionsData::default())
+    }
+
+    fn from_data(
+        mut copts: ffi::MQTTAsync_responseOptions,
+        data: ResponseOptionsData
+    ) -> Self {
+        let mut data = Box::pin(data);
+
+        let (n, p) = match data.sub_opts {
+            Some(ref mut sub_opts) => (
+                sub_opts.len() as c_int,
+                sub_opts.as_mut_ptr()
+            ),
+            _ => (0 as c_int, ptr::null_mut())
+        };
+
+        copts.subscribeOptionsCount = n;
+        copts.subscribeOptionsList = p;
+
+        Self { copts, data }
+    }
+
+    // Gets the default C options struct for the specified MQTT version
+    fn c_options<T>(tok: T, mqtt_version: u32) -> ffi::MQTTAsync_responseOptions
+        where T: Into<Token>
+    {
+        let context = tok.into().into_raw();
         debug!("Created response for token at: {:?}", context);
 
         if mqtt_version < 5 {
-            ResponseOptions {
-                copts: ffi::MQTTAsync_responseOptions {
-                    onSuccess: Some(TokenInner::on_success),
-                    onFailure: Some(TokenInner::on_failure),
-                    context,
-                    ..ffi::MQTTAsync_responseOptions::default()
-                },
-                sub_opts: Vec::new(),
+            ffi::MQTTAsync_responseOptions {
+                onSuccess: Some(TokenInner::on_success),
+                onFailure: Some(TokenInner::on_failure),
+                context,
+                ..ffi::MQTTAsync_responseOptions::default()
             }
         }
         else {
-            ResponseOptions {
-                copts: ffi::MQTTAsync_responseOptions {
-                    onSuccess5: Some(TokenInner::on_success5),
-                    onFailure5: Some(TokenInner::on_failure5),
-                    context,
-                    ..ffi::MQTTAsync_responseOptions::default()
-                },
-                sub_opts: Vec::new(),
+            ffi::MQTTAsync_responseOptions {
+                onSuccess5: Some(TokenInner::on_success5),
+                onFailure5: Some(TokenInner::on_failure5),
+                context,
+                ..ffi::MQTTAsync_responseOptions::default()
             }
         }
     }
@@ -83,18 +114,17 @@ impl ResponseOptions {
     pub(crate) fn from_subscribe_options<T>(tok: T, opts: SubscribeOptions) -> Self
         where T: Into<Token>
     {
-        let mut ropts = ResponseOptions::new(tok, ffi::MQTTVERSION_5);
-        ropts.copts.subscribeOptions = opts.copts;
-        ropts
+        let mut copts = Self::c_options(tok, ffi::MQTTVERSION_5);
+        copts.subscribeOptions = opts.copts;
+        Self::from_data(copts, ResponseOptionsData::default())
     }
 
     pub(crate) fn from_subscribe_many_options<T>(tok: T, opts: &[SubscribeOptions]) -> Self
         where T: Into<Token>
     {
-        let mut ropts = ResponseOptions::new(tok, ffi::MQTTVERSION_5);
-        ropts.sub_opts = opts.iter().map(|opt| opt.copts).collect();
-        ropts.copts.subscribeOptionsCount = opts.len() as c_int;
-        ropts
+        let copts = Self::c_options(tok, ffi::MQTTVERSION_5);
+        let sub_opts: Vec<_> = opts.iter().map(|opt| opt.copts).collect();
+        Self::from_data(copts, ResponseOptionsData { sub_opts: Some(sub_opts), })
     }
 }
 
@@ -110,9 +140,9 @@ mod tests {
     use crate::types::*;
 
     #[test]
-    fn test_new() {
+    fn test_new_v3() {
         let tok = Token::new();
-        let opts = ResponseOptions::new(tok.clone(), MQTT_VERSION_3_1_1);   //ffi::MQTTVERSION_3_1_1);
+        let opts = ResponseOptions::new(tok.clone(), MQTT_VERSION_3_1_1);
 
         let inner = Token::into_raw(tok);
 
@@ -120,6 +150,70 @@ mod tests {
         assert!(opts.copts.onFailure.is_some());
         // Check that the context is pointing to the right Token
         assert_eq!(inner, opts.copts.context);
+        assert!(opts.copts.onSuccess5.is_none());
+        assert!(opts.copts.onFailure5.is_none());
+
+        let _ = unsafe { Token::from_raw(inner) };
+    }
+
+    #[test]
+    fn test_new_v5() {
+        let tok = Token::new();
+        let opts = ResponseOptions::new(tok.clone(), MQTT_VERSION_5);
+
+        let inner = Token::into_raw(tok);
+
+        assert!(opts.copts.onSuccess.is_none());
+        assert!(opts.copts.onFailure.is_none());
+        // Check that the context is pointing to the right Token
+        assert_eq!(inner, opts.copts.context);
+        assert!(opts.copts.onSuccess5.is_some());
+        assert!(opts.copts.onFailure5.is_some());
+
+        let _ = unsafe { Token::from_raw(inner) };
+    }
+
+    #[test]
+    fn test_from_opts() {
+        let tok = Token::new();
+        let sub_opts = SubscribeOptions::new(true);
+        let opts = ResponseOptions::from_subscribe_options(tok.clone(), sub_opts);
+
+        let inner = Token::into_raw(tok);
+
+        assert!(opts.copts.onSuccess.is_none());
+        assert!(opts.copts.onFailure.is_none());
+        // Check that the context is pointing to the right Token
+        assert_eq!(inner, opts.copts.context);
+        assert!(opts.copts.onSuccess5.is_some());
+        assert!(opts.copts.onFailure5.is_some());
+
+        assert!(opts.copts.subscribeOptions.noLocal != 0);
+
+        let _ = unsafe { Token::from_raw(inner) };
+    }
+
+    #[test]
+    fn test_from_many_opts() {
+        let tok = Token::new();
+        let sub_opts = vec![SubscribeOptions::new(true) ; 4];
+        let opts = ResponseOptions::from_subscribe_many_options(
+            tok.clone(), &sub_opts
+        );
+
+        let inner = Token::into_raw(tok);
+
+        assert!(opts.copts.onSuccess.is_none());
+        assert!(opts.copts.onFailure.is_none());
+        // Check that the context is pointing to the right Token
+        assert_eq!(inner, opts.copts.context);
+        assert!(opts.copts.onSuccess5.is_some());
+        assert!(opts.copts.onFailure5.is_some());
+
+        assert_eq!(0, opts.copts.subscribeOptions.noLocal);
+
+        assert_eq!(4, opts.copts.subscribeOptionsCount);
+        assert!(!opts.copts.subscribeOptionsList.is_null());
 
         let _ = unsafe { Token::from_raw(inner) };
     }
