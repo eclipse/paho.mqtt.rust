@@ -71,12 +71,12 @@ impl Default for ServerRequest {
 
 /// The possible responses that may come back from the server, depending on
 /// the type of request.
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub enum RequestResponse {
     /// No response from the server
     None,
     /// The server URI, MQTT version, and whether the session is present
-    Connect(String, i32, bool),
+    Connect(ConnectResponse),
     /// The granted QoS of the subscription
     Subscribe(i32),
     /// The granted QoS of all the subscriptions
@@ -89,6 +89,17 @@ pub enum RequestResponse {
 
 impl Default for RequestResponse {
     fn default() -> Self { RequestResponse::None }
+}
+
+/// The response from the server on a connect request.
+#[derive(Clone, Default, Debug)]
+pub struct ConnectResponse {
+    /// The URI of the server.
+    pub server_uri: String,
+    /// The version of MQTT granted by the server.
+    pub mqtt_version: i32,
+    /// Whether the client session is already present on the server.
+    pub session_present: bool,
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -114,11 +125,12 @@ impl ServerResponse {
     pub unsafe fn from_success(req: ServerRequest, rsp: &ffi::MQTTAsync_successData) -> Self {
         let rsp = match req {
             ServerRequest::Connect => {
-                RequestResponse::Connect(
-                    CStr::from_ptr(rsp.alt.connect.serverURI).to_string_lossy().to_string(),
-                    rsp.alt.connect.MQTTVersion,
-                    from_c_bool(rsp.alt.connect.sessionPresent)
-                )
+                let conn_rsp = ConnectResponse {
+                    server_uri: CStr::from_ptr(rsp.alt.connect.serverURI).to_string_lossy().to_string(),
+                    mqtt_version: rsp.alt.connect.MQTTVersion,
+                    session_present: from_c_bool(rsp.alt.connect.sessionPresent),
+                };
+                RequestResponse::Connect(conn_rsp)
             },
             ServerRequest::Subscribe => RequestResponse::Subscribe(rsp.alt.qos),
             ServerRequest::SubscribeMany(n) => {
@@ -152,11 +164,12 @@ impl ServerResponse {
 
         let rsp = match req {
             ServerRequest::Connect => {
-                RequestResponse::Connect(
-                    CStr::from_ptr(rsp.alt.connect.serverURI).to_string_lossy().to_string(),
-                    rsp.alt.connect.MQTTVersion,
-                    from_c_bool(rsp.alt.connect.sessionPresent)
-                )
+                let conn_rsp = ConnectResponse {
+                    server_uri: CStr::from_ptr(rsp.alt.connect.serverURI).to_string_lossy().to_string(),
+                    mqtt_version: rsp.alt.connect.MQTTVersion,
+                    session_present: from_c_bool(rsp.alt.connect.sessionPresent),
+                };
+                RequestResponse::Connect(conn_rsp)
             },
             ServerRequest::Subscribe => RequestResponse::Subscribe(rsp.reasonCode as i32),
             ServerRequest::SubscribeMany(n) => {
@@ -220,10 +233,10 @@ impl ServerResponse {
     }
 
     /// Gets the response for a connection request
-    pub fn connect_response(&self) -> Option<(String, i32, bool)> {
+    pub fn connect_response(&self) -> Option<ConnectResponse> {
         match &self.rsp {
-            RequestResponse::Connect(uri, ver, session) =>
-                Some((uri.clone(), *ver, *session)),
+            RequestResponse::Connect(conn_rsp) =>
+                Some(conn_rsp.clone()),
             _ => None,
         }
     }

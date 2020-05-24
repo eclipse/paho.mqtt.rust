@@ -210,8 +210,8 @@ fn main() -> mqtt::Result<()> {
     // the server already knows about us and rembers about out
     // subscription(s). If not, we subscribe for incoming requests.
 
-    if let Some((_uri, _ver, session)) = rsp.connect_response() {
-        if !session {
+    if let Some(mqtt::ConnectResponse { session_present, .. }) = rsp.connect_response() {
+        if !session_present {
             println!("Subscribing to math requests");
             cli.subscribe(REQ_TOPIC_HDR, QOS).wait()?;
         }

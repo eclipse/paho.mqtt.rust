@@ -105,9 +105,10 @@ fn main() {
     println!("Connecting to the MQTT broker...");
     match cli.connect(conn_opts) {
         Ok(rsp) => {
-            if let Some((server_uri, ver, session_present)) = rsp.connect_response() {
-                println!("Connected to: '{}' with MQTT version {}", server_uri, ver);
-                if !session_present {
+            if let Some(conn_rsp) = rsp.connect_response() {
+                println!("Connected to: '{}' with MQTT version {}",
+                         conn_rsp.server_uri, conn_rsp.mqtt_version);
+                if !conn_rsp.session_present {
                     // Register subscriptions on the server
                     println!("Subscribing to topics, with requested QoS: {:?}...", qos);
 

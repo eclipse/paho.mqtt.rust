@@ -64,6 +64,7 @@ To keep up with the latest announcements for this project, follow:
 - Message and option structs were reimplemented internally with pinned inner data structs.
 - `SslOptions` using `Path` and `PathBuf` for file names in the API instead of `String`. 
 - The reason code returned from the server moved into the `ServerResponse` struct.
+- Added `ConnectResponse` as a struct instead of a tuple for the data returned in CONNACK.
 
 ### What's new in v0.7
 
