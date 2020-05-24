@@ -36,7 +36,8 @@ use std::ffi::CStr;
 use crate::{
     ffi,
     from_c_bool,
-    properties::{Properties},
+    properties::Properties,
+    reason_code::ReasonCode,
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -93,15 +94,19 @@ impl Default for RequestResponse {
 /////////////////////////////////////////////////////////////////////////////
 // ServerResponse
 
+/// Responses coming back from the server from client requests.
 #[derive(Clone, Default, Debug)]
 pub struct ServerResponse {
     /// The request-specific response
     rsp: RequestResponse,
     /// MQTT v5 Properties
     props: Properties,
+    /// MQTT v5 Reason Code
+    reason_code: ReasonCode,
 }
 
 impl ServerResponse {
+    /// Creates a new, empty, server response.
     pub fn new() -> Self { ServerResponse::default() }
 
     /// Creates the response object from the v3 "success" data structure
@@ -134,6 +139,7 @@ impl ServerResponse {
         ServerResponse {
             rsp,
             props: Properties::new(),
+            reason_code: ReasonCode::default(),
         }
     }
 
@@ -142,6 +148,8 @@ impl ServerResponse {
     pub unsafe fn from_success5(req: ServerRequest, rsp: &ffi::MQTTAsync_successData5) -> Self {
         let props = Properties::from_c_struct(&rsp.properties);
         //debug!("Properties: {:?}", props);
+        let reason_code = ReasonCode::from(rsp.reasonCode);
+
         let rsp = match req {
             ServerRequest::Connect => {
                 RequestResponse::Connect(
@@ -192,6 +200,7 @@ impl ServerResponse {
         ServerResponse {
             rsp,
             props,
+            reason_code,
         }
     }
 
@@ -201,6 +210,7 @@ impl ServerResponse {
         ServerResponse {
             rsp: RequestResponse::default(),
             props: Properties::from_c_struct(&rsp.properties),
+            reason_code: rsp.reasonCode.into(),
         }
     }
 
@@ -253,6 +263,11 @@ impl ServerResponse {
     /// Gets the properties returned from the server.
     pub fn properties(&self) -> &Properties {
         &self.props
+    }
+
+    /// Gets the reason code returned from the server.
+    pub fn reason_code(&self) -> ReasonCode {
+        self.reason_code
     }
 }
 

@@ -54,7 +54,6 @@ use {
     crate::{
         ffi,
         async_client::{AsyncClient},
-        reason_code::ReasonCode,
         message::Message,
         server_response::{ServerRequest, ServerResponse},
         errors::{self, Result, Error},
@@ -87,8 +86,6 @@ pub(crate) struct TokenData {
     msg_id: i16,
     /// The return/error code for the action (zero is success)
     ret_code: i32,
-    /// MQTT v5 Reason Code
-    reason_code: ReasonCode,
     /// Additional detail error message (if any)
     err_msg: Option<String>,
     /// The server response (dependent on the request type)
@@ -288,13 +285,11 @@ impl TokenInner {
 
         let mut msgid = 0;
         let mut rc = -1;
-        let mut reason_code = ReasonCode::default();
         let mut err_msg = None;
 
         if let Some(rsp) = rsp.as_ref() {
             msgid = rsp.token as u16;
             rc = if rsp.code == 0 { -1 } else { rsp.code as i32 };
-            reason_code = ReasonCode::from(rsp.reasonCode);
 
             if !rsp.message.is_null() {
                 if let Ok(cmsg) = CStr::from_ptr(rsp.message).to_str() {
@@ -320,7 +315,6 @@ impl TokenInner {
         let mut data = tok.inner.lock.lock().unwrap();
         data.complete = true;
         data.ret_code = rc;
-        data.reason_code = reason_code;
         data.err_msg = err_msg;
 
         if let Some(rsp) = rsp.as_ref() {

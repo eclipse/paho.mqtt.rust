@@ -50,7 +50,7 @@ To keep up with the latest announcements for this project, follow:
 
 **Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
 
-### Unreleased Features in this Branch
+### Unreleased Features and Updates in this Branch
 
 - Upgraded crate to 2018 Edition 
 - Upgraded Tokens to implement Futures 0.3. (async/await compatible!)
@@ -63,6 +63,7 @@ To keep up with the latest announcements for this project, follow:
 - Removed old asynchronous (futures 0.1-style) examples
 - Message and option structs were reimplemented internally with pinned inner data structs.
 - `SslOptions` using `Path` and `PathBuf` for file names in the API instead of `String`. 
+- The reason code returned from the server moved into the `ServerResponse` struct.
 
 ### What's new in v0.7
 
