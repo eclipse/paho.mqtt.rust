@@ -97,10 +97,7 @@ pub(crate) struct TokenData {
 impl TokenData {
     /// Creates token data for a specific message
     pub fn from_message_id(msg_id: i16) -> TokenData {
-        TokenData {
-            msg_id,
-            ..TokenData::default()
-        }
+        TokenData { msg_id, ..TokenData::default() }
     }
 
     /// Creates a new token that is already signaled with a code.
@@ -115,29 +112,6 @@ impl TokenData {
             ..TokenData::default()
         }
     }
-
-    /*
-    /// Poll the data to see if the request has completed yet.
-    fn poll(&mut self) -> Poll<Result<ServerResponse>> {
-        let rc = self.ret_code;
-
-        if !self.complete {
-            self.task = Some(task::current());
-            Ok(Async::NotReady)
-        }
-        else if rc == 0 {
-            Ok(Async::Ready(self.srvr_rsp.clone()))
-        }
-        else {
-            if let Some(ref err_msg) = self.err_msg {
-                Err(Error::PahoDescr(rc, err_msg.clone()))
-            }
-            else {
-                Err(Error::Paho(rc))
-            }
-        }
-    }
-    */
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -177,10 +151,7 @@ impl TokenInner {
     /// Creates a token for a specific request type
     pub fn from_request(req: ServerRequest) -> Arc<TokenInner> {
         Arc::new(
-            TokenInner {
-                req,
-                ..TokenInner::default()
-            }
+            TokenInner { req, ..TokenInner::default() }
         )
     }
 
@@ -233,13 +204,12 @@ impl TokenInner {
 
         // TODO: Maybe compare this msgid to the one in the token?
         let msgid = if !rsp.is_null() { (*rsp).token as u16 } else { 0 };
-
         tok.inner.on_complete(msgid, 0, None, rsp);
     }
 
     // Callback from the C library when an async operation fails.
     pub(crate) unsafe extern "C" fn on_failure(context: *mut c_void, rsp: *mut ffi::MQTTAsync_failureData) {
-        warn!("Token failure! {:?}, {:?}", context, rsp);
+        debug!("Token failure! {:?}, {:?}", context, rsp);
         if context.is_null() { return }
 
         let tok = Token::from_raw(context);
@@ -272,13 +242,12 @@ impl TokenInner {
 
         // TODO: Maybe compare this msgid to the one in the token?
         let msgid = if !rsp.is_null() { (*rsp).token as u16 } else { 0 };
-
         tok.inner.on_complete5(msgid, 0, None, rsp);
     }
 
     // Callback from the C library when an MQTT v5 async operation fails.
     pub(crate) unsafe extern "C" fn on_failure5(context: *mut c_void, rsp: *mut ffi::MQTTAsync_failureData5) {
-        warn!("Token v5 failure! {:?}, {:?}", context, rsp);
+        debug!("Token v5 failure! {:?}, {:?}", context, rsp);
         if context.is_null() { return }
 
         let tok = Token::from_raw(context);
@@ -640,33 +609,6 @@ impl Future for DeliveryToken {
         }
     }
 }
-
-/*
-impl Future for DeliveryToken {
-    type Item = ();
-    type Error = Error;
-
-    /// Poll the token to see if the request has completed yet.
-    fn poll(&mut self) -> Result<Async<Self::Item>> {
-        let mut data = self.inner.lock.lock().unwrap();
-        let rc = data.ret_code;
-
-        if !data.complete {
-            data.task = Some(task::current());
-            Ok(Async::NotReady)
-        }
-        else if rc == 0 {
-            Ok(Async::Ready(()))
-        }
-        else if let Some(ref err_msg) = data.err_msg {
-            Err(Error::PahoDescr(rc, err_msg.clone()))
-        }
-        else {
-            Err(Error::Paho(rc))
-        }
-    }
-}
-*/
 
 /////////////////////////////////////////////////////////////////////////////
 
