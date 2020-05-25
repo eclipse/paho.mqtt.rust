@@ -377,41 +377,26 @@ impl Property {
 
     /// Creates a single-byte property
     pub fn new_byte(code: PropertyCode, val: u8) -> Result<Property> {
-        if code.property_type() != PropertyType::Byte {
-            return Err(INVALID_PROPERTY_ID.into());
+        match code.property_type() {
+            PropertyType::Byte => Self::new_int(code, val as i32),
+            _ => Err(INVALID_PROPERTY_ID.into()),
         }
-        Ok(Property {
-            cprop: ffi::MQTTProperty {
-                identifier: code as Code,
-                value: Value { byte: val },
-            }
-        })
     }
 
     /// Creates a 2-byte integer property
     pub fn new_u16(code: PropertyCode, val: u16) -> Result<Property> {
-        if code.property_type() != PropertyType::TwoByteInteger {
-            return Err(INVALID_PROPERTY_ID.into());
+        match code.property_type() {
+            PropertyType::TwoByteInteger => Self::new_int(code, val as i32),
+            _ => Err(INVALID_PROPERTY_ID.into());
         }
-        Ok(Property {
-            cprop: ffi::MQTTProperty {
-                identifier: code as Code,
-                value: Value { integer2: val },
-            }
-        })
     }
 
     /// Creates a 4-byte integer property
     pub fn new_u32(code: PropertyCode, val: u32) -> Result<Property> {
-        if code.property_type() != PropertyType::FourByteInteger {
-            return Err(INVALID_PROPERTY_ID.into());
+        match code.property_type() {
+            PropertyType::FourByteInteger =>  Self::new_int(code, val as i32),
+            _ => Err(INVALID_PROPERTY_ID.into());
         }
-        Ok(Property {
-            cprop: ffi::MQTTProperty {
-                identifier: code as Code,
-                value: Value { integer4: val },
-            }
-        })
     }
 
     /// Creates a new integer property.
@@ -455,7 +440,6 @@ impl Property {
         let p = v.as_mut_ptr() as *mut c_char;
         mem::forget(v);
 
-        debug!("Creating binary property, {} bytes", n);
         Ok(Property::new_string_binary(code, p, n, ptr::null_mut(), 0))
     }
 
@@ -468,7 +452,6 @@ impl Property {
         let n = s.len();
         let p = CString::new(s).unwrap().into_raw();
 
-        debug!("Creating string property, {} bytes", n);
         Ok(Property::new_string_binary(code, p, n, ptr::null_mut(), 0))
     }
 
@@ -484,7 +467,6 @@ impl Property {
         let nval = val.len();
         let pval = CString::new(val).unwrap().into_raw();
 
-        debug!("Creating string pair property, {}/{} bytes", nkey, nval);
         Ok(Property::new_string_binary(code, pkey, nkey, pval, nval))
     }
 
@@ -817,7 +799,7 @@ impl TryFrom<(PropertyCode,i32)> for Property {
 /////////////////////////////////////////////////////////////////////////////
 // Properties
 
-/// A list of MQTT v5 properties.
+/// A collection of MQTT v5 properties.
 ///
 /// This is a collection of properties that can be added to outgoing packets
 /// or retrieved from incoming packets.
@@ -838,14 +820,14 @@ impl Properties {
         Properties { cprops, }
     }
 
-    /// Gets the number of property items in the collection.
-    pub fn len(&self) -> usize {
-        self.cprops.count as usize
-    }
-
     /// Determines if the property list has no items in it.
     pub fn is_empty(&self) -> bool {
         self.cprops.count == 0
+    }
+
+    /// Gets the number of property items in the collection.
+    pub fn len(&self) -> usize {
+        self.cprops.count as usize
     }
 
     /// Gets the number of bytes required for the serialized list on
