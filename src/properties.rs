@@ -6,7 +6,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2019 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2019-2020 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -29,6 +29,7 @@ use std::{
     ffi::CString,
     os::raw::{c_int, c_char},
     any::{Any, TypeId},
+    convert::TryFrom,
 };
 
 use crate::{
@@ -36,6 +37,7 @@ use crate::{
     errors::Result,
 };
 
+/// Code for property errors
 const INVALID_PROPERTY_ID: i32 = ffi::MQTT_INVALID_PROPERTY_ID;
 
 /// The type for prperties that take binary data.
@@ -61,7 +63,7 @@ pub enum PropertyType {
 }
 
 // Local alias for the C property type
-pub type Type = ffi::MQTTPropertyTypes;
+type Type = ffi::MQTTPropertyTypes;
 
 impl PropertyType {
     /// Tries to create a property type from a C integer value
@@ -216,23 +218,31 @@ impl Property {
 
         // Try some manual mappings first
 
-        if code.type_of() == TypeId::of::<String>() {
+        if code.type_of() == TypeId::of::<Binary>() {
+            // A binary type can accept strings
             if let Some(v) = rval.downcast_ref::<&str>() {
-                return Self::new_string(code, v);
+                return Self::new_binary(code, v.as_bytes());
+            }
+            else if let Some(v) = rval.downcast_ref::<String>() {
+                return Self::new_binary(code, v.as_bytes());
             }
         }
 
-        // Otherwise the types must match exactly
-
-        if code.type_of() != TypeId::of::<T>() {
-            return Err(INVALID_PROPERTY_ID.into());
-        }
+        // Note that we could potentially insist that the types must
+        // match exactly, but this seems too restrictive:
+        //
+        // if code.type_of() != TypeId::of::<T>() {
+        //     return Err(INVALID_PROPERTY_ID.into());
+        // }
 
         if let Some(v) = rval.downcast_ref::<u8>() {
             Self::new_byte(code, *v)
         }
         else if let Some(v) = rval.downcast_ref::<u16>() {
             Self::new_u16(code, *v)
+        }
+        else if let Some(v) = rval.downcast_ref::<i16>() {
+            Self::new_u16(code, *v as u16)
         }
         else if let Some(v) = rval.downcast_ref::<u32>() {
             Self::new_u32(code, *v)
@@ -243,11 +253,122 @@ impl Property {
         else if let Some(v) = rval.downcast_ref::<Binary>() {
             Self::new_binary(code, v.clone())
         }
+        else if let Some(v) = rval.downcast_ref::<&[u8]>() {
+            return Self::new_binary(code, *v);
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 1]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 2]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 3]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 4]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 5]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 6]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 7]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 8]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 9]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 10]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 11]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 12]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 13]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 14]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 15]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 16]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 17]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 18]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 19]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 20]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 21]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 22]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 23]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 24]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 25]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 26]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 27]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 28]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 29]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 30]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 31]>() {
+            Self::new_binary(code, v.to_vec())
+        }
+        else if let Some(v) = rval.downcast_ref::<&[u8 ; 32]>() {
+            Self::new_binary(code, v.to_vec())
+        }
         else if let Some(v) = rval.downcast_ref::<String>() {
             Self::new_string(code, &*v)
         }
+        else if let Some(v) = rval.downcast_ref::<&str>() {
+            return Self::new_string(code, v);
+        }
         else if let Some(v) = rval.downcast_ref::<(String,String)>() {
             Self::new_string_pair(code, &v.0, &v.1)
+        }
+        else if let Some(v) = rval.downcast_ref::<(&str, &str)>() {
+            Self::new_string_pair(code, v.0, v.1)
+        }
+        else if let Some(v) = rval.downcast_ref::<(&str, String)>() {
+            Self::new_string_pair(code, v.0, &v.1)
+        }
+        else if let Some(v) = rval.downcast_ref::<(String, &str)>() {
+            Self::new_string_pair(code, &v.0, v.1)
         }
         else {
             Err(INVALID_PROPERTY_ID.into())
@@ -298,8 +419,14 @@ impl Property {
     /// This works for any sized integer type, from byte on up.
     pub fn new_int(code: PropertyCode, val: i32) -> Result<Property> {
         let value = match code.property_type() {
-            PropertyType::Byte => Value { byte: val as u8 },
-            PropertyType::TwoByteInteger => Value { integer2: val as u16 },
+            PropertyType::Byte => {
+                if val & !0xFF != 0 { return Err(INVALID_PROPERTY_ID.into()); }
+                Value { byte: val as u8 }
+            },
+            PropertyType::TwoByteInteger => {
+                if val & !0xFFFF != 0 { return Err(INVALID_PROPERTY_ID.into()); }
+                Value { integer2: val as u16 }
+            },
             PropertyType::FourByteInteger | PropertyType::VariableByteInteger =>
                 Value { integer4: val as u32 },
             _ => return Err(INVALID_PROPERTY_ID.into()),
@@ -679,6 +806,13 @@ impl Clone for Property {
     }
 }
 
+impl TryFrom<(PropertyCode,i32)> for Property {
+    type Error = crate::errors::Error;
+
+	fn try_from((code, val): (PropertyCode, i32)) -> Result<Self> {
+        Self::new_int(code, val)
+    }
+}
 
 /////////////////////////////////////////////////////////////////////////////
 // Properties
@@ -990,7 +1124,19 @@ mod tests {
 
     #[test]
     fn test_new_property_byte() {
-        let val = 1;
+        let val = 1u8;
+
+        let prop = Property::new_byte(PropertyCode::PayloadFormatIndicator, val).unwrap();
+
+        unsafe {
+            assert_eq!(prop.cprop.identifier, PropertyCode::PayloadFormatIndicator as Code);
+            assert_eq!(prop.cprop.value.byte, val);
+        }
+
+        assert_eq!(prop.get_byte(), Some(val));
+        assert_eq!(prop.get::<u8>(), Some(val));
+
+        let val = 1i32;
         let prop = Property::new_int(PropertyCode::PayloadFormatIndicator, val).unwrap();
 
         unsafe {
@@ -1000,17 +1146,40 @@ mod tests {
 
         assert_eq!(prop.get_int(), Some(val));
         assert_eq!(prop.get::<i32>(), Some(val));
+
+        let res = Property::new_int(PropertyCode::PayloadFormatIndicator, 0x100);
+        assert!(res.is_err());
     }
 
     #[test]
-    fn test_new_property_i16() {
-        let val = 1024;
+    fn test_new_property_u16() {
+        let val = 1024u16;
+        let prop = Property::new_u16(PropertyCode::ReceiveMaximum, val).unwrap();
+
+        unsafe {
+            assert_eq!(prop.cprop.identifier, PropertyCode::ReceiveMaximum as Code);
+            assert_eq!(prop.cprop.value.integer2, val);
+        }
+
+        assert_eq!(prop.get_u16(), Some(val));
+        assert_eq!(prop.get::<u16>(), Some(val));
+
+        let val = 1024i32;
         let prop = Property::new_int(PropertyCode::ReceiveMaximum, val).unwrap();
 
         unsafe {
             assert_eq!(prop.cprop.identifier, PropertyCode::ReceiveMaximum as Code);
             assert_eq!(prop.cprop.value.integer2, val as u16);
         }
+
+        assert_eq!(prop.get_int(), Some(val));
+        assert_eq!(prop.get::<i32>(), Some(val));
+
+        assert_eq!(prop.get_u16(), Some(val as u16));
+        assert_eq!(prop.get::<u16>(), Some(val as u16));
+
+        let res = Property::new_int(PropertyCode::ReceiveMaximum, 0x10000);
+        assert!(res.is_err());
     }
 
     #[test]
@@ -1188,8 +1357,8 @@ mod tests {
     fn test_properties_default() {
         let props = Properties::default();
 
-        assert_eq!(props.len(), 0);
         assert!(props.is_empty());
+        assert_eq!(props.len(), 0);
 
         // Empty list needs 1 byte for zero len byte
         assert_eq!(props.byte_len(), 1);
@@ -1206,6 +1375,20 @@ mod tests {
 
         assert_eq!(props.len(), 1);
         assert!(!props.is_empty());
+    }
+
+
+    #[test]
+    fn test_properties_push_val() {
+        let mut props = Properties::new();
+
+        props.push_val(PropertyCode::ResponseTopic, "responses/somewhere").unwrap();
+
+        assert!(!props.is_empty());
+        assert_eq!(props.len(), 1);
+
+        props.push_val(PropertyCode::CorrelationData, b"12345").unwrap();
+        assert_eq!(props.len(), 2);
     }
 
     #[test]
@@ -1312,6 +1495,33 @@ mod tests {
         assert_eq!(props.find_user_property("user1"), Some("val1".to_string()));
         assert_eq!(props.find_user_property("user2"), Some("val2".to_string()));
         assert_eq!(props.find_user_property("user3"), None);
+    }
+
+    #[test]
+    fn test_properties_macro() {
+
+        // Zero length
+        let props = properties![];
+        assert!(props.is_empty());
+
+        // Some different properties
+        let props = properties!{
+            PropertyCode::ResponseTopic => "responses/somewhere",
+            PropertyCode::CorrelationData => b"12345",
+            PropertyCode::MaximumQos => 1,
+        };
+
+        println!("{:?}", props);
+        assert!(!props.is_empty());
+        assert_eq!(3, props.len());
+        assert_eq!(Some(b"12345".to_vec()), props.get_val::<Vec<u8>>(PropertyCode::CorrelationData));
+
+        let props = properties!{
+            PropertyCode::SessionExpiryInterval => 60,
+        };
+
+        assert_eq!(1, props.len());
+        assert_eq!(Some(60), props.get_val::<i32>(PropertyCode::SessionExpiryInterval));
     }
 }
 

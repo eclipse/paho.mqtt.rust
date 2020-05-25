@@ -31,12 +31,13 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
+#[macro_use] extern crate paho_mqtt as mqtt;
+
 use std::{
     env,
     process,
 };
 use serde_json::json;
-use paho_mqtt as mqtt;
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -109,21 +110,27 @@ fn main() -> mqtt::Result<()> {
     let reply_topic = format!("{}/{}", REP_TOPIC_HDR, client_id);
     cli.subscribe(&reply_topic, QOS).wait()?;
 
+    let corr_id = b"1";
+
+    let props = mqtt::properties!{
+        mqtt::PropertyCode::ResponseTopic => reply_topic,
+        mqtt::PropertyCode::CorrelationData => corr_id,
+    };
+
     // The request topic will be of the form:
     //     "requests/math/<operation>"
     // where we get <operation> ("add", "mult", etc) from the command line.
 
     let req_topic = format!("{}/{}", REQ_TOPIC_HDR, args[0]);
-    let corr_id = "1".as_bytes();
-
-    let mut props = mqtt::Properties::new();
-    props.push_string(mqtt::PropertyCode::ResponseTopic, &reply_topic).unwrap();
-    props.push_binary(mqtt::PropertyCode::CorrelationData, corr_id).unwrap();
 
     // The payload is the JSON array of arguments for the operation.
     // These are the remaining arguments from the command line.
 
-    let math_args: Vec<f64> = args[1..].iter().map(|x| x.parse::<f64>().unwrap()).collect();
+    let math_args: Vec<_> = args[1..].iter()
+        .map(|s| s.parse::<f64>())
+        .filter_map(Result::ok)
+        .collect();
+
     let payload = json!(math_args).to_string();
 
     // Create a message and publish it

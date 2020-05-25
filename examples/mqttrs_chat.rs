@@ -30,13 +30,14 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
+#[macro_use] extern crate paho_mqtt as mqtt;
+
 use std::{
     env,
     process,
     io,
     time::Duration,
 };
-use paho_mqtt as mqtt;
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -68,8 +69,9 @@ fn main() -> mqtt::Result<()> {
     // The LWT is broadcast to the group if our connection is lost
     // But wait 30sec for reconnect before broadcasting it.
 
-    let mut lwt_props = mqtt::Properties::new();
-    lwt_props.push_int(mqtt::PropertyCode::WillDelayInterval, 10).unwrap();
+    let lwt_props = mqtt::properties!{
+        mqtt::PropertyCode::WillDelayInterval => 10,
+    };
 
     let lwt = mqtt::MessageBuilder::new()
         .topic(&chat_topic)
@@ -86,14 +88,14 @@ fn main() -> mqtt::Result<()> {
         .persistence(mqtt::PersistenceType::None)
         .finalize();
 
-
     let mut cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|err| {
         eprintln!("Error creating the client: {}", err);
         process::exit(1);
     });
 
-    let mut props = mqtt::Properties::new();
-    props.push_int(mqtt::PropertyCode::SessionExpiryInterval, 60).unwrap();
+    let props = mqtt::properties!{
+        mqtt::PropertyCode::SessionExpiryInterval => 60,
+    };
 
     // Connect with default options
     let conn_opts = mqtt::ConnectOptionsBuilder::new()

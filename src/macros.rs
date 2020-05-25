@@ -31,9 +31,18 @@ macro_rules! bail {
     )
 }
 
-/*
-/// Create a vector of string from str references.
-macro_rules! vec_of_strings {
-    ($($x:expr),*) => (vec![$($x.to_string()),*]);
-}
-*/
+#[macro_export]
+macro_rules! properties(
+    { $($key:expr => $value:expr),* } => {
+        {
+            #[allow(unused_mut)]
+            let mut p = $crate::properties::Properties::new();
+            $( let _ = p.push_val($key, $value); )*
+            p
+        }
+    };
+    { $($key:expr => $value:expr),+ ,} => {
+        properties![ $( $key => $value ),* ]
+    };
+);
+
