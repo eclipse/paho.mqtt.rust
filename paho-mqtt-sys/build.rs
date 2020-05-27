@@ -4,7 +4,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2019 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2020 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -50,6 +50,8 @@
 //      ^ else assume system install and use bundled bindings
 //
 
+use std::path::{Path, PathBuf};
+
 // TODO: Assuming the proper installed version of the library is problematic.
 //      We should check that the version is correct, if possible.
 
@@ -59,47 +61,77 @@ fn main() {
     build::main();
 }
 
+// Determines the base name of which Paho C library we will link to.
+// This is the name of the libary for the linker.
 // Determine if we're usine SSL or not, by feature request.
-// This determines which Paho C library we link to.
-fn link_lib() -> &'static str {
+fn link_lib_base() -> &'static str {
     if cfg!(feature = "ssl") {
         println!("debug:link Using SSL library");
-        if cfg!(windows) {
-            "paho-mqtt3as-static"
-        }
-        else {
-            "paho-mqtt3as"
-        }
+        if cfg!(windows) { "paho-mqtt3as-static" } else { "paho-mqtt3as" }
     }
     else {
         println!("debug:link Using non-SSL library");
-        if cfg!(windows) {
-            "paho-mqtt3a-static"
-        }
-        else {
-            "paho-mqtt3a"
-        }
+        if cfg!(windows) { "paho-mqtt3a-static" } else { "paho-mqtt3a" }
     }
 }
 
+// Try to find the Paho C library in one of the typical library
+// directories under the specified install path.
+// On success returns the path and base library name (i.e. the search path
+// and link library name).
+fn find_link_lib<P>(install_path: P) -> Option<(PathBuf,&'static str)>
+    where P: AsRef<Path>
+{
+    let install_path = install_path.as_ref();
+    let lib_dirs = &[ "lib", "lib64" ];
+
+    let lib_base = link_lib_base();
+
+    let lib_file = if cfg!(windows) {
+        format!("{}.lib", lib_base)
+    }
+    else {
+        format!("lib{}.a", lib_base)
+    };
+
+    for dir in lib_dirs {
+        let lib_path = install_path.join(dir);
+        let lib = lib_path.join(&lib_file);
+
+        if lib.exists() {
+            return Some((lib_path, lib_base));
+        }
+    }
+    None
+}
+
+// Here we're looking for some pre-generated bindings specific for the
+// version of the C lib and the build target.
+// If not found, it settles on the default bindings, giben the target
+// word size (32 or 64-bit).
 #[cfg(not(feature = "build_bindgen"))]
 mod bindings {
     use super::*;
     use std::{fs, env};
-    use std::path::Path;
 
     pub fn place_bindings(_inc_dir: &Path) {
+        let target = env::var("TARGET").unwrap();
+        println!("debug:Using existing Paho C binding for target: {}", target);
+
         let out_dir = env::var("OUT_DIR").unwrap();
         let out_path = Path::new(&out_dir).join("bindings.rs");
 
-        let target = env::var("TARGET").unwrap();
-        println!("debug:Target: {}", target);
+        let target_ptr_wd = env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap();
+        println!("debug:Target Pointer Width: {}", target_ptr_wd);
 
-        let bindings = format!("bindings/bindings_paho_mqtt_c_{}-{}.rs",
-                               PAHO_MQTT_C_VERSION, target);
+        let mut bindings = format!("bindings/bindings_paho_mqtt_c_{}-{}.rs",
+                                   PAHO_MQTT_C_VERSION, target);
 
         if !Path::new(&bindings).exists() {
-            panic!("No generated bindings exist for the version/target: {}", bindings);
+            println!("No bindings exist for: {}. Using {}-bit default.",
+                     bindings, target_ptr_wd);
+            bindings = format!("bindings/bindings_paho_mqtt_c_{}-default-{}.rs",
+                    PAHO_MQTT_C_VERSION, target_ptr_wd)
         }
 
         println!("debug:Using bindings from: {}", bindings);
@@ -108,6 +140,7 @@ mod bindings {
     }
 }
 
+// Here we create new bindings using bindgen.
 #[cfg(feature = "build_bindgen")]
 mod bindings {
     extern crate bindgen;
@@ -117,6 +150,7 @@ mod bindings {
     use std::path::{Path, PathBuf};
 
     pub fn place_bindings(inc_dir: &Path) {
+        println!("debug:Using bindgen for Paho C");
         let cver = bindgen::clang_version();
         println!("debug:clang version: {}", cver.full);
 
@@ -128,7 +162,7 @@ mod bindings {
         // the resulting bindings.
         let bindings = bindgen::Builder::default()
             // Older clang versions (~v3.6) improperly mangle the functions.
-            // We shouldn't require mangling for straight C library. I think.
+            // We shouldn't require mangling for straight C library.
             .trust_clang_mangling(false)
             // The input header we would like to generate
             // bindings for.
@@ -142,8 +176,7 @@ mod bindings {
         let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
         let out_path = out_dir.join("bindings.rs");
 
-        bindings
-            .write_to_file(out_path.clone())
+        bindings.write_to_file(out_path.clone())
             .expect("Couldn't write bindings!");
 
         // Save a copy of the bindings file into the bindings/ dir
@@ -166,6 +199,10 @@ mod bindings {
     }
 }
 
+// Here we're building with the bundled Paho C library.
+// This will expand the Git submodule containing the C library, if it
+// doesn't already exist, then it will run CMake on the library using
+// configuration options that are useful for the Rust wrapper.
 #[cfg(feature = "bundled")]
 mod build {
     extern crate cmake;
@@ -198,6 +235,7 @@ mod build {
             .define("PAHO_BUILD_SHARED", "off")
             .define("PAHO_BUILD_STATIC", "on")
             .define("PAHO_ENABLE_TESTING", "off")
+            .define("PAHO_HIGH_PERFORMANCE", "on")
             .define("PAHO_WITH_SSL", ssl);
 
         if cfg!(windows) {
@@ -208,42 +246,22 @@ mod build {
             cmk_cfg.define("OPENSSL_ROOT_DIR", format!("{}", ssl_sp));
         }
 
-        // 'cmk' is a PathBuf to the cmake install directory
-        let cmk = cmk_cfg.build();
-        println!("debug:CMake output dir: {}", cmk.display());
+        // 'cmk_install_dir' is a PathBuf to the cmake install directory
+        let cmk_install_path = cmk_cfg.build();
+        println!("debug:CMake output dir: {}", cmk_install_path.display());
 
-        // We check if the target library was compiled.
-        let lib_path = if cmk.join("lib").exists() {
-            "lib"
-        }
-        else if cmk.join("lib64").exists() {
-            "lib64"
-        }
-        else {
-            panic!("Unknown library directory.")
+        let (lib_path, link_lib) = match find_link_lib(&cmk_install_path) {
+            Some(lib) => lib,
+            _ => {
+                println!("Error building Paho C library.");
+                process::exit(103);
+            },
         };
 
-        // Absolute path to Paho C libs
-        let lib_dir = cmk.join(lib_path);
-
-        let link_lib = link_lib();
-        let link_file = if cfg!(windows) {
-            format!("{}.lib", link_lib)
-        }
-        else {
-            format!("lib{}.a", link_lib)
-        };
-
-        let lib = lib_dir.join(Path::new(&link_file));
-        println!("debug:Using Paho C library at: {}", lib.display());
-
-        if !lib.exists() {
-            println!("Error building Paho C library: '{}'", lib.display());
-            process::exit(103);
-        }
+        println!("debug:Using Paho C library at: {} [{}]", lib_path.display(), link_lib);
 
         // Get bundled bindings or regenerate
-        let inc_dir = cmk.join("include");
+        let inc_dir = cmk_install_path.join("include");
         println!("debug:Using Paho C headers at: {}", inc_dir.display());
 
         bindings::place_bindings(&inc_dir);
@@ -274,12 +292,15 @@ mod build {
         }
 
         // we add the folder where all the libraries are built to the path search
-        println!("cargo:rustc-link-search=native={}", lib_dir.display());
+        println!("cargo:rustc-link-search=native={}", lib_path.display());
         println!("cargo:rustc-link-lib=static={}", link_lib);
     }
 }
 
 
+// Here we're building with an existing Paho C library.
+// This can be a library installed on the system or the location might be
+// specified with some environment variables, like: "PAHO_MQTT_C_DIR"
 #[cfg(not(feature = "bundled"))]
 mod build {
     use super::*;
@@ -289,7 +310,7 @@ mod build {
     // Set the library path, and return the location of the header,
     // if found.
     fn find_paho_c() -> Option<String> {
-        let link_lib = link_lib();
+        let link_lib = link_lib_base();
 
         println!("cargo:rerun-if-env-changed=PAHO_MQTT_C_DIR");
         println!("cargo:rerun-if-env-changed=PAHO_MQTT_C_INCLUDE_DIR");
@@ -299,6 +320,7 @@ mod build {
             println!("cargo:rerun-if-env-changed=PATH");
         }
 
+        println!("debug:Building with existing library: {}", link_lib);
         println!("cargo:rustc-link-lib={}", link_lib);
 
         // Allow users to specify where to find the C lib.
@@ -308,21 +330,24 @@ mod build {
                 println!("debug:lib_dir={}", lib_dir);
 
                 println!("cargo:rustc-link-search={}", lib_dir);
-                return Some(inc_dir);
+                Some(inc_dir)
             }
             else {
                 panic!("If specifying lib dir, must also specify include dir");
             }
         }
-
-        if let Ok(dir) = env::var("PAHO_MQTT_C_DIR") {
-            //println!("cargo:rustc-link-lib={}", link_lib);
-            println!("cargo:rustc-link-search={}", format!("{}/lib", dir));
-            return Some(format!("{}/include", dir));
+        else if let Ok(dir) = env::var("PAHO_MQTT_C_DIR") {
+            if let Some((lib_path, _link_lib)) = find_link_lib(&dir) {
+                println!("cargo:rustc-link-search={}", lib_path.display());
+                Some(format!("{}/include", dir))
+            }
+            else {
+                None
+            }
         }
-
-        //println!("cargo:rustc-link-search=native={}", lib_path);
-        None
+        else {
+            None
+        }
     }
 
     pub fn main() {
@@ -340,3 +365,4 @@ mod build {
         bindings::place_bindings(&Path::new(&inc_dir));
     }
 }
+
