@@ -29,7 +29,6 @@ use std::{
     ffi::CString,
     os::raw::{c_int, c_char},
     any::{Any, TypeId},
-    convert::TryFrom,
 };
 
 use crate::{
@@ -37,10 +36,10 @@ use crate::{
     errors::Result,
 };
 
-/// Code for property errors
+/// Error code for property mismatches
 const INVALID_PROPERTY_ID: i32 = ffi::MQTT_INVALID_PROPERTY_ID;
 
-/// The type for prperties that take binary data.
+/// The type for properties that take binary data.
 pub type Binary = Vec<u8>;
 
 /// The Property `value` union type.
@@ -387,7 +386,7 @@ impl Property {
     pub fn new_u16(code: PropertyCode, val: u16) -> Result<Property> {
         match code.property_type() {
             PropertyType::TwoByteInteger => Self::new_int(code, val as i32),
-            _ => Err(INVALID_PROPERTY_ID.into());
+            _ => Err(INVALID_PROPERTY_ID.into()),
         }
     }
 
@@ -395,7 +394,7 @@ impl Property {
     pub fn new_u32(code: PropertyCode, val: u32) -> Result<Property> {
         match code.property_type() {
             PropertyType::FourByteInteger =>  Self::new_int(code, val as i32),
-            _ => Err(INVALID_PROPERTY_ID.into());
+            _ => Err(INVALID_PROPERTY_ID.into()),
         }
     }
 
@@ -785,14 +784,6 @@ impl Clone for Property {
             }
         }
         Property { cprop, }
-    }
-}
-
-impl TryFrom<(PropertyCode,i32)> for Property {
-    type Error = crate::errors::Error;
-
-	fn try_from((code, val): (PropertyCode, i32)) -> Result<Self> {
-        Self::new_int(code, val)
     }
 }
 
