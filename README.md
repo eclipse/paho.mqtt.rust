@@ -62,6 +62,7 @@ To keep up with the latest announcements for this project, follow:
 - Examples using async/await
 - Removed old asynchronous (futures 0.1-style) examples
 - Message and option structs were reimplemented internally with pinned inner data structs.
+- Removed `AsyncClientBuilder`. Use `CreateClientBuilder` instead, possibly with new `create_client()` function.
 - `SslOptions` using `Path` and `PathBuf` for file names in the API instead of `String`. 
 - The reason code returned from the server moved into the `ServerResponse` struct.
 - Added `ConnectResponse` as a struct instead of a tuple for the data returned in CONNACK.

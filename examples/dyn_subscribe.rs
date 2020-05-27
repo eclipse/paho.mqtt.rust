@@ -40,12 +40,18 @@ use std::{
     env,
     process,
     thread,
-    time::Duration
+    time::Duration,
+    sync::RwLock,
 };
 
 // The topics to which we subscribe.
 const DFLT_TOPICS: &[&str] = &[ "requests/subscription/add", "test", "hello" ];
 const QOS: i32 = 1;
+
+// The type we'll use to keep our dynamic list of topics inside the
+// MQTT client. Since we want to update it after creating the client,
+// we need to wrap the data in a lock, like a Mutex or RwLock.
+type UserTopics = RwLock<Vec<String>>;
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -53,9 +59,10 @@ const QOS: i32 = 1;
 // We subscribe to the topic(s) we want here.
 fn on_connect_success(cli: &mqtt::AsyncClient, _msgid: u16) {
     println!("Connection succeeded");
-    let data = cli.user_data().read().unwrap();
+    let data = cli.user_data().unwrap();
 
-    if let Some(topics) = data.downcast_ref::<Vec<String>>() {
+    if let Some(lock) = data.downcast_ref::<UserTopics>() {
+        let topics = lock.read().unwrap();
         println!("Subscribing to topics: {:?}", topics);
 
         // Create a QoS vector, same len as # topics
@@ -98,7 +105,7 @@ fn main() {
     let create_opts = mqtt::CreateOptionsBuilder::new()
         .server_uri(host)
         .client_id("rust_dyn_subscribe")
-        .user_data(Box::new(topics))
+        .user_data(Box::new(RwLock::new(topics)))
         .finalize();
 
     // Create the client connection
@@ -129,12 +136,13 @@ fn main() {
             let payload_str = msg.payload_str();
 
             if topic == "requests/subscription/add" {
-                let mut rdata = cli.user_data().write().unwrap();
-                if let Some(v) = rdata.downcast_mut::<Vec<String>>() {
+                let data = cli.user_data().unwrap();
+                if let Some(lock) = data.downcast_ref::<UserTopics>() {
+                    let mut topics = lock.write().unwrap();
                     let new_topic = payload_str.to_owned().to_string();
                     println!("Adding topic: {}", new_topic);
                     cli.subscribe(&new_topic, QOS);
-                    v.push(new_topic);
+                    topics.push(new_topic);
                 }
                 else {
                     println!("Failed to add topic: {}", payload_str);
@@ -165,6 +173,6 @@ fn main() {
         thread::sleep(Duration::from_millis(1000));
     }
 
-    // Hitting ^C will exit the app and cause the broker to publish the
-    // LWT message since we're not disconnecting cleanly.
+    // Hitting ^C will exit the app and cause the broker to publish
+    // the LWT message since we're not disconnecting cleanly.
 }

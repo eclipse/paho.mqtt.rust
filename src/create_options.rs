@@ -27,8 +27,10 @@ use std::{
 
 use crate::{
     ffi,
+    Result,
     UserData,
     client_persistence::ClientPersistence,
+    async_client::AsyncClient,
 };
 
 /*
@@ -82,7 +84,7 @@ pub struct CreateOptions {
 	pub(crate) client_id: String,
 	/// The type of persistence used by the client.
 	pub(crate) persistence: PersistenceType,
-
+    /// User-defined data, if any
     pub(crate) user_data: Option<UserData>,
 }
 
@@ -289,6 +291,11 @@ impl CreateOptionsBuilder {
             user_data: self.user_data,
 		}
 	}
+
+    /// Finalize the builder and create an asynchronous client.
+    pub fn create_client(self) -> Result<AsyncClient> {
+        AsyncClient::new(self.finalize())
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////

@@ -85,11 +85,11 @@ fn main() -> mqtt::Result<()> {
 
     if let Err(err) = block_on(async {
         // Create a client & define connect options
-        let cli = mqtt::AsyncClientBuilder::new()
+        let cli = mqtt::CreateOptionsBuilder::new()
                         .server_uri(&host)
                         .client_id("ssl_publish_rs")
-                        .offline_buffering(true)
-                        .finalize();
+                        .max_buffered_messages(100)
+                        .create_client()?;
 
         let ssl_opts = mqtt::SslOptionsBuilder::new()
             .trust_store(trust_store)?

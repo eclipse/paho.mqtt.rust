@@ -404,7 +404,7 @@ impl Property {
     pub fn new_int(code: PropertyCode, val: i32) -> Result<Property> {
         let value = match code.property_type() {
             PropertyType::Byte => {
-                if val & !0xFF != 0 { return Err(INVALID_PROPERTY_ID.into()); }
+                if val & !0xFF != 0 { bail!(INVALID_PROPERTY_ID); }
                 Value { byte: val as u8 }
             },
             PropertyType::TwoByteInteger => {

@@ -50,7 +50,7 @@ use std::{
     slice,
     mem,
     time::Duration,
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, Mutex},
     ffi::{CString, CStr},
     os::raw::{c_void, c_char, c_int},
 };
@@ -110,7 +110,7 @@ pub(crate) struct InnerAsyncClient {
     // The user persistence (if any)
     user_persistence: Option<Box<UserPersistence>>,
     // Arbitrary, user-supplied data
-    user_data: RwLock<UserData>,
+    user_data: Option<UserData>,
 }
 
 /// User callback type for when the client is connected.
@@ -157,8 +157,6 @@ impl AsyncClient {
         let mut opts = opts.into();
         debug!("Create options: {:?}", opts);
 
-        let user_data = opts.user_data.unwrap_or(Box::new(()));
-
         let mut cli = InnerAsyncClient {
             handle: ptr::null_mut(),
             opts: Mutex::new(ConnectOptions::new()),
@@ -166,7 +164,7 @@ impl AsyncClient {
             server_uri: CString::new(opts.server_uri)?,
             client_id: CString::new(opts.client_id)?,
             user_persistence: None,
-            user_data: RwLock::new(user_data),
+            user_data: opts.user_data,
         };
 
         let (ptype, pptr) = match opts.persistence {
@@ -191,17 +189,14 @@ impl AsyncClient {
                                              &mut opts.copts) as i32
         };
 
-        if rc != 0 {
-            warn!("Create result: {}", rc);
-            bail!(rc);
+        if rc == 0 {
+            debug!("AsyncClient handle: {:?}", cli.handle);
+            Ok(AsyncClient { inner: Arc::new(cli) })
         }
-        debug!("AsyncClient handle: {:?}", cli.handle);
-
-        let cli = AsyncClient {
-            inner: Arc::new(cli),
-        };
-
-        Ok(cli)
+        else {
+            warn!("Create result: {}", rc);
+            Err(rc.into())
+        }
     }
 
     /// Constructs a client from a raw pointer to the inner structure.
@@ -350,29 +345,8 @@ impl AsyncClient {
     ///
     /// Note that it's up to the application to ensure that it doesn't
     /// deadlock the callback thread when accessing the user data.
-    pub fn user_data(&self) -> &RwLock<UserData> {
-        &self.inner.user_data
-    }
-
-    /// Sets the user data for the client.
-    ///
-    /// The aplication can add an arbitrary data object to the client that
-    /// can then be referenced or updated in any external thread or client
-    /// callback. The data is kept in it's own reader-writer lock in the
-    /// client and can be accessed or updated using that lock.
-    ///
-    /// Note that it's up to the application to ensure that it doesn't
-    /// deadlock the callback thread when accessing the user data.
-    pub fn set_user_data(&self, data: UserData) {
-        *self.inner.user_data.write().unwrap() = data;
-    }
-
-    /// Removes the user data from the client.
-    ///
-    /// This drops the existing user data by overwriting it with
-    /// a boxed unit value.
-    pub fn clear_user_data(&self) {
-        self.set_user_data(Box::new(()));
+    pub fn user_data(&self) -> Option<&UserData> {
+        self.inner.user_data.as_ref()
     }
 
     /// Connects to an MQTT broker using the specified connect options.
@@ -966,146 +940,6 @@ impl Drop for InnerAsyncClient {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-//                              Builder
-/////////////////////////////////////////////////////////////////////////////
-
-/// Builder to collect the MQTT asynchronous client creation options.
-pub struct AsyncClientBuilder
-{
-    copts: ffi::MQTTAsync_createOptions,
-    server_uri: String,
-    client_id: String,
-    persistence_type: i32,  // TODO: Make this an enumeration
-}
-
-impl AsyncClientBuilder {
-    /// Creates a new `AsyncClientBuilder`
-    pub fn new() -> AsyncClientBuilder {
-        AsyncClientBuilder {
-            copts: ffi::MQTTAsync_createOptions::default(),
-            server_uri: "".to_string(),
-            client_id: "".to_string(),
-            persistence_type: 0,        // 0 = Default file persistence
-        }
-    }
-
-    /// Sets the address for the MQTT broker/server.
-    ///
-    /// # Arguments
-    ///
-    /// `server_uri` The address of the MQTT broker. It takes the form
-    ///              <i>protocol://host:port</i>, where <i>protocol</i> must
-    ///              be <i>tcp</i> or <i>ssl</i>. For <i>host</i>, you can
-    ///              specify either an IP address or a host name. For instance,
-    ///              to connect to a server running on the local machines with
-    ///              the default MQTT port, specify <i>tcp://localhost:1883</i>.
-    pub fn server_uri(&mut self, server_uri: &str) -> &mut AsyncClientBuilder {
-        self.server_uri = server_uri.to_string();
-        self
-    }
-
-    /// Sets the client identifier for connection to the broker.
-    ///
-    /// # Arguments
-    ///
-    /// `client_id` A unique identifier string to be passed to the broker
-    ///             when the connection is made. This must be a UTF-8 encoded
-    ///             string. If it is empty, the broker will create and assign
-    ///             a unique name for the client.
-    pub fn client_id(&mut self, client_id: &str) -> &mut AsyncClientBuilder {
-        self.client_id = client_id.to_string();
-        self
-    }
-
-    /// Turns default file persistence on or off.
-    /// When turned on, the client will use the default, file-based,
-    /// persistence mechanism. This stores information about in-flight
-    /// messages in persistent storage on the file system, and provides
-    /// some protection against message loss in the case of unexpected
-    /// failure.
-    /// When turned off, the client uses in-memory persistence. If the
-    /// client crashes or system power fails, the client could lose
-    /// messages.
-    ///
-    /// # Arguments
-    ///
-    /// `on` Whether to turn on file-based message persistence.
-    pub fn persistence(&mut self, on: bool) -> &mut AsyncClientBuilder {
-        // 0=file persistence, 1=persistence off
-        self.persistence_type = if on { 0 } else { 1 };
-        self
-    }
-
-    // TODO:
-    // This will allow the app to specify a user-defined persistence mechanism
-//  pub fn user_persistence<T: UserPersistence>(&mut self, persistence: T)
-//              -> &mut AsyncClientBuilder {
-//      // Setup the user persistence
-//  }
-
-    /// Enables or disables off-line buffering of out-going messages when
-    /// the client is disconnected.
-    ///
-    /// # Arguments
-    ///
-    /// `on` Whether or not the application is allowed to publish messages
-    ///      if the client is off-line.
-    pub fn offline_buffering(&mut self, on: bool) -> &mut AsyncClientBuilder {
-        self.copts.sendWhileDisconnected = if on { 1 } else { 0 };
-        self
-    }
-
-    /// Enables off-line buffering of out-going messages when the client is
-    /// disconnected and sets the maximum number of messages that can be
-    /// buffered.
-    ///
-    /// # Arguments
-    ///
-    /// `max_buffered_msgs` The maximum number of messages that the client
-    ///                     will buffer while off-line.
-    pub fn max_buffered_messages(&mut self, max_buffered_messages: i32) -> &mut AsyncClientBuilder {
-        self.copts.sendWhileDisconnected = 1;   // Turn it on
-        self.copts.maxBufferedMessages = max_buffered_messages;
-        self
-    }
-
-    /// Finalize the builder and create an asynchronous client.
-    pub fn finalize(&self) -> AsyncClient {
-        let mut cli = InnerAsyncClient {
-            handle: ptr::null_mut(),
-            opts: Mutex::new(ConnectOptions::new()),
-            callback_context: Mutex::new(CallbackContext::default()),
-            server_uri: CString::new(self.server_uri.clone()).unwrap(),
-            client_id: CString::new(self.client_id.clone()).unwrap(),
-            user_persistence: None,
-            user_data: RwLock::new(Box::new(())),
-        };
-
-        // TODO We wouldn't need this if C options were immutable in call
-        // to ffi:MQTTAsync:createWithOptions
-        let mut copts = self.copts.clone();
-
-        debug!("Create opts: {:?}", copts);
-
-        let rc = unsafe {
-            ffi::MQTTAsync_createWithOptions(&mut cli.handle as *mut *mut c_void,
-                                             cli.server_uri.as_ptr(),
-                                             cli.client_id.as_ptr(),
-                                             self.persistence_type, ptr::null_mut(),
-                                             &mut copts)
-        };
-
-        if rc != 0 { warn!("Create failure: {}", rc); }
-        debug!("AsyncClient handle: {:?}", cli.handle);
-
-        // TODO: This can fail. We should return a Result<AsyncClient>
-        AsyncClient {
-            inner: Arc::new(cli),
-        }
-    }
-}
-
-/////////////////////////////////////////////////////////////////////////////
 //                              Unit Tests
 /////////////////////////////////////////////////////////////////////////////
 
@@ -1113,8 +947,8 @@ impl AsyncClientBuilder {
 mod tests {
     use super::*;
     use std::thread;
-    use std::sync::Arc;
-    use crate::create_options::{CreateOptionsBuilder};
+    use std::sync::{Arc, Mutex, RwLock};
+    use crate::create_options::CreateOptionsBuilder;
 
     // Makes sure than when a client is moved, the inner struct stayes at
     // the same address (on the heap) since that inner struct is used as
@@ -1161,44 +995,88 @@ mod tests {
         }
     }
 
+    // Test immutable user data without any lock
     #[test]
     fn test_user_data() {
-        let cli = AsyncClient::new("tcp://localhost:1883").unwrap();
-
         const DATA_STR: &str = "Hello world!";
-        let data = Box::new(DATA_STR);
 
-        cli.set_user_data(data);
-        {
-            let rdata = cli.user_data().read().unwrap();
-            assert!(rdata.downcast_ref::<&str>().is_some());
-            assert_eq!(&DATA_STR, rdata.downcast_ref::<&str>().unwrap());
-        }
+        let cli = CreateOptionsBuilder::new()
+            .server_uri("tcp://localhost:1883")
+            .user_data(Box::new(DATA_STR))
+            .create_client().unwrap();
 
+        let data = cli.user_data();
+
+        assert!(data.is_some());
+        assert_eq!(&DATA_STR, data.unwrap().downcast_ref::<&str>().unwrap());
+    }
+
+    // Test writable user data using a mutex.
+    #[test]
+    fn test_locked_user_data() {
         let data_vec = vec!["zero", "one", "two"];
-        let data = Box::new(data_vec);
+        let data = Box::new(Mutex::new(data_vec));
 
-        cli.set_user_data(data);
-        {
-            let rdata = cli.user_data().read().unwrap();
-            if let Some(v) = rdata.downcast_ref::<Vec<&str>>() {
+        let cli = CreateOptionsBuilder::new()
+            .server_uri("tcp://localhost:1883")
+            .user_data(data)
+            .create_client().unwrap();
+
+        let data = cli.user_data();
+        assert!(data.is_some());
+
+        if let Some(lock) = data.unwrap().downcast_ref::<Mutex<Vec<&str>>>() {
+            let mut v = lock.lock().unwrap();
+            assert_eq!(3, v.len());
+            assert_eq!("zero", v[0]);
+            assert_eq!("one",  v[1]);
+            assert_eq!("two",  v[2]);
+
+            v.push("three");
+            assert_eq!(4, v.len());
+            assert_eq!("three", v[3]);
+        }
+        else {
+            assert!(false);
+        }
+    }
+
+    #[test]
+    fn test_rw_user_data() {
+        let data_vec = vec!["zero", "one", "two"];
+        let data = Box::new(RwLock::new(data_vec));
+
+        let cli = CreateOptionsBuilder::new()
+            .server_uri("tcp://localhost:1883")
+            .user_data(data)
+            .create_client().unwrap();
+
+        let data = cli.user_data();
+        assert!(data.is_some());
+        let data = data.unwrap();
+
+        if let Some(lock) = data.downcast_ref::<RwLock<Vec<&str>>>() {
+            // Try reading
+            {
+                let v = lock.read().unwrap();
                 assert_eq!(3, v.len());
                 assert_eq!("zero", v[0]);
                 assert_eq!("one",  v[1]);
                 assert_eq!("two",  v[2]);
             }
-            else {
-                assert!(false);
-            }
-        }
-        {
-            let mut rdata = cli.user_data().write().unwrap();
-            if let Some(v) = rdata.downcast_mut::<Vec<&str>>() {
+
+            // Now try writing
+            {
+                let mut v = lock.write().unwrap();
                 v.push("three");
                 assert_eq!(4, v.len());
                 assert_eq!("three", v[3]);
             }
         }
+        else {
+            assert!(false);
+        }
+
     }
 
     // Determine that a client can be sent across threads.
@@ -1206,7 +1084,6 @@ mod tests {
     // the Send trait.
     #[test]
     fn test_send() {
-
         let cli = AsyncClient::new("tcp://localhost:1883").unwrap();
         let thr = thread::spawn(move || {
             assert!(!cli.is_connected());
