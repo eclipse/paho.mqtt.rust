@@ -356,7 +356,7 @@ impl ConnectOptionsBuilder {
     /// `interval` The retry interval. This has a resolution of seconds.
     pub fn retry_interval(&mut self, interval: Duration) -> &mut Self {
         let secs = interval.as_secs();
-        self.copts.connectTimeout = if secs == 0 { 1 } else { secs as i32 };
+        self.copts.retryInterval = if secs == 0 { 1 } else { secs as i32 };
         self
     }
 
