@@ -26,12 +26,8 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{
-    env,
-    process,
-    time::Duration,
-};
 use paho_mqtt as mqtt;
+use std::{env, process, time::Duration};
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -40,9 +36,9 @@ fn main() {
     env_logger::init();
 
     // Create a client & define connect options
-    let host = env::args().nth(1).unwrap_or_else(||
-        "tcp://localhost:1883".to_string()
-    );
+    let host = env::args()
+        .nth(1)
+        .unwrap_or_else(|| "tcp://localhost:1883".to_string());
 
     let mut cli = mqtt::Client::new(host).unwrap_or_else(|e| {
         println!("Error creating the client: {:?}", e);
@@ -64,7 +60,6 @@ fn main() {
         .payload("Hello synchronous world!")
         .qos(1)
         .finalize();
-
 
     if let Err(e) = cli.publish(msg) {
         println!("Error sending message: {:?}", e);

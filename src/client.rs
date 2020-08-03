@@ -27,19 +27,12 @@
 //!
 //! The synchronous calls use a default timeout
 
-use std::{
-    time::Duration,
-    sync::mpsc,
-};
+use std::{sync::mpsc, time::Duration};
 
 use crate::{
-    async_client::AsyncClient,
-    create_options::CreateOptions,
-    connect_options::ConnectOptions,
-    disconnect_options::DisconnectOptions,
+    async_client::AsyncClient, connect_options::ConnectOptions, create_options::CreateOptions,
+    disconnect_options::DisconnectOptions, errors::Result, message::Message,
     server_response::ServerResponse,
-    message::Message,
-    errors::Result,
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -58,13 +51,14 @@ pub struct Client {
 impl Client {
     /// Creates a new MQTT client which can connect to an MQTT broker.
     pub fn new<T>(opts: T) -> Result<Client>
-        where T: Into<CreateOptions>
+    where
+        T: Into<CreateOptions>,
     {
         let async_cli = AsyncClient::new(opts)?;
 
         let cli = Client {
             cli: async_cli,
-            timeout: Duration::from_secs(5*60),
+            timeout: Duration::from_secs(5 * 60),
         };
         //cli.start_consuming();
         Ok(cli)
@@ -87,8 +81,9 @@ impl Client {
     }
 
     /// Connects to an MQTT broker using the specified connect options.
-    pub fn connect<T>(&self, opt_opts:T) -> Result<ServerResponse>
-        where T: Into<Option<ConnectOptions>>
+    pub fn connect<T>(&self, opt_opts: T) -> Result<ServerResponse>
+    where
+        T: Into<Option<ConnectOptions>>,
     {
         self.cli.connect(opt_opts).wait_for(self.timeout)
     }
@@ -100,8 +95,9 @@ impl Client {
     /// `opt_opts` Optional disconnect options. Specifying `None` will use
     ///            default of immediate (zero timeout) disconnect.
     ///
-    pub fn disconnect<T>(&self, opt_opts:T) -> Result<()>
-        where T: Into<Option<DisconnectOptions>>
+    pub fn disconnect<T>(&self, opt_opts: T) -> Result<()>
+    where
+        T: Into<Option<DisconnectOptions>>,
     {
         self.cli.disconnect(opt_opts).wait_for(self.timeout)?;
         Ok(())
@@ -159,7 +155,8 @@ impl Client {
     /// `qos` The quality of service requested for messages
     ///
     pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> Result<ServerResponse>
-        where T: AsRef<str>
+    where
+        T: AsRef<str>,
     {
         self.cli.subscribe_many(topics, qos).wait_for(self.timeout)
     }
@@ -184,7 +181,8 @@ impl Client {
     ///         previous subscribe.
     ///
     pub fn unsubscribe_many<T>(&self, topics: &[T]) -> Result<()>
-        where T: AsRef<str>
+    where
+        T: AsRef<str>,
     {
         self.cli.unsubscribe_many(topics).wait_for(self.timeout)?;
         Ok(())
@@ -210,8 +208,8 @@ impl Client {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread;
     use std::sync::Arc;
+    use std::thread;
 
     // Determine that a client can be sent across threads and signaled.
     // As long as it compiles, this indicates that Client implements the
@@ -244,4 +242,3 @@ mod tests {
         let _ = thr.join().unwrap();
     }
 }
-

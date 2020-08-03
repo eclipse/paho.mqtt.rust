@@ -19,25 +19,20 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{
-    ptr,
-    slice,
-    mem,
-    ffi::{CString, CStr},
-    os::raw::{c_void, c_char, c_int},
-};
 use libc;
-
-use crate::{
-    ffi,
-    errors::Result,
+use std::{
+    ffi::{CStr, CString},
+    mem,
+    os::raw::{c_char, c_int, c_void},
+    ptr, slice,
 };
+
+use crate::{errors::Result, ffi};
 
 // TODO: Should we have a specific PersistenceResult/Error?
 
 const PERSISTENCE_SUCCESS: c_int = ffi::MQTTASYNC_SUCCESS as c_int;
 const PERSISTENCE_ERROR: c_int = ffi::MQTTCLIENT_PERSISTENCE_ERROR;
-
 
 /// Trait to implement custom persistence in the client.
 pub trait ClientPersistence {
@@ -93,8 +88,7 @@ pub struct UserPersistence {
     persistence: Box<Box<dyn ClientPersistence>>,
 }
 
-impl UserPersistence
-{
+impl UserPersistence {
     /// Creates a new user persistence object.
     pub fn new(mut persistence: Box<Box<dyn ClientPersistence>>) -> UserPersistence {
         let context = &mut *persistence as *mut Box<dyn ClientPersistence> as _;
@@ -119,12 +113,15 @@ impl UserPersistence
     // On entry, the 'context' has the address of the user's persistence
     // object which is reassigned to the 'handle'.
     // Subsequent calls have the object address as the handle.
-    pub unsafe extern "C" fn on_open(handle: *mut *mut c_void,
-                                     client_id: *const c_char,
-                                     server_uri: *const c_char,
-                                     context: *mut c_void) -> c_int {
+    pub unsafe extern "C" fn on_open(
+        handle: *mut *mut c_void,
+        client_id: *const c_char,
+        server_uri: *const c_char,
+        context: *mut c_void,
+    ) -> c_int {
         trace!("UserPersistence::on_open");
-        if !handle.is_null() && !client_id.is_null() && !server_uri.is_null() && !context.is_null() {
+        if !handle.is_null() && !client_id.is_null() && !server_uri.is_null() && !context.is_null()
+        {
             let client_id = CStr::from_ptr(client_id).to_str().unwrap();
             let server_uri = CStr::from_ptr(server_uri).to_str().unwrap();
 
@@ -154,14 +151,15 @@ impl UserPersistence
     }
 
     /// Callback from the C library to add data to the persistence store
-    pub unsafe extern "C" fn on_put(handle: *mut c_void,
-                                    key: *mut c_char,
-                                    bufcount: c_int,
-                                    buffers: *mut *mut c_char,
-                                    buflens: *mut c_int) -> c_int {
+    pub unsafe extern "C" fn on_put(
+        handle: *mut c_void,
+        key: *mut c_char,
+        bufcount: c_int,
+        buffers: *mut *mut c_char,
+        buflens: *mut c_int,
+    ) -> c_int {
         trace!("UserPersistence::on_put");
-        if handle.is_null() || key.is_null() ||
-                buffers.is_null() || buflens.is_null() {
+        if handle.is_null() || key.is_null() || buffers.is_null() || buflens.is_null() {
             return PERSISTENCE_ERROR;
         }
         if bufcount == 0 {
@@ -173,47 +171,50 @@ impl UserPersistence
         let mut bufs: Vec<&[u8]> = Vec::new();
 
         for i in 0..bufcount as isize {
-            let buf = slice::from_raw_parts_mut(*buffers.offset(i) as *mut u8,
-                                                *buflens.offset(i) as usize);
+            let buf = slice::from_raw_parts_mut(
+                *buffers.offset(i) as *mut u8,
+                *buflens.offset(i) as usize,
+            );
             bufs.push(buf);
         }
         match persist.put(key, bufs) {
-            Ok(_)  => PERSISTENCE_SUCCESS,
+            Ok(_) => PERSISTENCE_SUCCESS,
             Err(_) => PERSISTENCE_ERROR,
         }
     }
 
     /// Callback from the C library to retrieve data from the
     /// persistence store.
-    pub unsafe extern "C" fn on_get(handle: *mut c_void,
-                                    key: *mut c_char,
-                                    buffer: *mut *mut c_char,
-                                    buflen: *mut c_int) -> c_int {
+    pub unsafe extern "C" fn on_get(
+        handle: *mut c_void,
+        key: *mut c_char,
+        buffer: *mut *mut c_char,
+        buflen: *mut c_int,
+    ) -> c_int {
         trace!("UserPersistence::on_get");
-        if handle.is_null() || key.is_null() ||
-                buffer.is_null() || buflen.is_null() {
+        if handle.is_null() || key.is_null() || buffer.is_null() || buflen.is_null() {
             return PERSISTENCE_ERROR;
         }
         let persist: &mut Box<dyn ClientPersistence> = mem::transmute(handle);
         let key = CStr::from_ptr(key).to_str().unwrap();
 
         match persist.get(key) {
-            Ok(buf) => {    // buf: Vec<u8>
+            Ok(buf) => {
+                // buf: Vec<u8>
                 let n = buf.len();
                 let cbuf = libc::malloc(n) as *mut u8;
                 ptr::copy(buf.as_ptr(), cbuf, n);
                 *buffer = cbuf as *mut c_char;
                 *buflen = n as c_int;
                 PERSISTENCE_SUCCESS
-            },
+            }
             Err(_) => PERSISTENCE_ERROR,
         }
     }
 
     /// Callback from the C library to delete specific data from the
     /// persistence store.
-    pub unsafe extern "C" fn on_remove(handle: *mut c_void,
-                                       key: *mut c_char) -> c_int {
+    pub unsafe extern "C" fn on_remove(handle: *mut c_void, key: *mut c_char) -> c_int {
         trace!("UserPersistence::on_remove");
         if handle.is_null() || key.is_null() {
             return PERSISTENCE_ERROR;
@@ -223,15 +224,17 @@ impl UserPersistence
 
         match persist.remove(key) {
             Ok(_) => PERSISTENCE_SUCCESS,
-            Err(_) => PERSISTENCE_ERROR
+            Err(_) => PERSISTENCE_ERROR,
         }
     }
 
     /// Callback from the C library to retrieve the set of keys from the
     /// persistence store.
-    pub unsafe extern "C" fn on_keys(handle: *mut c_void,
-                                     keys: *mut *mut *mut c_char,
-                                     nkeys: *mut c_int) -> c_int {
+    pub unsafe extern "C" fn on_keys(
+        handle: *mut c_void,
+        keys: *mut *mut *mut c_char,
+        nkeys: *mut c_int,
+    ) -> c_int {
         trace!("UserPersistence::on_keys");
         if handle.is_null() || keys.is_null() || nkeys.is_null() {
             return PERSISTENCE_ERROR;
@@ -243,7 +246,8 @@ impl UserPersistence
         *nkeys = 0;
 
         match persist.keys() {
-            Ok(k) => {      // k: Vec<String>
+            Ok(k) => {
+                // k: Vec<String>
                 let n = k.len();
                 if n != 0 {
                     // TODO OPTIMIZE: This does a lot of copying
@@ -261,8 +265,8 @@ impl UserPersistence
                     *nkeys = n as c_int;
                 }
                 PERSISTENCE_SUCCESS
-            },
-            Err(_) => PERSISTENCE_ERROR
+            }
+            Err(_) => PERSISTENCE_ERROR,
         }
     }
 
@@ -283,8 +287,7 @@ impl UserPersistence
 
     /// Callback from the C library to determine if the store contains
     /// the specified key.
-    pub unsafe extern "C" fn on_contains_key(handle: *mut c_void,
-                                             key: *mut c_char) -> c_int {
+    pub unsafe extern "C" fn on_contains_key(handle: *mut c_void, key: *mut c_char) -> c_int {
         trace!("UserPersistence::on_contains_key");
         if handle.is_null() || key.is_null() {
             return PERSISTENCE_ERROR;
@@ -292,7 +295,11 @@ impl UserPersistence
         let persist: &mut Box<dyn ClientPersistence> = mem::transmute(handle);
         let key = CStr::from_ptr(key).to_str().unwrap();
 
-        if persist.contains_key(key) { 1 } else { 0 }
+        if persist.contains_key(key) {
+            1
+        } else {
+            0
+        }
     }
 }
 

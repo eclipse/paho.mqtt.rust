@@ -1,5 +1,5 @@
 // topic.rs
-// 
+//
 // A set of message parameters to repeatedly publish to the same topic.
 //
 // This file is part of the Eclipse Paho MQTT Rust Client library.
@@ -23,12 +23,9 @@
 
 use crate::{
     async_client::AsyncClient,
-    token::{
-        Token,
-        DeliveryToken,
-    },
-    subscribe_options::SubscribeOptions,
     message::Message,
+    subscribe_options::SubscribeOptions,
+    token::{DeliveryToken, Token},
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -49,8 +46,7 @@ pub struct Topic<'a> {
     retained: bool,
 }
 
-impl<'a> Topic<'a> 
-{
+impl<'a> Topic<'a> {
     /// Creates a new topic object for publishing messages.
     ///
     /// # Arguments
@@ -60,7 +56,8 @@ impl<'a> Topic<'a>
     /// `qos` The quality of service for messages
     ///
     pub fn new<T>(cli: &'a AsyncClient, topic: T, qos: i32) -> Topic<'a>
-        where T: Into<String>
+    where
+        T: Into<String>,
     {
         Topic {
             cli,
@@ -79,7 +76,8 @@ impl<'a> Topic<'a>
     /// `qos` The quality of service for messages
     ///
     pub fn new_retained<T>(cli: &'a AsyncClient, topic: T, qos: i32) -> Topic<'a>
-        where T: Into<String>
+    where
+        T: Into<String>,
     {
         Topic {
             cli,
@@ -96,9 +94,11 @@ impl<'a> Topic<'a>
 
     /// Subscribe to the topic with subscription options.
     pub fn subscribe_with_options<T>(&self, opts: T) -> Token
-        where T: Into<SubscribeOptions>
+    where
+        T: Into<SubscribeOptions>,
     {
-        self.cli.subscribe_with_options(self.topic.clone(), self.qos, opts)
+        self.cli
+            .subscribe_with_options(self.topic.clone(), self.qos, opts)
     }
 
     /// Publish a message on the topic.
@@ -108,11 +108,11 @@ impl<'a> Topic<'a>
     /// `payload` The payload of the message
     ///
     pub fn publish<V>(&self, payload: V) -> DeliveryToken
-        where V: Into<Vec<u8>>
+    where
+        V: Into<Vec<u8>>,
     {
         // OPTIMIZE: This could be more efficient.
         let msg = Message::new(self.topic.clone(), payload, self.qos);
         self.cli.publish(msg)
     }
 }
-

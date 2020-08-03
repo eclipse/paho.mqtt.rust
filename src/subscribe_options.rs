@@ -24,11 +24,8 @@
 //! These are defined in section 3.8.3.1 of the MQTT v5 spec.
 //! The defaults use the behavior that was present in MQTT v3.1.1.
 
+use crate::{ffi, to_c_bool};
 use std::fmt;
-use crate::{
-    ffi,
-    to_c_bool,
-};
 
 /// Don't receive our own publications when subscribed to the same topics.
 pub const SUBSCRIBE_NO_LOCAL: bool = true;
@@ -45,12 +42,12 @@ pub const RETAIN_AS_PUBLISHED: bool = true;
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum RetainHandling {
-	/// Send retained messages at the time of the subscribe
-	SendRetainedOnSubscribe = 0,
-	/// Send retained messages on subscribe only if subscription is new
-	SendRetainedOnNew = 1,
-	/// Do not send retained messages at all
-	DontSendRetained = 2
+    /// Send retained messages at the time of the subscribe
+    SendRetainedOnSubscribe = 0,
+    /// Send retained messages on subscribe only if subscription is new
+    SendRetainedOnNew = 1,
+    /// Do not send retained messages at all
+    DontSendRetained = 2,
 }
 
 impl Default for RetainHandling {
@@ -62,12 +59,9 @@ impl Default for RetainHandling {
 impl fmt::Display for RetainHandling {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            RetainHandling::SendRetainedOnSubscribe =>
-                write!(f, "Send Retain on Subscribe"),
-            RetainHandling::SendRetainedOnNew =>
-                write!(f, "Send Retain on New"),
-            RetainHandling::DontSendRetained =>
-                write!(f, "Don't Send Retain"),
+            RetainHandling::SendRetainedOnSubscribe => write!(f, "Send Retain on Subscribe"),
+            RetainHandling::SendRetainedOnNew => write!(f, "Send Retain on New"),
+            RetainHandling::DontSendRetained => write!(f, "Don't Send Retain"),
         }
     }
 }
@@ -85,31 +79,33 @@ impl SubscribeOptions {
             copts: ffi::MQTTSubscribe_options {
                 noLocal: to_c_bool(no_local) as u8,
                 ..ffi::MQTTSubscribe_options::default()
-            }
+            },
         }
     }
 }
 
 impl From<bool> for SubscribeOptions {
-	fn from(no_local: bool) -> Self {
-		SubscribeOptions::new(no_local)
-	}
+    fn from(no_local: bool) -> Self {
+        SubscribeOptions::new(no_local)
+    }
 }
 
-impl From<(bool,bool)> for SubscribeOptions {
-	fn from((no_local, retain_as_published): (bool, bool)) -> Self {
-		let mut opts = SubscribeOptions::new(no_local);
-		opts.copts.retainAsPublished = to_c_bool(retain_as_published) as u8;
-		opts
-	}
+impl From<(bool, bool)> for SubscribeOptions {
+    fn from((no_local, retain_as_published): (bool, bool)) -> Self {
+        let mut opts = SubscribeOptions::new(no_local);
+        opts.copts.retainAsPublished = to_c_bool(retain_as_published) as u8;
+        opts
+    }
 }
 
-impl From<(bool,bool,RetainHandling)> for SubscribeOptions {
-	fn from((no_local, retain_as_published, retain_handling): (bool, bool, RetainHandling)) -> Self {
+impl From<(bool, bool, RetainHandling)> for SubscribeOptions {
+    fn from(
+        (no_local, retain_as_published, retain_handling): (bool, bool, RetainHandling),
+    ) -> Self {
         let mut opts = SubscribeOptions::from((no_local, retain_as_published));
         opts.copts.retainHandling = retain_handling as u8;
-		opts
-	}
+        opts
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -152,7 +148,9 @@ impl SubscribeOptionsBuilder {
 
     /// Finalizes the builder to create the subscribe options.
     pub fn finalize(&self) -> SubscribeOptions {
-        SubscribeOptions { copts: self.copts.clone(), }
+        SubscribeOptions {
+            copts: self.copts.clone(),
+        }
     }
 }
 
@@ -203,9 +201,7 @@ mod tests {
 
     #[test]
     fn test_from_tuple_three() {
-        let opts = SubscribeOptions::from(
-            (true, true, RetainHandling::SendRetainedOnNew)
-        );
+        let opts = SubscribeOptions::from((true, true, RetainHandling::SendRetainedOnNew));
         assert!(opts.copts.noLocal != 0);
         assert!(opts.copts.retainAsPublished != 0);
         assert!(opts.copts.retainHandling == 1);
@@ -221,9 +217,7 @@ mod tests {
 
     #[test]
     fn test_builder_no_local() {
-        let opts = SubscribeOptionsBuilder::new()
-            .no_local(true)
-            .finalize();
+        let opts = SubscribeOptionsBuilder::new().no_local(true).finalize();
 
         assert!(opts.copts.noLocal != 0);
         assert!(opts.copts.retainAsPublished == 0);
@@ -252,4 +246,3 @@ mod tests {
         assert!(opts.copts.retainHandling == 2);
     }
 }
-

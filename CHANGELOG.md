@@ -20,7 +20,7 @@ Version 0.7 brings full support for MQTT v5, including:
 - New callback `on_disconnect()` for when the client receives a disconnect packet from the server, complete with a reason code and properties.
 - Example for a simple chat application _(mqttrs_chat)_ using the v5 "No Local" subscription option. The publisher does not get their own messages echoed back to them.
  - Examples for RPC using v5 _Properties_ for _ResponseTopic_ and _CorrelationData:_
-     - A math RPC service/server _(rpc_math_srvr)_ that performs basic operations on a list of numbers. 
+     - A math RPC service/server _(rpc_math_srvr)_ that performs basic operations on a list of numbers.
      - A math RPC client  _(rpc_math_cli)_ that can send requests.
 
 Also:
@@ -35,7 +35,7 @@ Note that v0.7 still targets Futures v0.1 and Rust Edition 2015. Support for asy
 
 ## [v0.6](https://github.com/eclipse/paho.mqtt.rust/compare/v0.5..v0.6) - 2019-10-12
 
-The v0.6 release added support for Futures and cleaned up the internal implementation of the library. 
+The v0.6 release added support for Futures and cleaned up the internal implementation of the library.
 
 - **Futures support:**
     - Compatible with the [Rust Futures](https://docs.rs/futures/0.1.25/futures/) library v0.1
@@ -45,16 +45,16 @@ The v0.6 release added support for Futures and cleaned up the internal implement
     - New examples of a publisher and subscriber implemented with futures.
 
 - **Server Responses**
-    - There are now several different types of tokens corresponding to different requests for which the server can return a response: _ConnectToken_, _DeliveryToken_, _SubscribeToken_, etc. 
+    - There are now several different types of tokens corresponding to different requests for which the server can return a response: _ConnectToken_, _DeliveryToken_, _SubscribeToken_, etc.
     - Tokens now track the type of request and get the server response upon completion. This is the Futures _Item_ type for the token.
     - In particular this is useful for connecting subscribers. The app can now determine if a persistent session is already present, and only needs to subscribe if not.
-    
+
 - **Send and Sync Traits**
     - The clients are now marked as _Send_ and _Sync_
     - The _Token_ types are _Send_
     - Most of the option types are _Send_ and _Sync_
     - _AsyncClient_ and _Token_ objects are now just _Arc_ wrappers around inner structs making it easy to clone and pass references around.
-    
+
 - **Internal Cleanup**
     - Updated to wrap Paho C v1.3.1 which has a number of important bug fixes.
     - Moved `Tokens` into their own source file.
@@ -74,5 +74,3 @@ The v0.6 release added support for Futures and cleaned up the internal implement
 ### Changed
 
 - Updated the library to bundle and use Paho C v1.3.0
-
-

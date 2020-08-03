@@ -29,9 +29,9 @@ use std::time::Duration;
 
 use crate::{
     ffi,
-    token::{Token, TokenInner},
-    reason_code::ReasonCode,
     properties::Properties,
+    reason_code::ReasonCode,
+    token::{Token, TokenInner},
 };
 
 /// The collection of options for disconnecting from the client.
@@ -86,10 +86,7 @@ impl Default for DisconnectOptions {
 
 impl Clone for DisconnectOptions {
     fn clone(&self) -> Self {
-        Self::from_data(
-            self.copts.clone(),
-            self.props.clone()
-        )
+        Self::from_data(self.copts.clone(), self.props.clone())
     }
 }
 
@@ -156,10 +153,7 @@ impl DisconnectOptionsBuilder {
 
     /// Finalize the builder to create the disconnect options.
     pub fn finalize(&self) -> DisconnectOptions {
-        DisconnectOptions::from_data(
-            self.copts.clone(),
-            self.props.clone()
-        )
+        DisconnectOptions::from_data(self.copts.clone(), self.props.clone())
     }
 }
 
@@ -170,17 +164,19 @@ impl DisconnectOptionsBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{properties::PropertyCode, reason_code::NormalDisconnection};
     use std::{
-        thread,
         os::raw::{c_char, c_int},
-    };
-    use crate::{
-        reason_code::NormalDisconnection,
-        properties::PropertyCode,
+        thread,
     };
 
     // Identifier fo a C disconnect options struct
-    const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'D' as c_char ];
+    const STRUCT_ID: [c_char; 4] = [
+        b'M' as c_char,
+        b'Q' as c_char,
+        b'T' as c_char,
+        b'D' as c_char,
+    ];
     const STRUCT_VERSION: c_int = 1;
 
     #[test]
@@ -229,31 +225,41 @@ mod tests {
         assert_eq!(opts.properties().len(), 0);
 
         let mut props = Properties::new();
-        props.push_int(PropertyCode::SessionExpiryInterval, 1000).unwrap();
-        props.push_val(PropertyCode::ReasonString, "causeIwanna").unwrap();
+        props
+            .push_int(PropertyCode::SessionExpiryInterval, 1000)
+            .unwrap();
+        props
+            .push_val(PropertyCode::ReasonString, "causeIwanna")
+            .unwrap();
 
-        let opts = DisconnectOptionsBuilder::new()
-            .properties(props)
-            .finalize();
+        let opts = DisconnectOptionsBuilder::new().properties(props).finalize();
 
         let props = opts.properties();
 
         assert!(!props.is_empty());
         assert_eq!(props.len(), 2);
 
-        assert_eq!(props.get_int(PropertyCode::SessionExpiryInterval), Some(1000));
-        assert_eq!(props.get_val::<String>(PropertyCode::ReasonString),
-                   Some("causeIwanna".to_string()));
+        assert_eq!(
+            props.get_int(PropertyCode::SessionExpiryInterval),
+            Some(1000)
+        );
+        assert_eq!(
+            props.get_val::<String>(PropertyCode::ReasonString),
+            Some("causeIwanna".to_string())
+        );
 
         assert_eq!(props.get_int(PropertyCode::ContentType), None);
 
         let props = Properties::from_c_struct(&opts.copts.properties);
         assert_eq!(props.len(), 2);
 
-        assert_eq!(props.get_int(PropertyCode::SessionExpiryInterval), Some(1000));
-        assert_eq!(props.get_val::<String>(PropertyCode::ReasonString),
-                   Some("causeIwanna".to_string()));
-
+        assert_eq!(
+            props.get_int(PropertyCode::SessionExpiryInterval),
+            Some(1000)
+        );
+        assert_eq!(
+            props.get_val::<String>(PropertyCode::ReasonString),
+            Some("causeIwanna".to_string())
+        );
     }
 }
-

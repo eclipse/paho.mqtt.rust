@@ -33,12 +33,7 @@
 
 use std::ffi::CStr;
 
-use crate::{
-    ffi,
-    from_c_bool,
-    properties::Properties,
-    reason_code::ReasonCode,
-};
+use crate::{ffi, from_c_bool, properties::Properties, reason_code::ReasonCode};
 
 /////////////////////////////////////////////////////////////////////////////
 // ServerRequest
@@ -63,7 +58,9 @@ pub enum ServerRequest {
 }
 
 impl Default for ServerRequest {
-    fn default() -> Self { ServerRequest::None }
+    fn default() -> Self {
+        ServerRequest::None
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -88,7 +85,9 @@ pub enum RequestResponse {
 }
 
 impl Default for RequestResponse {
-    fn default() -> Self { RequestResponse::None }
+    fn default() -> Self {
+        RequestResponse::None
+    }
 }
 
 /// The response from the server on a connect request.
@@ -118,7 +117,9 @@ pub struct ServerResponse {
 
 impl ServerResponse {
     /// Creates a new, empty, server response.
-    pub fn new() -> Self { ServerResponse::default() }
+    pub fn new() -> Self {
+        ServerResponse::default()
+    }
 
     /// Creates the response object from the v3 "success" data structure
     /// sent by the C lib on completion of the operation.
@@ -126,26 +127,27 @@ impl ServerResponse {
         let rsp = match req {
             ServerRequest::Connect => {
                 let conn_rsp = ConnectResponse {
-                    server_uri: CStr::from_ptr(rsp.alt.connect.serverURI).to_string_lossy().to_string(),
+                    server_uri: CStr::from_ptr(rsp.alt.connect.serverURI)
+                        .to_string_lossy()
+                        .to_string(),
                     mqtt_version: rsp.alt.connect.MQTTVersion,
                     session_present: from_c_bool(rsp.alt.connect.sessionPresent),
                 };
                 RequestResponse::Connect(conn_rsp)
-            },
+            }
             ServerRequest::Subscribe => RequestResponse::Subscribe(rsp.alt.qos),
             ServerRequest::SubscribeMany(n) => {
                 let mut qosv = Vec::new();
                 if n == 1 {
                     qosv.push(rsp.alt.qos);
-                }
-                else if !rsp.alt.qosList.is_null() {
+                } else if !rsp.alt.qosList.is_null() {
                     for i in 0..n {
                         qosv.push(*rsp.alt.qosList.offset(i as isize));
                     }
                 }
                 debug!("Subscribed to {} topics w/ QoS: {:?}", qosv.len(), qosv);
                 RequestResponse::SubscribeMany(qosv)
-            },
+            }
             _ => RequestResponse::None,
         };
         ServerResponse {
@@ -165,12 +167,14 @@ impl ServerResponse {
         let rsp = match req {
             ServerRequest::Connect => {
                 let conn_rsp = ConnectResponse {
-                    server_uri: CStr::from_ptr(rsp.alt.connect.serverURI).to_string_lossy().to_string(),
+                    server_uri: CStr::from_ptr(rsp.alt.connect.serverURI)
+                        .to_string_lossy()
+                        .to_string(),
                     mqtt_version: rsp.alt.connect.MQTTVersion,
                     session_present: from_c_bool(rsp.alt.connect.sessionPresent),
                 };
                 RequestResponse::Connect(conn_rsp)
-            },
+            }
             ServerRequest::Subscribe => RequestResponse::Subscribe(rsp.reasonCode as i32),
             ServerRequest::SubscribeMany(n) => {
                 let ncode = rsp.alt.sub.reasonCodeCount as usize;
@@ -180,15 +184,14 @@ impl ServerResponse {
                 let mut qosv = Vec::new();
                 if n == 1 {
                     qosv.push(rsp.reasonCode as i32);
-                }
-                else if !rsp.alt.sub.reasonCodes.is_null() {
+                } else if !rsp.alt.sub.reasonCodes.is_null() {
                     for i in 0..n {
                         qosv.push(rsp.alt.sub.reasonCodes.offset(i as isize) as i32);
                     }
                 }
                 debug!("Subscribed to {} topics w/ QoS: {:?}", qosv.len(), qosv);
                 RequestResponse::SubscribeMany(qosv)
-            },
+            }
             ServerRequest::Unsubscribe => RequestResponse::Unsubscribe(rsp.reasonCode as i32),
             ServerRequest::UnsubscribeMany(n) => {
                 let ncode = rsp.alt.unsub.reasonCodeCount as usize;
@@ -199,15 +202,14 @@ impl ServerResponse {
                 let mut qosv = Vec::new();
                 if n == 1 {
                     qosv.push(rsp.reasonCode as i32);
-                }
-                else if !rsp.alt.sub.reasonCodes.is_null() {
+                } else if !rsp.alt.sub.reasonCodes.is_null() {
                     for i in 0..n {
                         qosv.push(rsp.alt.unsub.reasonCodes.offset(i as isize) as i32);
                     }
                 }
                 debug!("Subscribed to {} topics w/ Qos: {:?}", qosv.len(), qosv);
                 RequestResponse::SubscribeMany(qosv)
-            },
+            }
             _ => RequestResponse::None,
         };
         ServerResponse {
@@ -235,8 +237,7 @@ impl ServerResponse {
     /// Gets the response for a connection request
     pub fn connect_response(&self) -> Option<ConnectResponse> {
         match &self.rsp {
-            RequestResponse::Connect(conn_rsp) =>
-                Some(conn_rsp.clone()),
+            RequestResponse::Connect(conn_rsp) => Some(conn_rsp.clone()),
             _ => None,
         }
     }
@@ -283,4 +284,3 @@ impl ServerResponse {
         self.reason_code
     }
 }
-

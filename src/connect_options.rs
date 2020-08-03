@@ -24,30 +24,19 @@
 //! This contains the structures to define the options for connecting to the
 //! MQTT broker/server.
 
-use std::{
-    ptr,
-    time::Duration,
-    ffi::CString,
-    os::raw::c_int,
-    pin::Pin,
-};
+use std::{ffi::CString, os::raw::c_int, pin::Pin, ptr, time::Duration};
 
 use crate::{
-    ffi,
-    to_c_bool,
-    from_c_bool,
-    token::{
-        ConnectToken,
-        Token,
-        TokenInner,
-    },
+    ffi, from_c_bool,
     message::Message,
-    will_options::WillOptions,
-    ssl_options::SslOptions,
-    string_collection::StringCollection,
     name_value::NameValueCollection,
     properties::Properties,
+    ssl_options::SslOptions,
+    string_collection::StringCollection,
+    to_c_bool,
+    token::{ConnectToken, Token, TokenInner},
     types::*,
+    will_options::WillOptions,
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -87,15 +76,12 @@ impl ConnectOptions {
 
     // Fixes up the underlying C struct to point to our cached values.
     // This should be called any time a cached object is modified.
-    fn from_data(
-        mut copts: ffi::MQTTAsync_connectOptions,
-        data: ConnectOptionsData
-    ) -> Self {
+    fn from_data(mut copts: ffi::MQTTAsync_connectOptions, data: ConnectOptionsData) -> Self {
         let mut data = Box::pin(data);
 
         copts.will = match data.will {
             Some(ref mut will_opts) => &mut will_opts.copts,
-            _ => ptr::null_mut()
+            _ => ptr::null_mut(),
         };
 
         copts.ssl = match data.ssl {
@@ -110,7 +96,7 @@ impl ConnectOptions {
 
         copts.password = match data.password {
             Some(ref password) => password.as_ptr(),
-            _ => ptr::null()
+            _ => ptr::null(),
         };
 
         let n = data.server_uris.len();
@@ -118,8 +104,7 @@ impl ConnectOptions {
         if n != 0 {
             copts.serverURIs = data.server_uris.as_c_arr_mut_ptr();
             copts.serverURIcount = n as c_int;
-        }
-        else {
+        } else {
             copts.serverURIs = ptr::null();
             copts.serverURIcount = 0;
         }
@@ -145,7 +130,7 @@ impl ConnectOptions {
 
         copts.httpHeaders = match data.http_headers {
             Some(ref mut http_headers) => http_headers.as_c_arr_ptr(),
-            _ => ptr::null()
+            _ => ptr::null(),
         };
 
         Self { copts, data }
@@ -175,8 +160,7 @@ impl ConnectOptions {
         if self.copts.MQTTVersion < ffi::MQTTVERSION_5 as i32 {
             self.copts.onSuccess = Some(TokenInner::on_success);
             self.copts.onFailure = Some(TokenInner::on_failure);
-        }
-        else {
+        } else {
             self.copts.onSuccess5 = Some(TokenInner::on_success5);
             self.copts.onFailure5 = Some(TokenInner::on_failure5);
         }
@@ -188,23 +172,19 @@ impl Default for ConnectOptions {
     fn default() -> Self {
         Self::from_data(
             ffi::MQTTAsync_connectOptions::default(),
-            ConnectOptionsData::default()
+            ConnectOptionsData::default(),
         )
     }
 }
 
 impl Clone for ConnectOptions {
     fn clone(&self) -> Self {
-        Self::from_data(
-            self.copts.clone(),
-            (&*self.data).clone()
-        )
+        Self::from_data(self.copts.clone(), (&*self.data).clone())
     }
 }
 
 unsafe impl Send for ConnectOptions {}
 unsafe impl Sync for ConnectOptions {}
-
 
 /////////////////////////////////////////////////////////////////////////////
 //                              Builder
@@ -279,7 +259,7 @@ impl ConnectOptionsBuilder {
     /// # Arguments
     ///
     /// `will` The LWT options for the connection.
-    #[deprecated(note="Pass in a message with `will_message` instead")]
+    #[deprecated(note = "Pass in a message with `will_message` instead")]
     pub fn will_options(&mut self, will: WillOptions) -> &mut Self {
         self.data.will = Some(will);
         self
@@ -314,7 +294,8 @@ impl ConnectOptionsBuilder {
     /// `user_name` The user name to send to the broker.
     ///
     pub fn user_name<S>(&mut self, user_name: S) -> &mut Self
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
         let user_name = CString::new(user_name.into()).unwrap();
         self.data.user_name = Some(user_name);
@@ -329,7 +310,8 @@ impl ConnectOptionsBuilder {
     /// `password` The password to send to the broker.
     ///
     pub fn password<S>(&mut self, password: S) -> &mut Self
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
         let password = CString::new(password.into()).unwrap();
         self.data.password = Some(password);
@@ -368,7 +350,8 @@ impl ConnectOptionsBuilder {
     ///               should connect.
     //
     pub fn server_uris<T>(&mut self, server_uris: &[T]) -> &mut Self
-        where T: AsRef<str>
+    where
+        T: AsRef<str>,
     {
         self.data.server_uris = StringCollection::new(server_uris);
         self
@@ -389,8 +372,7 @@ impl ConnectOptionsBuilder {
 
         if ver < ffi::MQTTVERSION_5 {
             self.copts.cleanstart = 0;
-        }
-        else {
+        } else {
             self.copts.cleansession = 0;
         }
         self
@@ -405,11 +387,12 @@ impl ConnectOptionsBuilder {
     /// `max_retry_interval` The maximum retry interval. Doubling stops here
     ///                      on failed retries. This has a resolution in
     ///                      seconds.
-    pub fn automatic_reconnect(&mut self, min_retry_interval: Duration,
-                                          max_retry_interval: Duration)
-                -> &mut Self
-    {
-        self.copts.automaticReconnect = 1;  // true
+    pub fn automatic_reconnect(
+        &mut self,
+        min_retry_interval: Duration,
+        max_retry_interval: Duration,
+    ) -> &mut Self {
+        self.copts.automaticReconnect = 1; // true
 
         let mut secs = min_retry_interval.as_secs();
         self.copts.minRetryInterval = if secs == 0 { 1 } else { secs as i32 };
@@ -431,9 +414,10 @@ impl ConnectOptionsBuilder {
 
     /// Sets the additional HTTP headers that will be sent in the
     /// WebSocket opening handshake.
-    pub fn http_headers<N,V>(&mut self, coll: &[(N,V)]) -> &mut Self
-        where N: AsRef<str>,
-              V: AsRef<str>,
+    pub fn http_headers<N, V>(&mut self, coll: &[(N, V)]) -> &mut Self
+    where
+        N: AsRef<str>,
+        V: AsRef<str>,
     {
         let coll = NameValueCollection::new(coll);
         self.data.http_headers = Some(coll);
@@ -442,10 +426,7 @@ impl ConnectOptionsBuilder {
 
     /// Finalize the builder to create the connect options.
     pub fn finalize(&self) -> ConnectOptions {
-        ConnectOptions::from_data(
-            self.copts.clone(),
-            self.data.clone()
-        )
+        ConnectOptions::from_data(self.copts.clone(), self.data.clone())
     }
 }
 
@@ -455,21 +436,17 @@ impl ConnectOptionsBuilder {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        thread,
-        ffi::CStr,
-        os::raw::c_char,
-    };
-    use crate::{
-        ssl_options::SslOptionsBuilder,
-        message::MessageBuilder,
-        types::*,
-        properties::*,
-    };
     use super::*;
+    use crate::{message::MessageBuilder, properties::*, ssl_options::SslOptionsBuilder, types::*};
+    use std::{ffi::CStr, os::raw::c_char, thread};
 
     // Identifier fo a C connect options struct
-    const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'C' as c_char ];
+    const STRUCT_ID: [c_char; 4] = [
+        b'M' as c_char,
+        b'Q' as c_char,
+        b'T' as c_char,
+        b'C' as c_char,
+    ];
 
     #[test]
     fn test_new() {
@@ -502,7 +479,8 @@ mod tests {
     fn test_ssl() {
         const TRUST_STORE: &str = "some_file.crt";
         let ssl_opts = SslOptionsBuilder::new()
-            .trust_store(TRUST_STORE).unwrap()
+            .trust_store(TRUST_STORE)
+            .unwrap()
             .finalize();
 
         let opts = ConnectOptionsBuilder::new()
@@ -517,8 +495,7 @@ mod tests {
             assert_eq!(&ssl_opts.copts as *const _, opts.copts.ssl);
             let ts = unsafe { CStr::from_ptr((*opts.copts.ssl).trustStore) };
             assert_eq!(TRUST_STORE, ts.to_str().unwrap());
-        }
-        else {
+        } else {
             // The SSL option should be set
             assert!(false);
         };
@@ -528,8 +505,7 @@ mod tests {
     fn test_user_name() {
         const NAME: &str = "some-random-name";
 
-        let opts = ConnectOptionsBuilder::new()
-                        .user_name(NAME).finalize();
+        let opts = ConnectOptionsBuilder::new().user_name(NAME).finalize();
 
         assert!(!opts.copts.username.is_null());
 
@@ -538,8 +514,7 @@ mod tests {
 
             let s = unsafe { CStr::from_ptr(opts.copts.username) };
             assert_eq!(NAME, s.to_str().unwrap());
-        }
-        else {
+        } else {
             assert!(false);
         };
     }
@@ -548,8 +523,7 @@ mod tests {
     fn test_password() {
         const PSWD: &str = "some-random-password";
 
-        let opts = ConnectOptionsBuilder::new()
-                        .password(PSWD).finalize();
+        let opts = ConnectOptionsBuilder::new().password(PSWD).finalize();
 
         assert!(!opts.copts.password.is_null());
 
@@ -558,18 +532,18 @@ mod tests {
 
             let s = unsafe { CStr::from_ptr(opts.copts.password) };
             assert_eq!(PSWD, s.to_str().unwrap());
-        }
-        else {
+        } else {
             assert!(false);
         };
     }
 
     #[test]
     fn test_server_uris() {
-        let servers = [ "tcp://server1:1883", "ssl://server2:1885" ];
+        let servers = ["tcp://server1:1883", "ssl://server2:1885"];
 
         let opts = ConnectOptionsBuilder::new()
-                        .server_uris(&servers).finalize();
+            .server_uris(&servers)
+            .finalize();
 
         assert_eq!(servers.len() as i32, opts.copts.serverURIcount);
 
@@ -596,14 +570,13 @@ mod tests {
         const PASSWORD: &str = "some-password";
         const CONNECT_TIMEOUT_SECS: u64 = 120;
 
-
         let org_opts = ConnectOptionsBuilder::new()
-            .keep_alive_interval(Duration::new(KEEP_ALIVE_SECS,0))
+            .keep_alive_interval(Duration::new(KEEP_ALIVE_SECS, 0))
             .clean_session(false)
             .max_inflight(MAX_INFLIGHT)
             .user_name(USER_NAME)
             .password(PASSWORD)
-            .connect_timeout(Duration::new(CONNECT_TIMEOUT_SECS,0))
+            .connect_timeout(Duration::new(CONNECT_TIMEOUT_SECS, 0))
             .finalize();
 
         let opts = org_opts;
@@ -612,19 +585,23 @@ mod tests {
         assert_eq!(0, opts.copts.cleansession);
         assert_eq!(MAX_INFLIGHT, opts.copts.maxInflight);
 
-        assert_eq!(USER_NAME, opts.data.user_name.as_ref().unwrap().to_str().unwrap());
-        assert_eq!(PASSWORD, opts.data.password.as_ref().unwrap().to_str().unwrap());
+        assert_eq!(
+            USER_NAME,
+            opts.data.user_name.as_ref().unwrap().to_str().unwrap()
+        );
+        assert_eq!(
+            PASSWORD,
+            opts.data.password.as_ref().unwrap().to_str().unwrap()
+        );
 
         if let Some(ref user_name) = opts.data.user_name {
             assert_eq!(user_name.as_ptr(), opts.copts.username)
-        }
-        else {
+        } else {
             assert!(false)
         };
         if let Some(ref password) = opts.data.password {
             assert_eq!(password.as_ptr(), opts.copts.password)
-        }
-        else {
+        } else {
             assert!(false)
         };
 
@@ -634,12 +611,14 @@ mod tests {
     #[test]
     fn test_connect_properties() {
         let mut props = Properties::new();
-        props.push_int(PropertyCode::SessionExpiryInterval, 60).unwrap();
+        props
+            .push_int(PropertyCode::SessionExpiryInterval, 60)
+            .unwrap();
 
         // Remember, you can only set properties on a v5 connection.
         let opts = ConnectOptionsBuilder::new()
-            .properties(props)      // Note: Order shouldn't matter when
-            .mqtt_version(MQTT_VERSION_5)   // building options
+            .properties(props) // Note: Order shouldn't matter when
+            .mqtt_version(MQTT_VERSION_5) // building options
             .finalize();
 
         if let Some(ref props) = opts.data.props {
@@ -647,10 +626,11 @@ mod tests {
             assert_eq!(Some(60), props.get_int(PropertyCode::SessionExpiryInterval));
 
             assert!(!opts.copts.connectProperties.is_null());
-            assert_eq!(&props.cprops as *const _ as *mut ffi::MQTTProperties,
-                       opts.copts.connectProperties);
-        }
-        else {
+            assert_eq!(
+                &props.cprops as *const _ as *mut ffi::MQTTProperties,
+                opts.copts.connectProperties
+            );
+        } else {
             assert!(false)
         };
     }
@@ -673,37 +653,40 @@ mod tests {
 
         if let Some(ref will_props) = opts.data.will_props {
             assert_eq!(1, will_props.len());
-            assert_eq!(Some(60), will_props.get_int(PropertyCode::WillDelayInterval));
+            assert_eq!(
+                Some(60),
+                will_props.get_int(PropertyCode::WillDelayInterval)
+            );
 
             assert!(!opts.copts.willProperties.is_null());
-            assert_eq!(&will_props.cprops as *const _ as *mut ffi::MQTTProperties,
-                       opts.copts.willProperties);
-        }
-        else {
+            assert_eq!(
+                &will_props.cprops as *const _ as *mut ffi::MQTTProperties,
+                opts.copts.willProperties
+            );
+        } else {
             assert!(false)
         };
     }
 
+    /*
+        #[test]
+        fn test_clone() {
+            const TRUST_STORE: &str = "some_file.crt";
+            // Make sure the original goes out of scope
+            // before testing the clone.
+            let opts = {
+                let org_opts = SslOptionsBuilder::new()
+                    .trust_store(TRUST_STORE)
+                    .finalize();
 
-/*
-    #[test]
-    fn test_clone() {
-        const TRUST_STORE: &str = "some_file.crt";
-        // Make sure the original goes out of scope
-        // before testing the clone.
-        let opts = {
-            let org_opts = SslOptionsBuilder::new()
-                .trust_store(TRUST_STORE)
-                .finalize();
+                org_opts.clone()
+            };
 
-            org_opts.clone()
-        };
-
-        assert_eq!(TRUST_STORE, opts.trust_store.to_str().unwrap());
-        let ts = unsafe { CStr::from_ptr(opts.copts.trustStore) };
-        assert_eq!(TRUST_STORE, ts.to_str().unwrap());
-    }
-*/
+            assert_eq!(TRUST_STORE, opts.trust_store.to_str().unwrap());
+            let ts = unsafe { CStr::from_ptr(opts.copts.trustStore) };
+            assert_eq!(TRUST_STORE, ts.to_str().unwrap());
+        }
+    */
 
     // Determine that the options can be sent across threads.
     // As long as it compiles, this indicates that ConnectOptions implements
@@ -719,4 +702,3 @@ mod tests {
         let _ = thr.join().unwrap();
     }
 }
-

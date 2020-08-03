@@ -36,16 +36,10 @@
 
 use paho_mqtt as mqtt;
 
-use std::{
-    env,
-    process,
-    thread,
-    time::Duration,
-    sync::RwLock,
-};
+use std::{env, process, sync::RwLock, thread, time::Duration};
 
 // The topics to which we subscribe.
-const DFLT_TOPICS: &[&str] = &[ "requests/subscription/add", "test", "hello" ];
+const DFLT_TOPICS: &[&str] = &["requests/subscription/add", "test", "hello"];
 const QOS: i32 = 1;
 
 // The type we'll use to keep our dynamic list of topics inside the
@@ -66,7 +60,7 @@ fn on_connect_success(cli: &mqtt::AsyncClient, _msgid: u16) {
         println!("Subscribing to topics: {:?}", topics);
 
         // Create a QoS vector, same len as # topics
-        let qos = vec![QOS ; topics.len()];
+        let qos = vec![QOS; topics.len()];
         // Subscribe to the desired topic(s).
         cli.subscribe_many(&topics, &qos);
         // TODO: This doesn't yet handle a failed subscription.
@@ -92,13 +86,11 @@ fn main() {
     // Initialize the logger from the environment
     env_logger::init();
 
-    let host = env::args().nth(1).unwrap_or_else(||
-        "tcp://localhost:1883".to_string()
-    );
+    let host = env::args()
+        .nth(1)
+        .unwrap_or_else(|| "tcp://localhost:1883".to_string());
 
-    let topics: Vec<String> = DFLT_TOPICS.iter()
-        .map(|s| s.to_string())
-        .collect();
+    let topics: Vec<String> = DFLT_TOPICS.iter().map(|s| s.to_string()).collect();
 
     // Create the client. Use an ID for a persistent session.
     // A real system should try harder to use a unique ID.
@@ -130,7 +122,7 @@ fn main() {
 
     // Attach a closure to the client to receive callback
     // on incoming messages.
-    cli.set_message_callback(|cli,msg| {
+    cli.set_message_callback(|cli, msg| {
         if let Some(msg) = msg {
             let topic = msg.topic();
             let payload_str = msg.payload_str();
@@ -143,12 +135,10 @@ fn main() {
                     println!("Adding topic: {}", new_topic);
                     cli.subscribe(&new_topic, QOS);
                     topics.push(new_topic);
-                }
-                else {
+                } else {
                     println!("Failed to add topic: {}", payload_str);
                 }
-            }
-            else {
+            } else {
                 println!("{} - {}", topic, payload_str);
             }
         }

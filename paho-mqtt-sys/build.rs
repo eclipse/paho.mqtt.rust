@@ -67,11 +67,18 @@ fn main() {
 fn link_lib_base() -> &'static str {
     if cfg!(feature = "ssl") {
         println!("debug:link Using SSL library");
-        if cfg!(windows) { "paho-mqtt3as-static" } else { "paho-mqtt3as" }
-    }
-    else {
+        if cfg!(windows) {
+            "paho-mqtt3as-static"
+        } else {
+            "paho-mqtt3as"
+        }
+    } else {
         println!("debug:link Using non-SSL library");
-        if cfg!(windows) { "paho-mqtt3a-static" } else { "paho-mqtt3a" }
+        if cfg!(windows) {
+            "paho-mqtt3a-static"
+        } else {
+            "paho-mqtt3a"
+        }
     }
 }
 
@@ -79,18 +86,18 @@ fn link_lib_base() -> &'static str {
 // directories under the specified install path.
 // On success returns the path and base library name (i.e. the search path
 // and link library name).
-fn find_link_lib<P>(install_path: P) -> Option<(PathBuf,&'static str)>
-    where P: AsRef<Path>
+fn find_link_lib<P>(install_path: P) -> Option<(PathBuf, &'static str)>
+where
+    P: AsRef<Path>,
 {
     let install_path = install_path.as_ref();
-    let lib_dirs = &[ "lib", "lib64" ];
+    let lib_dirs = &["lib", "lib64"];
 
     let lib_base = link_lib_base();
 
     let lib_file = if cfg!(windows) {
         format!("{}.lib", lib_base)
-    }
-    else {
+    } else {
         format!("lib{}.a", lib_base)
     };
 
@@ -112,7 +119,7 @@ fn find_link_lib<P>(install_path: P) -> Option<(PathBuf,&'static str)>
 #[cfg(not(feature = "build_bindgen"))]
 mod bindings {
     use super::*;
-    use std::{fs, env};
+    use std::{env, fs};
 
     pub fn place_bindings(_inc_dir: &Path) {
         let target = env::var("TARGET").unwrap();
@@ -124,19 +131,24 @@ mod bindings {
         let target_ptr_wd = env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap();
         println!("debug:Target Pointer Width: {}", target_ptr_wd);
 
-        let mut bindings = format!("bindings/bindings_paho_mqtt_c_{}-{}.rs",
-                                   PAHO_MQTT_C_VERSION, target);
+        let mut bindings = format!(
+            "bindings/bindings_paho_mqtt_c_{}-{}.rs",
+            PAHO_MQTT_C_VERSION, target
+        );
 
         if !Path::new(&bindings).exists() {
-            println!("No bindings exist for: {}. Using {}-bit default.",
-                     bindings, target_ptr_wd);
-            bindings = format!("bindings/bindings_paho_mqtt_c_{}-default-{}.rs",
-                    PAHO_MQTT_C_VERSION, target_ptr_wd)
+            println!(
+                "No bindings exist for: {}. Using {}-bit default.",
+                bindings, target_ptr_wd
+            );
+            bindings = format!(
+                "bindings/bindings_paho_mqtt_c_{}-default-{}.rs",
+                PAHO_MQTT_C_VERSION, target_ptr_wd
+            )
         }
 
         println!("debug:Using bindings from: {}", bindings);
-        fs::copy(&bindings, out_path)
-            .expect("Could not copy bindings to output directory");
+        fs::copy(&bindings, out_path).expect("Could not copy bindings to output directory");
     }
 }
 
@@ -146,8 +158,8 @@ mod bindings {
     extern crate bindgen;
 
     use super::*;
-    use std::{fs, env};
     use std::path::{Path, PathBuf};
+    use std::{env, fs};
 
     pub fn place_bindings(inc_dir: &Path) {
         println!("debug:Using bindgen for Paho C");
@@ -166,7 +178,8 @@ mod bindings {
             .trust_clang_mangling(false)
             // The input header we would like to generate
             // bindings for.
-            .header("wrapper.h").clang_arg(inc_search)
+            .header("wrapper.h")
+            .clang_arg(inc_search)
             // Finish the builder and generate the bindings.
             .generate()
             // Unwrap the Result and panic on failure.
@@ -176,7 +189,8 @@ mod bindings {
         let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
         let out_path = out_dir.join("bindings.rs");
 
-        bindings.write_to_file(out_path.clone())
+        bindings
+            .write_to_file(out_path.clone())
             .expect("Couldn't write bindings!");
 
         // Save a copy of the bindings file into the bindings/ dir
@@ -185,14 +199,15 @@ mod bindings {
         let target = env::var("TARGET").unwrap();
         println!("debug:Target: {}", target);
 
-        let bindings = format!("bindings/bindings_paho_mqtt_c_{}-{}.rs",
-                               PAHO_MQTT_C_VERSION, target);
+        let bindings = format!(
+            "bindings/bindings_paho_mqtt_c_{}-{}.rs",
+            PAHO_MQTT_C_VERSION, target
+        );
 
         if !Path::new(&bindings).exists() {
             if let Err(err) = fs::copy(out_path, &bindings) {
                 println!("debug:Error copying new binding file: {}", err);
-            }
-            else {
+            } else {
                 println!("debug:Created new bindings file {}", bindings)
             }
         }
@@ -208,10 +223,10 @@ mod build {
     extern crate cmake;
 
     use super::*;
-    use std::process;
-    use std::path::Path;
-    use std::process::Command;
     use std::env;
+    use std::path::Path;
+    use std::process;
+    use std::process::Command;
 
     pub fn main() {
         println!("debug:Running the bundled build for Paho C");
@@ -223,8 +238,8 @@ mod build {
 
         if !Path::new("paho.mqtt.c/.git").exists() {
             let _ = Command::new("git")
-                        .args(&["submodule", "update", "--init"])
-                        .status();
+                .args(&["submodule", "update", "--init"])
+                .status();
         }
 
         // Use and configure cmake to build the Paho C lib
@@ -255,10 +270,14 @@ mod build {
             _ => {
                 println!("Error building Paho C library.");
                 process::exit(103);
-            },
+            }
         };
 
-        println!("debug:Using Paho C library at: {} [{}]", lib_path.display(), link_lib);
+        println!(
+            "debug:Using Paho C library at: {} [{}]",
+            lib_path.display(),
+            link_lib
+        );
 
         // Get bundled bindings or regenerate
         let inc_dir = cmk_install_path.join("include");
@@ -273,16 +292,14 @@ mod build {
                 println!("cargo:rustc-link-lib=libcrypto");
                 if let Ok(ssl_sp) = env::var("OPENSSL_ROOT_DIR") {
                     println!("cargo:rustc-link-search={}\\lib", ssl_sp);
-                }
-                else {
+                } else {
                     #[cfg(target_arch = "x86")]
                     println!("cargo:rustc-link-search={}\\lib", "C:\\OpenSSL-Win32");
 
                     #[cfg(target_arch = "x86_64")]
                     println!("cargo:rustc-link-search={}\\lib", "C:\\OpenSSL-Win64");
                 };
-            }
-            else {
+            } else {
                 println!("cargo:rustc-link-lib=ssl");
                 println!("cargo:rustc-link-lib=crypto");
                 if let Ok(ssl_sp) = env::var("OPENSSL_ROOT_DIR") {
@@ -296,7 +313,6 @@ mod build {
         println!("cargo:rustc-link-lib=static={}", link_lib);
     }
 }
-
 
 // Here we're building with an existing Paho C library.
 // This can be a library installed on the system or the location might be
@@ -331,21 +347,17 @@ mod build {
 
                 println!("cargo:rustc-link-search={}", lib_dir);
                 Some(inc_dir)
-            }
-            else {
+            } else {
                 panic!("If specifying lib dir, must also specify include dir");
             }
-        }
-        else if let Ok(dir) = env::var("PAHO_MQTT_C_DIR") {
+        } else if let Ok(dir) = env::var("PAHO_MQTT_C_DIR") {
             if let Some((lib_path, _link_lib)) = find_link_lib(&dir) {
                 println!("cargo:rustc-link-search={}", lib_path.display());
                 Some(format!("{}/include", dir))
-            }
-            else {
+            } else {
                 None
             }
-        }
-        else {
+        } else {
             None
         }
     }
@@ -365,4 +377,3 @@ mod build {
         bindings::place_bindings(&Path::new(&inc_dir));
     }
 }
-

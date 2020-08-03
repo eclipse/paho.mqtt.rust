@@ -1,5 +1,5 @@
 // ssl_options.rs
-// 
+//
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 //
 
@@ -20,31 +20,25 @@
  *******************************************************************************/
 
 use std::{
+    ffi::CString,
     io,
-    ptr,
-    ffi::{CString},
-    os::raw::{c_char},
-    pin::Pin,
+    os::raw::c_char,
     path::{Path, PathBuf},
+    pin::Pin,
+    ptr,
 };
 
-use crate::{
-    ffi,
-    to_c_bool,
-    from_c_bool,
-    errors::Result,
-};
-
+use crate::{errors::Result, ffi, from_c_bool, to_c_bool};
 
 // Implementation note:
 // The C library seems to require the SSL Options struct to provide valid
 // strings for all the entries. Empty entries require a zero-length string
 // and should not be left as NULL. Therefore, out ffi::MQTTAsync_SSLOptions
-// struct needs to be fixed up to always point to the cached CString 
+// struct needs to be fixed up to always point to the cached CString
 // values.
-// Caching the CStrings in the struct with the fixed-up pointers in the 
+// Caching the CStrings in the struct with the fixed-up pointers in the
 // underlying C struct.
-// 
+//
 
 /// The options for SSL socket connections to the broker.
 #[derive(Debug)]
@@ -88,7 +82,11 @@ impl SslOptions {
     // The C library expects unset values in the SSL options struct to be
     // NULL rather than empty string.
     fn c_str(str: &CString) -> *const c_char {
-        if str.to_bytes().len() == 0 { ptr::null() } else { str.as_ptr() }
+        if str.to_bytes().len() == 0 {
+            ptr::null()
+        } else {
+            str.as_ptr()
+        }
     }
 
     // Updates the underlying C structure to match the cached strings.
@@ -124,7 +122,11 @@ impl SslOptions {
     /// Gets the list of cipher suites that the client will present to
     /// the server during the SSL handshake.
     pub fn enabled_cipher_suites(&self) -> String {
-        self.data.enabled_cipher_suites.to_str().unwrap().to_string()
+        self.data
+            .enabled_cipher_suites
+            .to_str()
+            .unwrap()
+            .to_string()
     }
 
     /// Determine if the client will verify the server certificate.
@@ -143,23 +145,19 @@ impl Default for SslOptions {
     fn default() -> Self {
         Self::from_data(
             ffi::MQTTAsync_SSLOptions::default(),
-            SslOptionsData::default()
+            SslOptionsData::default(),
         )
     }
 }
 
 impl Clone for SslOptions {
     fn clone(&self) -> Self {
-        Self::from_data(
-            self.copts.clone(),
-            (&*self.data).clone()
-        )
+        Self::from_data(self.copts.clone(), (&*self.data).clone())
     }
 }
 
 unsafe impl Send for SslOptions {}
 unsafe impl Sync for SslOptions {}
-
 
 /////////////////////////////////////////////////////////////////////////////
 //                              Builder
@@ -181,11 +179,14 @@ impl SslOptionsBuilder {
     /// Set the name of the file in PEM format containing the public
     /// digital certificates trusted by the client.
     pub fn trust_store<P>(&mut self, trust_store: P) -> Result<&mut Self>
-        where P: AsRef<Path>
+    where
+        P: AsRef<Path>,
     {
         self.data.trust_store = CString::new(
-            trust_store.as_ref().to_str()
-                .ok_or(io::Error::new(io::ErrorKind::Other, "Path string error"))?
+            trust_store
+                .as_ref()
+                .to_str()
+                .ok_or(io::Error::new(io::ErrorKind::Other, "Path string error"))?,
         )?;
         Ok(self)
     }
@@ -195,11 +196,14 @@ impl SslOptionsBuilder {
     ///
     /// It may also include the client's private key.
     pub fn key_store<P>(&mut self, key_store: P) -> Result<&mut Self>
-        where P: AsRef<Path>
+    where
+        P: AsRef<Path>,
     {
         self.data.key_store = CString::new(
-            key_store.as_ref().to_str()
-                .ok_or(io::Error::new(io::ErrorKind::Other, "Path string error"))?
+            key_store
+                .as_ref()
+                .to_str()
+                .ok_or(io::Error::new(io::ErrorKind::Other, "Path string error"))?,
         )?;
         Ok(self)
     }
@@ -207,21 +211,24 @@ impl SslOptionsBuilder {
     /// If not included in the Key Store, this setting points to the file
     /// in PEM format containing the client's private key.
     pub fn private_key<P>(&mut self, private_key: P) -> Result<&mut Self>
-        where P: AsRef<Path>
+    where
+        P: AsRef<Path>,
     {
         self.data.private_key = CString::new(
-            private_key.as_ref().to_str()
-                .ok_or(io::Error::new(io::ErrorKind::Other, "Path string error"))?
+            private_key
+                .as_ref()
+                .to_str()
+                .ok_or(io::Error::new(io::ErrorKind::Other, "Path string error"))?,
         )?;
         Ok(self)
     }
 
     /// The password to load the client's privateKey if it's encrypted.
     pub fn private_key_password<S>(&mut self, private_key_password: S) -> &mut Self
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
-        self.data.private_key_password =
-            CString::new(private_key_password.into()).unwrap();
+        self.data.private_key_password = CString::new(private_key_password.into()).unwrap();
         self
     }
 
@@ -230,16 +237,16 @@ impl SslOptionsBuilder {
     ///
     /// For a full explanation of the cipher list format, please see the
     /// OpenSSL on-line documentation:
-	/// http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
-	///
+    /// http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
+    ///
     /// If this setting is ommitted, its default value will be "ALL", that is,
     /// all the cipher suites -excluding those offering no encryption- will
     /// be considered.
     pub fn enabled_cipher_suites<S>(&mut self, enabled_cipher_suites: S) -> &mut Self
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
-        self.data.enabled_cipher_suites =
-            CString::new(enabled_cipher_suites.into()).unwrap();
+        self.data.enabled_cipher_suites = CString::new(enabled_cipher_suites.into()).unwrap();
         self
     }
 
@@ -265,11 +272,14 @@ impl SslOptionsBuilder {
     /// If set, this points to a directory containing CA certificates
     /// in PEM format.
     pub fn ca_path<P>(&mut self, ca_path: P) -> Result<&mut Self>
-        where P: AsRef<Path>
+    where
+        P: AsRef<Path>,
     {
         self.data.ca_path = CString::new(
-            ca_path.as_ref().to_str()
-                .ok_or(io::Error::new(io::ErrorKind::Other, "Path string error"))?
+            ca_path
+                .as_ref()
+                .to_str()
+                .ok_or(io::Error::new(io::ErrorKind::Other, "Path string error"))?,
         )?;
         Ok(self)
     }
@@ -285,10 +295,7 @@ impl SslOptionsBuilder {
 
     /// Create the SSL options from the builder.
     pub fn finalize(&self) -> SslOptions {
-        SslOptions::from_data(
-            self.copts.clone(),
-            self.data.clone()
-        )
+        SslOptions::from_data(self.copts.clone(), self.data.clone())
     }
 }
 
@@ -299,10 +306,15 @@ impl SslOptionsBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ffi::{CStr};
+    use std::ffi::CStr;
 
     // Identifier for the C SSL options structure
-    const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'S' as c_char ];
+    const STRUCT_ID: [c_char; 4] = [
+        b'M' as c_char,
+        b'Q' as c_char,
+        b'T' as c_char,
+        b'S' as c_char,
+    ];
 
     #[test]
     fn test_new() {
@@ -329,7 +341,9 @@ mod tests {
     fn test_builder_trust_store() {
         const TRUST_STORE: &str = "some_file.crt";
         let opts = SslOptionsBuilder::new()
-            .trust_store(TRUST_STORE).unwrap().finalize();
+            .trust_store(TRUST_STORE)
+            .unwrap()
+            .finalize();
 
         assert_eq!(TRUST_STORE, opts.data.trust_store.to_str().unwrap());
 
@@ -341,7 +355,9 @@ mod tests {
     fn test_builder_key_store() {
         const KEY_STORE: &str = "some_file.crt";
         let opts = SslOptionsBuilder::new()
-            .key_store(KEY_STORE).unwrap().finalize();
+            .key_store(KEY_STORE)
+            .unwrap()
+            .finalize();
 
         assert_eq!(KEY_STORE, opts.data.key_store.to_str().unwrap());
 
@@ -358,7 +374,8 @@ mod tests {
     #[test]
     fn test_disable_default_trust_store() {
         let opts = SslOptionsBuilder::new()
-            .disable_default_trust_store(true).finalize();
+            .disable_default_trust_store(true)
+            .finalize();
         assert!(from_c_bool(opts.copts.disableDefaultTrustStore));
     }
 
@@ -368,7 +385,9 @@ mod tests {
     fn test_move() {
         const TRUST_STORE: &str = "some_file.crt";
         let org_opts = SslOptionsBuilder::new()
-            .trust_store(TRUST_STORE).unwrap().finalize();
+            .trust_store(TRUST_STORE)
+            .unwrap()
+            .finalize();
 
         let opts = org_opts;
 
@@ -385,7 +404,9 @@ mod tests {
         // before testing the clone.
         let opts = {
             let org_opts = SslOptionsBuilder::new()
-                .trust_store(TRUST_STORE).unwrap().finalize();
+                .trust_store(TRUST_STORE)
+                .unwrap()
+                .finalize();
 
             org_opts.clone()
         };
@@ -396,4 +417,3 @@ mod tests {
         assert_eq!(TRUST_STORE, s.to_str().unwrap());
     }
 }
-

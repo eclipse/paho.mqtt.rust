@@ -29,16 +29,11 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{
-    env,
-    process,
-    thread,
-    time::{
-        SystemTime,
-        Duration
-    },
-};
 use paho_mqtt as mqtt;
+use std::{
+    env, process, thread,
+    time::{Duration, SystemTime},
+};
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -47,16 +42,17 @@ fn time_now_hundredths() -> u64 {
     (SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
-        .as_millis()/10) as u64
+        .as_millis()
+        / 10) as u64
 }
 
 fn main() {
     // Initialize the logger from the environment
     env_logger::init();
 
-    let host = env::args().nth(1).unwrap_or_else(||
-        "tcp://localhost:1883".to_string()
-    );
+    let host = env::args()
+        .nth(1)
+        .unwrap_or_else(|| "tcp://localhost:1883".to_string());
 
     // Create a client & define connect options
     let cli = mqtt::AsyncClient::new(host).unwrap_or_else(|err| {

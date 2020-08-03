@@ -30,14 +30,10 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-#[macro_use] extern crate paho_mqtt as mqtt;
+#[macro_use]
+extern crate paho_mqtt as mqtt;
 
-use std::{
-    env,
-    process,
-    io,
-    time::Duration,
-};
+use std::{env, io, process, time::Duration};
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -69,7 +65,7 @@ fn main() -> mqtt::Result<()> {
     // The LWT is broadcast to the group if our connection is lost
     // But wait 30sec for reconnect before broadcasting it.
 
-    let lwt_props = mqtt::properties!{
+    let lwt_props = mqtt::properties! {
         mqtt::PropertyCode::WillDelayInterval => 10,
     };
 
@@ -93,7 +89,7 @@ fn main() -> mqtt::Result<()> {
         process::exit(1);
     });
 
-    let props = mqtt::properties!{
+    let props = mqtt::properties! {
         mqtt::PropertyCode::SessionExpiryInterval => 60,
     };
 
@@ -140,17 +136,21 @@ fn main() -> mqtt::Result<()> {
 
     // Let everyone know that a new user joined the group
 
-    topic.publish(format!("<<< {} joined the group >>>", chat_user)).wait()?;
+    topic
+        .publish(format!("<<< {} joined the group >>>", chat_user))
+        .wait()?;
 
-	// Read messages from the console and publish them.
-	// Quit when the use enters an empty line, or a read error occurs.
+    // Read messages from the console and publish them.
+    // Quit when the use enters an empty line, or a read error occurs.
 
     loop {
         let mut input = String::new();
         match io::stdin().read_line(&mut input) {
             Ok(_) => {
                 let msg = input.trim();
-                if msg.is_empty() { break; }
+                if msg.is_empty() {
+                    break;
+                }
 
                 // Publish payload as "<user>: <message>"
                 let chat_msg = format!("{}: {}", chat_user, msg);
@@ -158,7 +158,7 @@ fn main() -> mqtt::Result<()> {
                     eprintln!("Error: {}", err);
                     break;
                 }
-            },
+            }
             Err(err) => println!("Error: {}", err),
         }
     }
@@ -177,4 +177,3 @@ fn main() -> mqtt::Result<()> {
 
     Ok(())
 }
-

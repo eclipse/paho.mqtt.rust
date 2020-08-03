@@ -32,19 +32,12 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{
-    env,
-    process,
-    time::Duration
-};
-use futures::{
-    executor::block_on,
-    stream::StreamExt,
-};
+use futures::{executor::block_on, stream::StreamExt};
 use paho_mqtt as mqtt;
+use std::{env, process, time::Duration};
 
 // The topics to which we subscribe.
-const TOPICS: &[&str] = &[ "test", "hello" ];
+const TOPICS: &[&str] = &["test", "hello"];
 const QOS: &[i32] = &[1, 1];
 
 /////////////////////////////////////////////////////////////////////////////
@@ -53,9 +46,9 @@ fn main() {
     // Initialize the logger from the environment
     env_logger::init();
 
-    let host = env::args().nth(1).unwrap_or_else(||
-        "tcp://localhost:1883".to_string()
-    );
+    let host = env::args()
+        .nth(1)
+        .unwrap_or_else(|| "tcp://localhost:1883".to_string());
 
     // Create the client. Use an ID for a persistent session.
     // A real system should try harder to use a unique ID.
@@ -75,8 +68,7 @@ fn main() {
         let mut strm = cli.get_stream(25);
 
         // Define the set of options for the connection
-        let lwt = mqtt::Message::new("test", "Async subscriber lost connection",
-                                     mqtt::QOS_1);
+        let lwt = mqtt::Message::new("test", "Async subscriber lost connection", mqtt::QOS_1);
 
         let conn_opts = mqtt::ConnectOptionsBuilder::new()
             .keep_alive_interval(Duration::from_secs(20))
@@ -98,8 +90,7 @@ fn main() {
         while let Some(msg_opt) = strm.next().await {
             if let Some(msg) = msg_opt {
                 println!("{}", msg);
-            }
-            else {
+            } else {
                 // A "None" means we were disconnected. Try to reconnect...
                 println!("Lost connection. Attempting reconnect.");
                 while let Err(err) = cli.reconnect().await {

@@ -22,19 +22,12 @@
 
 //! Response options for the Paho MQTT Rust client library.
 
-use std::{
-    ptr,
-    pin::Pin,
-    os::raw::c_int,
-};
+use std::{os::raw::c_int, pin::Pin, ptr};
 
 use crate::{
     ffi,
-    token::{
-        Token,
-        TokenInner,
-    },
     subscribe_options::SubscribeOptions,
+    token::{Token, TokenInner},
 };
 
 /// The collection of options for responses coming back to the client.
@@ -60,24 +53,19 @@ impl ResponseOptions {
     /// up to the callback (or calling function) to recapture and release
     /// this token.
     pub(crate) fn new<T>(tok: T, mqtt_version: u32) -> Self
-        where T: Into<Token>
+    where
+        T: Into<Token>,
     {
         let copts = Self::c_options(tok, mqtt_version);
         Self::from_data(copts, ResponseOptionsData::default())
     }
 
-    fn from_data(
-        mut copts: ffi::MQTTAsync_responseOptions,
-        data: ResponseOptionsData
-    ) -> Self {
+    fn from_data(mut copts: ffi::MQTTAsync_responseOptions, data: ResponseOptionsData) -> Self {
         let mut data = Box::pin(data);
 
         let (n, p) = match data.sub_opts {
-            Some(ref mut sub_opts) => (
-                sub_opts.len() as c_int,
-                sub_opts.as_mut_ptr()
-            ),
-            _ => (0 as c_int, ptr::null_mut())
+            Some(ref mut sub_opts) => (sub_opts.len() as c_int, sub_opts.as_mut_ptr()),
+            _ => (0 as c_int, ptr::null_mut()),
         };
 
         copts.subscribeOptionsCount = n;
@@ -88,7 +76,8 @@ impl ResponseOptions {
 
     // Gets the default C options struct for the specified MQTT version
     fn c_options<T>(tok: T, mqtt_version: u32) -> ffi::MQTTAsync_responseOptions
-        where T: Into<Token>
+    where
+        T: Into<Token>,
     {
         let context = tok.into().into_raw();
         debug!("Created response for token at: {:?}", context);
@@ -100,8 +89,7 @@ impl ResponseOptions {
                 context,
                 ..ffi::MQTTAsync_responseOptions::default()
             }
-        }
-        else {
+        } else {
             ffi::MQTTAsync_responseOptions {
                 onSuccess5: Some(TokenInner::on_success5),
                 onFailure5: Some(TokenInner::on_failure5),
@@ -112,7 +100,8 @@ impl ResponseOptions {
     }
 
     pub(crate) fn from_subscribe_options<T>(tok: T, opts: SubscribeOptions) -> Self
-        where T: Into<Token>
+    where
+        T: Into<Token>,
     {
         let mut copts = Self::c_options(tok, ffi::MQTTVERSION_5);
         copts.subscribeOptions = opts.copts;
@@ -120,14 +109,19 @@ impl ResponseOptions {
     }
 
     pub(crate) fn from_subscribe_many_options<T>(tok: T, opts: &[SubscribeOptions]) -> Self
-        where T: Into<Token>
+    where
+        T: Into<Token>,
     {
         let copts = Self::c_options(tok, ffi::MQTTVERSION_5);
         let sub_opts: Vec<_> = opts.iter().map(|opt| opt.copts).collect();
-        Self::from_data(copts, ResponseOptionsData { sub_opts: Some(sub_opts), })
+        Self::from_data(
+            copts,
+            ResponseOptionsData {
+                sub_opts: Some(sub_opts),
+            },
+        )
     }
 }
-
 
 /////////////////////////////////////////////////////////////////////////////
 //                              Unit Tests
@@ -136,7 +130,7 @@ impl ResponseOptions {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::token::{Token};
+    use crate::token::Token;
     use crate::types::*;
 
     #[test]
@@ -196,10 +190,8 @@ mod tests {
     #[test]
     fn test_from_many_opts() {
         let tok = Token::new();
-        let sub_opts = vec![SubscribeOptions::new(true) ; 4];
-        let opts = ResponseOptions::from_subscribe_many_options(
-            tok.clone(), &sub_opts
-        );
+        let sub_opts = vec![SubscribeOptions::new(true); 4];
+        let opts = ResponseOptions::from_subscribe_many_options(tok.clone(), &sub_opts);
 
         let inner = Token::into_raw(tok);
 
@@ -218,4 +210,3 @@ mod tests {
         let _ = unsafe { Token::from_raw(inner) };
     }
 }
-

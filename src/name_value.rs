@@ -25,10 +25,7 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{
-    ffi::CString,
-    pin::Pin,
-};
+use std::{ffi::CString, pin::Pin};
 
 /// The name/value pointer pair from the C library.
 type CNameValue = ffi::MQTTAsync_nameValue;
@@ -54,17 +51,17 @@ struct NameValueData {
     coll: Vec<(CString, CString)>,
 }
 
-impl NameValueCollection
-{
+impl NameValueCollection {
     /// Creates a NameValueCollection from a vector of string pair references.
     ///
     /// # Arguments
     ///
     /// `coll` A collection of string pair references.
     ///
-    pub fn new<N,V>(coll: &[(N,V)]) -> Self
-        where N: AsRef<str>,
-              V: AsRef<str>,
+    pub fn new<N, V>(coll: &[(N, V)]) -> Self
+    where
+        N: AsRef<str>,
+        V: AsRef<str>,
     {
         let data = NameValueData {
             coll: Self::to_cstring_pair(coll),
@@ -73,15 +70,18 @@ impl NameValueCollection
     }
 
     // Convert a collection of string references to a vector of CString pairs.
-    fn to_cstring_pair<N,V>(coll: &[(N,V)]) -> Vec<(CString, CString)>
-        where N: AsRef<str>,
-              V: AsRef<str>
+    fn to_cstring_pair<N, V>(coll: &[(N, V)]) -> Vec<(CString, CString)>
+    where
+        N: AsRef<str>,
+        V: AsRef<str>,
     {
         coll.iter()
-            .map(|p| (
-                CString::new(p.0.as_ref()).unwrap(),
-                CString::new(p.1.as_ref()).unwrap()
-            ))
+            .map(|p| {
+                (
+                    CString::new(p.0.as_ref()).unwrap(),
+                    CString::new(p.1.as_ref()).unwrap(),
+                )
+            })
             .collect()
     }
 
@@ -95,7 +95,8 @@ impl NameValueCollection
     // Note that the pointers are invalidated if the original vector or
     // any of the strings in it change.
     fn to_c_vec(sv: &[(CString, CString)]) -> Vec<CNameValue> {
-        let mut coll: Vec<CNameValue> = sv.iter()
+        let mut coll: Vec<CNameValue> = sv
+            .iter()
             .map(|csp| CNameValue::new(csp.0.as_ptr(), csp.1.as_ptr()))
             .collect();
         coll.push(CNameValue::default());
@@ -110,7 +111,9 @@ impl NameValueCollection
     }
 
     /// Gets the number of strings in the collection.
-    pub fn len(&self) -> usize { self.data.coll.len() }
+    pub fn len(&self) -> usize {
+        self.data.coll.len()
+    }
 
     /// Gets the collection as a pointer to const C string pair pointers.
     ///
@@ -126,15 +129,13 @@ impl NameValueCollection
     }
 }
 
-impl Default for NameValueCollection
-{
+impl Default for NameValueCollection {
     fn default() -> Self {
         Self::from_data(NameValueData::default())
     }
 }
 
-impl Clone for NameValueCollection
-{
+impl Clone for NameValueCollection {
     fn clone(&self) -> Self {
         Self::from_data((&*self.data).clone())
     }
@@ -166,7 +167,7 @@ mod tests {
         let sc = NameValueCollection::new(&v);
 
         assert_eq!(n, sc.len());
-        assert_eq!(n+1, sc.c_coll.len());
+        assert_eq!(n + 1, sc.c_coll.len());
         assert_eq!(n, sc.data.coll.len());
 
         assert_eq!(v[0].0.as_bytes(), sc.data.coll[0].0.as_bytes());
@@ -197,7 +198,7 @@ mod tests {
         let sc = NameValueCollection::new(&v);
 
         assert_eq!(n, sc.len());
-        assert_eq!(n+1, sc.c_coll.len());
+        assert_eq!(n + 1, sc.c_coll.len());
         assert_eq!(n, sc.data.coll.len());
 
         assert_eq!(v[0].0.as_bytes(), sc.data.coll[0].0.as_bytes());
@@ -229,7 +230,7 @@ mod tests {
         let sc = org_sc;
 
         assert_eq!(n, sc.len());
-        assert_eq!(n+1, sc.c_coll.len());
+        assert_eq!(n + 1, sc.c_coll.len());
         assert_eq!(n, sc.data.coll.len());
 
         assert_eq!(v[0].0.as_bytes(), sc.data.coll[0].0.as_bytes());
@@ -262,7 +263,7 @@ mod tests {
         };
 
         assert_eq!(n, sc.len());
-        assert_eq!(n+1, sc.c_coll.len());
+        assert_eq!(n + 1, sc.c_coll.len());
         assert_eq!(n, sc.data.coll.len());
 
         assert_eq!(v[0].0.as_bytes(), sc.data.coll[0].0.as_bytes());
@@ -284,4 +285,3 @@ mod tests {
         assert_eq!(sc.data.coll[2].1.as_ptr(), sc.c_coll[2].value);
     }
 }
-

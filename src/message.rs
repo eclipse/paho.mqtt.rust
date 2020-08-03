@@ -19,21 +19,9 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{
-    slice,
-    ffi::{CString},
-    os::raw::c_void,
-    convert::From,
-    borrow::Cow,
-    pin::Pin,
-    fmt,
-};
+use std::{borrow::Cow, convert::From, ffi::CString, fmt, os::raw::c_void, pin::Pin, slice};
 
-use crate::{
-    ffi,
-    to_c_bool,
-    properties::Properties,
-};
+use crate::{ffi, properties::Properties, to_c_bool};
 
 /// A `Message` represents all the information passed in an MQTT PUBLISH
 /// packet.
@@ -41,7 +29,7 @@ use crate::{
 #[derive(Debug)]
 pub struct Message {
     pub(crate) cmsg: ffi::MQTTAsync_message,
-    pub(crate) data: Pin<Box<MessageData>>
+    pub(crate) data: Pin<Box<MessageData>>,
 }
 
 /// Cache of data values that the C msg struct point to.
@@ -53,9 +41,10 @@ pub(crate) struct MessageData {
 }
 
 impl MessageData {
-    pub(crate) fn new<S,V>(topic: S, payload: V) -> Self
-        where S: Into<String>,
-              V: Into<Vec<u8>>
+    pub(crate) fn new<S, V>(topic: S, payload: V) -> Self
+    where
+        S: Into<String>,
+        V: Into<Vec<u8>>,
     {
         Self {
             topic: CString::new(topic.into()).unwrap(),
@@ -73,9 +62,10 @@ impl Message {
     /// * `topic` The topic on which the message is published.
     /// * `payload` The binary payload of the message
     /// * `qos` The quality of service for message delivery (0, 1, or 2)
-    pub fn new<S,V>(topic: S, payload: V, qos: i32) -> Self
-        where S: Into<String>,
-              V: Into<Vec<u8>>
+    pub fn new<S, V>(topic: S, payload: V, qos: i32) -> Self
+    where
+        S: Into<String>,
+        V: Into<Vec<u8>>,
     {
         let cmsg = ffi::MQTTAsync_message {
             qos,
@@ -94,9 +84,10 @@ impl Message {
     /// * `payload` The binary payload of the message
     /// * `qos` The quality of service for message delivery (0, 1, or 2)
     ///
-    pub fn new_retained<S,V>(topic: S, payload: V, qos: i32) -> Self
-        where S: Into<String>,
-              V: Into<Vec<u8>>
+    pub fn new_retained<S, V>(topic: S, payload: V, qos: i32) -> Self
+    where
+        S: Into<String>,
+        V: Into<Vec<u8>>,
     {
         let cmsg = ffi::MQTTAsync_message {
             qos,
@@ -116,7 +107,7 @@ impl Message {
         cmsg.payload = data.payload.as_ptr() as *const _ as *mut c_void;
         cmsg.payloadlen = data.payload.len() as i32;
         cmsg.properties = data.props.cprops.clone();
-        Self { cmsg, data, }
+        Self { cmsg, data }
     }
 
     /// Creates a new message from C language components.
@@ -132,7 +123,7 @@ impl Message {
             topic,
             payload: slice::from_raw_parts(cmsg.payload as *mut u8, len).to_vec(),
             props: Properties::from_c_struct(&cmsg.properties),
-         };
+        };
 
         Self::from_data(cmsg.clone(), data)
     }
@@ -178,19 +169,13 @@ impl Message {
 
 impl Default for Message {
     fn default() -> Message {
-        Self::from_data(
-            ffi::MQTTAsync_message::default(),
-            MessageData::default()
-        )
+        Self::from_data(ffi::MQTTAsync_message::default(), MessageData::default())
     }
 }
 
 impl Clone for Message {
     fn clone(&self) -> Self {
-        Self::from_data(
-            self.cmsg.clone(),
-            (&*self.data).clone()
-        )
+        Self::from_data(self.cmsg.clone(), (&*self.data).clone())
     }
 }
 
@@ -217,8 +202,7 @@ impl<'a, 'b> From<(&'a str, &'b [u8], i32, bool)> for Message {
     }
 }
 
-impl fmt::Display for Message
-{
+impl fmt::Display for Message {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let topic = match self.data.topic.as_c_str().to_str() {
             Ok(s) => s,
@@ -241,8 +225,7 @@ pub struct MessageBuilder {
     props: Properties,
 }
 
-impl MessageBuilder
-{
+impl MessageBuilder {
     /// Create a new message builder.
     pub fn new() -> Self {
         Self {
@@ -260,7 +243,8 @@ impl MessageBuilder
     ///
     /// `topic` The topic on which the message should be published.
     pub fn topic<T>(mut self, topic: T) -> Self
-        where T: Into<String>
+    where
+        T: Into<String>,
     {
         self.topic = topic.into();
         self
@@ -272,7 +256,8 @@ impl MessageBuilder
     ///
     /// `payload` The binary payload of the message
     pub fn payload<V>(mut self, payload: V) -> Self
-        where V: Into<Vec<u8>>
+    where
+        V: Into<Vec<u8>>,
     {
         self.payload = payload.into();
         self
@@ -333,10 +318,15 @@ impl MessageBuilder
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread;
     use std::os::raw::{c_char, c_int};
+    use std::thread;
 
-    const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'M' as c_char ];
+    const STRUCT_ID: [c_char; 4] = [
+        b'M' as c_char,
+        b'Q' as c_char,
+        b'T' as c_char,
+        b'M' as c_char,
+    ];
     const STRUCT_VER: c_int = 1;
 
     // These should differ from defaults
@@ -347,8 +337,7 @@ mod tests {
 
     // By convention our defaults should match the defaults of the C library
     #[test]
-    fn test_default() {
-    }
+    fn test_default() {}
 
     #[test]
     fn test_new() {
@@ -414,8 +403,7 @@ mod tests {
     fn test_builder_topic() {
         const TOPIC: &str = "test";
 
-        let msg = MessageBuilder::new()
-                    .topic(TOPIC).finalize();
+        let msg = MessageBuilder::new().topic(TOPIC).finalize();
 
         // The topic is only kept in the Rust struct as a CString
         assert_eq!(TOPIC, msg.data.topic.to_str().unwrap());
@@ -426,8 +414,7 @@ mod tests {
     fn test_builder_payload() {
         const PAYLOAD: &[u8] = b"Hello world";
 
-        let msg = MessageBuilder::new()
-                    .payload(PAYLOAD).finalize();
+        let msg = MessageBuilder::new().payload(PAYLOAD).finalize();
 
         assert_eq!(PAYLOAD, msg.data.payload.as_slice());
         assert_eq!(PAYLOAD, msg.payload());
@@ -440,8 +427,7 @@ mod tests {
     fn test_builder_qos() {
         const QOS: i32 = 2;
 
-        let msg = MessageBuilder::new()
-                    .qos(QOS).finalize();
+        let msg = MessageBuilder::new().qos(QOS).finalize();
 
         assert_eq!(QOS, msg.cmsg.qos);
         assert_eq!(QOS, msg.qos());
@@ -449,12 +435,10 @@ mod tests {
 
     #[test]
     fn test_builder_retained() {
-        let msg = MessageBuilder::new()
-                    .retained(false).finalize();
+        let msg = MessageBuilder::new().retained(false).finalize();
         assert!(msg.cmsg.retained == 0);
 
-        let msg = MessageBuilder::new()
-                    .retained(true).finalize();
+        let msg = MessageBuilder::new().retained(true).finalize();
         assert!(msg.cmsg.retained != 0);
         assert!(msg.retained());
     }
@@ -465,11 +449,11 @@ mod tests {
     #[test]
     fn test_assign() {
         let org_msg = MessageBuilder::new()
-                        .topic(TOPIC)
-                        .payload(PAYLOAD)
-                        .qos(QOS)
-                        .retained(RETAINED)
-                        .finalize();
+            .topic(TOPIC)
+            .payload(PAYLOAD)
+            .qos(QOS)
+            .retained(RETAINED)
+            .finalize();
 
         let msg = org_msg;
 
@@ -497,11 +481,11 @@ mod tests {
         let msg = {
             // Make sure the original goes out of scope before testing
             let org_msg = MessageBuilder::new()
-                            .topic(TOPIC)
-                            .payload(PAYLOAD)
-                            .qos(QOS)
-                            .retained(RETAINED)
-                            .finalize();
+                .topic(TOPIC)
+                .payload(PAYLOAD)
+                .qos(QOS)
+                .retained(RETAINED)
+                .finalize();
             org_msg.clone()
         };
 
@@ -530,4 +514,3 @@ mod tests {
         let _ = thr.join().unwrap();
     }
 }
-
