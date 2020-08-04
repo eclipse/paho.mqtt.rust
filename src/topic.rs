@@ -165,13 +165,18 @@ impl<'a> Topic<'a>
         where V: Into<Vec<u8>>
     {
         self.alias = alias;
-        let props = properties!{ PropertyCode::TopicAlias => alias };
-        let msg = MessageBuilder::new()
-            .topic(self.topic.clone())
-            .payload(payload)
-            .qos(self.qos)
-            .properties(props)
-            .finalize();
+        let msg = if alias == 0 {
+            Message::new(&self.topic, payload, self.qos)
+        }
+        else {
+            let props = properties!{ PropertyCode::TopicAlias => alias };
+            MessageBuilder::new()
+                .topic(self.topic.clone())
+                .payload(payload)
+                .qos(self.qos)
+                .properties(props)
+                .finalize()
+        };
         self.cli.publish(msg)
     }
 }
