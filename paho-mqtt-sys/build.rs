@@ -242,8 +242,8 @@ mod build {
             cmk_cfg.cflag("/DWIN32");
         }
 
-        if let Ok(ssl_sp) = env::var("OPENSSL_ROOT_DIR") {
-            cmk_cfg.define("OPENSSL_ROOT_DIR", format!("{}", ssl_sp));
+        if let Some(openssl_root_dir) = openssl_root_dir() {
+            cmk_cfg.define("OPENSSL_ROOT_DIR", openssl_root_dir);
         }
 
         // 'cmk_install_dir' is a PathBuf to the cmake install directory
@@ -271,8 +271,8 @@ mod build {
             if cfg!(windows) {
                 println!("cargo:rustc-link-lib=libssl");
                 println!("cargo:rustc-link-lib=libcrypto");
-                if let Ok(ssl_sp) = env::var("OPENSSL_ROOT_DIR") {
-                    println!("cargo:rustc-link-search={}\\lib", ssl_sp);
+                if let Some(openssl_root_dir) = openssl_root_dir() {
+                    println!("cargo:rustc-link-search={}\\lib", openssl_root_dir);
                 }
                 else {
                     #[cfg(target_arch = "x86")]
@@ -285,8 +285,8 @@ mod build {
             else {
                 println!("cargo:rustc-link-lib=ssl");
                 println!("cargo:rustc-link-lib=crypto");
-                if let Ok(ssl_sp) = env::var("OPENSSL_ROOT_DIR") {
-                    println!("cargo:rustc-link-search={}/lib", ssl_sp);
+                if let Some(openssl_root_dir) = openssl_root_dir() {
+                    println!("cargo:rustc-link-search={}/lib", openssl_root_dir);
                 }
             }
         }
@@ -294,6 +294,14 @@ mod build {
         // we add the folder where all the libraries are built to the path search
         println!("cargo:rustc-link-search=native={}", lib_path.display());
         println!("cargo:rustc-link-lib=static={}", link_lib);
+    }
+
+    fn openssl_root_dir() -> Option<String> {
+        env::var("DEP_OPENSSL_INCLUDE").ok().and_then(|path| {
+            Path::new(&path)
+                .parent()
+                .map(|path| path.display().to_string())
+        })
     }
 }
 
@@ -365,4 +373,3 @@ mod build {
         bindings::place_bindings(&Path::new(&inc_dir));
     }
 }
-
