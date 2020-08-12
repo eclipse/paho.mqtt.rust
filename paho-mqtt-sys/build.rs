@@ -43,10 +43,10 @@
 //    - else use bundled bindings
 //  + else (!"bundled")
 //    - If environment vars set use that lib,
-//      ^ If "builtime_bindgen" generate bindings for user lib
+//      ^ If "build_bindgen" generate bindings for user lib
 //      ^ else assume proper version and use bundled bindings
 //    - else (no env)
-//      ^ If "builtime_bindgen" exit with an error
+//      ^ If "build_bindgen" exit with an error
 //      ^ else assume system install and use bundled bindings
 //
 

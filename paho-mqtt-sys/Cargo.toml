@@ -16,14 +16,14 @@ This is part of the official Eclipse Paho Rust Client Library.
 #   "bundled" - Use/build the bundled Paho C library.
 #   "build_bindgen" - Use 'bindgen' to regenerate the bindings to the C library.
 #   "ssl" - Enable SSL features and link to the Paho C library that uses SSL.
-#   "vendored" - Compile and statically link to a copy of OpenSSL.
+#   "vendored-ssl" - Compile and statically link to a copy of OpenSSL.
 
 [features]
 default = ["bundled", "ssl"]
 bundled = ["cmake"]
 build_bindgen = ["bindgen"]
 ssl = ["openssl-sys"]
-vendored = ["openssl-sys/vendored"]
+vendored-ssl = ["bundled", "ssl", "openssl-sys/vendored"]
 
 [dependencies]
 openssl-sys = { version = "0.9", optional = true }
