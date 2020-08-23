@@ -90,14 +90,14 @@ pub struct UserPersistence {
     /// The underlying struct for the C library
     pub(crate) copts: ffi::MQTTClient_persistence,
     // The user-supplied persistence object
-    persistence: Box<Box<dyn ClientPersistence>>,
+    persistence: Box<Box<dyn ClientPersistence + Send>>,
 }
 
 impl UserPersistence
 {
     /// Creates a new user persistence object.
-    pub fn new(mut persistence: Box<Box<dyn ClientPersistence>>) -> UserPersistence {
-        let context = &mut *persistence as *mut Box<dyn ClientPersistence> as _;
+    pub fn new(mut persistence: Box<Box<dyn ClientPersistence + Send>>) -> UserPersistence {
+        let context = &mut *persistence as *mut Box<dyn ClientPersistence + Send> as _;
 
         UserPersistence {
             copts: ffi::MQTTClient_persistence {
