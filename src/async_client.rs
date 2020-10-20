@@ -218,7 +218,7 @@ impl AsyncClient {
         debug!("Connected! {:?}", context);
 
         if context.is_null() {
-            error!("Connection lost callback received a null context.");
+            error!("Connected callback received a null context.");
             return;
         }
 
@@ -236,9 +236,9 @@ impl AsyncClient {
 
     // Low-level callback from the C library when the connection is lost.
     // We pass the call on to the handler registered with the client, if any.
-    unsafe extern "C" fn on_connection_lost(context: *mut c_void,
-                                            _cause: *mut c_char) {
+    unsafe extern "C" fn on_connection_lost(context: *mut c_void, _cause: *mut c_char) {
         warn!("Connection lost. Context: {:?}", context);
+
         if context.is_null() {
             error!("Connection lost callback received a null context.");
             return;
@@ -269,7 +269,7 @@ impl AsyncClient {
         debug!("Disconnected on context {:?}, with reason code: {}", context, reason);
 
         if context.is_null() {
-            error!("Connection lost callback received a null context.");
+            error!("Disconnected callback received a null context.");
             return;
         }
 
@@ -297,7 +297,7 @@ impl AsyncClient {
                context, topic_name, topic_len, cmsg, *cmsg);
 
         if context.is_null() {
-            error!("Connection lost callback received a null context.");
+            error!("Message arrived callback received a null context.");
         }
         else {
             let cli = AsyncClient::from_raw(context);
