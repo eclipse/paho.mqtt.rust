@@ -633,7 +633,7 @@ impl AsyncClient {
     ///
     /// * `msg` The message to publish.
     ///
-    pub fn publish(&self, msg: Message) -> DeliveryToken {
+    pub fn publish(&self, msg: Message) -> Result<DeliveryToken> {
         debug!("Publish: {:?}", msg);
 
         let ver = self.mqtt_version();
@@ -648,13 +648,11 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
-            let msg: Message = tok.into();
-            DeliveryToken::from_error(msg, rc)
-        }
-        else {
+            warn!("Publish result: {}", rc);
+            Err(rc.into())
+        } else {
             tok.set_msgid(rsp_opts.copts.token as i16);
-            tok
+            Ok(tok)
         }
     }
 

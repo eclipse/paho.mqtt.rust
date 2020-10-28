@@ -23,6 +23,7 @@
 
 use crate::{
     async_client::AsyncClient,
+    errors::Result,
     token::{
         Token,
         DeliveryToken,
@@ -107,8 +108,9 @@ impl<'a> Topic<'a>
     ///
     /// `payload` The payload of the message
     ///
-    pub fn publish<V>(&self, payload: V) -> DeliveryToken
-        where V: Into<Vec<u8>>
+    pub fn publish<V>(&self, payload: V) -> Result<DeliveryToken>
+    where
+        V: Into<Vec<u8>>,
     {
         // OPTIMIZE: This could be more efficient.
         let msg = Message::new(self.topic.clone(), payload, self.qos);

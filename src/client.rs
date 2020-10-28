@@ -137,7 +137,7 @@ impl Client {
 
     /// Publishes a message to an MQTT broker
     pub fn publish(&self, msg: Message) -> Result<()> {
-        self.cli.publish(msg).wait_for(self.timeout)
+        self.cli.publish(msg)?.wait_for(self.timeout)
     }
 
     /// Subscribes to a single topic.
