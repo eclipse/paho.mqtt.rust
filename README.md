@@ -32,15 +32,9 @@ Supports Paho C v1.3.2
 
 ## Latest News
 
-Work has started to move the library to modern Rust, including:
+The code that had been sitting in GitHub for much of the year 2020 was finally released as v0.8.0. This added async/await (Futures 0.3) support, along with internal updates for the crate, and added some missing MQTT v5 support.
 
-- Upgrade to the 2018 Edition
-- Convert Tokens to implement std Future (i.e. Futures 0.3) and support async/await. 
-- Clean up and modernize the error type using _thiserror_ crate.
-
-That should hopefully be complete by late May 2020.
-
-The previous release, version 0.7.x brought support for MQTT v5.
+Work is starting right away to bump the library up to support for Paho C 1.3.7. This will bring in a number of new features including Websocket HTTP/S Proxy support, improved build capabilties including (hopefully) the automatic inclusion of openssl to make cross-compiling easier.
 
 To keep up with the latest announcements for this project, follow:
 
@@ -50,15 +44,15 @@ To keep up with the latest announcements for this project, follow:
 
 **Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
 
-### Unreleased Features and Updates in this Branch
+### What's new in v0.8.0
 
-- Upgraded crate to 2018 Edition 
 - Upgraded Tokens to implement Futures 0.3. (async/await compatible!)
-- Error type based on _thiserror_
+- std::Error type based on _thiserror_
 - Added some missing/forgotten MQTT v5 support:
     - Connect and Will properties in connect options
     - Reason code and properties in disconnect options
 - Ability to set additional HTTP headers in a Websocket opening handshake.
+- Added MQTT v5 topic alias capability with an example.
 - Examples using async/await
 - Removed old asynchronous (futures 0.1-style) examples
 - Message and option structs were reimplemented internally with pinned inner data structs.
@@ -66,31 +60,7 @@ To keep up with the latest announcements for this project, follow:
 - `SslOptions` using `Path` and `PathBuf` for file names in the API instead of `String`. 
 - The reason code returned from the server moved into the `ServerResponse` struct.
 - Added `ConnectResponse` as a struct instead of a tuple for the data returned in CONNACK.
-
-### What's new in v0.7
-
-Version 0.7 brings full support for MQTT v5, including:
-
-- Ability to create an MQTT v5 client and request a v5 connection to the server.
-- MQTT v5 `Properties` (for connect, publish, incoming messages, etc)
-- `ReasonCode` and better error notifications.
-- [Breaking] Restored the single `Token` type, getting rid of separate implementations of `ConnectToken`, `SubscribeToken`, etc.
-- Subscribe options, such as "No Local," etc.
-- `Topic` objects can now be used to subscribe.
-- New callback `on_disconnect()` for when the client receives a disconnect packet from the server, complete with a reason code and properties.
-- Example for a simple chat application _(mqttrs_chat)_ using the v5 "No Local" subscription option. The publisher does not get their own messages echoed back to them.
- - Examples for RPC using v5 _Properties_ for _ResponseTopic_ and _CorrelationData:_
-     - A math RPC service/server _(rpc_math_srvr)_ that performs basic operations on a list of numbers. 
-     - A math RPC client  _(rpc_math_cli)_ that can send requests.
-
-Also:
-
-- Fix for #48: Sends a _None_ (and exits consumer) on manual disconnect.
-- Fix for #49: Supporting `on_connect()` callback.
-- Fix for #51: Segfault on `subscribe_many()` with a single topic.
-- The build now uses the environment variable `OPENSSL_ROOT_DIR` to help find the SSL libraries in a non-standard install directory.
-
-Note that v0.7 still targets Futures v0.1 and Rust Edition 2015. Support for async/await, and std Future (0.3) will be coming shortly in v0.8.
+- Upgraded crate to 2018 Edition 
 
 ## Building the Crate
 

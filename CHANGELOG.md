@@ -3,6 +3,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.8.0](https://github.com/eclipse/paho.mqtt.rust/compare/v0.7.1..v0.8.0) - 2020-11-20
+
+- Upgraded Tokens to implement Futures 0.3. (async/await compatible!)
+- Error type based on _thiserror_
+- Added some missing/forgotten MQTT v5 support:
+    - Connect and Will properties in connect options
+    - Reason code and properties in disconnect options
+- Ability to set additional HTTP headers in a Websocket opening handshake.
+- Added MQTT v5 topic alias capability with an example.
+- Examples using async/await
+- Removed old asynchronous (futures 0.1-style) examples
+- Message and option structs were reimplemented internally with pinned inner data structs.
+- Removed `AsyncClientBuilder`. Use `CreateClientBuilder` instead, possibly with new `create_client()` function.
+- `SslOptions` using `Path` and `PathBuf` for file names in the API instead of `String`. 
+- The reason code returned from the server moved into the `ServerResponse` struct.
+- Added `ConnectResponse` as a struct instead of a tuple for the data returned in CONNACK.
+- Upgraded crate to 2018 Edition 
+
 ## [v0.7.1](https://github.com/eclipse/paho.mqtt.rust/compare/v0.7..v0.7.1) - 2020-04-28
 
 It turned out that the update to the -sys crate in v0.7 was a breaking change. This just bumps the version numbers to indicate that, so as not to break v0.6 builds via crates.io
