@@ -46,10 +46,14 @@ impl Default for MQTTAsync_createOptions {
     fn default() -> MQTTAsync_createOptions {
         MQTTAsync_createOptions {
             struct_id: [ b'M' as c_char, b'Q' as c_char, b'C' as c_char, b'O' as c_char],
-            struct_version: 1,
+            struct_version: 2,
             sendWhileDisconnected: 0,
             maxBufferedMessages: 100,
             MQTTVersion: MQTTVERSION_DEFAULT as c_int,
+            allowDisconnectedSendAtAnyTime: 0,
+            deleteOldestMessages: 0,
+            restoreMessages: 1,
+            persistQoS0: 1,
         }
     }
 }
@@ -131,7 +135,7 @@ impl Default for MQTTAsync_SSLOptions {
     fn default() -> MQTTAsync_SSLOptions {
         MQTTAsync_SSLOptions {
             struct_id: [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'S' as c_char ],
-            struct_version: 4,
+            struct_version: 5,
             trustStore: ptr::null(),
             keyStore: ptr::null(),
             privateKey: ptr::null(),
@@ -146,6 +150,8 @@ impl Default for MQTTAsync_SSLOptions {
             ssl_psk_cb: None,
             ssl_psk_context: ptr::null_mut(),
             disableDefaultTrustStore: 0,
+            protos: ptr::null(),
+            protos_len: 0,
         }
     }
 }
