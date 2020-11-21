@@ -1,4 +1,4 @@
-/target/
+target/
 **/*.rs.bk
 **/*.orig
 Cargo.lock
@@ -7,4 +7,3 @@ Cargo.lock
 /.hgignore
 /*.vp*
 /*.vtg
-

@@ -1,5 +1,5 @@
 // ssl_options.rs
-// 
+//
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 //
 
@@ -21,9 +21,10 @@
 
 use std::{
     io,
+    mem,
     ptr,
-    ffi::{CString},
-    os::raw::{c_char},
+    ffi::CString,
+    os::raw::{c_char, c_uchar, c_uint},
     pin::Pin,
     path::{Path, PathBuf},
 };
@@ -40,11 +41,11 @@ use crate::{
 // The C library seems to require the SSL Options struct to provide valid
 // strings for all the entries. Empty entries require a zero-length string
 // and should not be left as NULL. Therefore, out ffi::MQTTAsync_SSLOptions
-// struct needs to be fixed up to always point to the cached CString 
+// struct needs to be fixed up to always point to the cached CString
 // values.
-// Caching the CStrings in the struct with the fixed-up pointers in the 
+// Caching the CStrings in the struct with the fixed-up pointers in the
 // underlying C struct.
-// 
+//
 
 /// The options for SSL socket connections to the broker.
 #[derive(Debug)]
@@ -230,8 +231,8 @@ impl SslOptionsBuilder {
     ///
     /// For a full explanation of the cipher list format, please see the
     /// OpenSSL on-line documentation:
-	/// http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
-	///
+    /// http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
+    ///
     /// If this setting is ommitted, its default value will be "ALL", that is,
     /// all the cipher suites -excluding those offering no encryption- will
     /// be considered.
@@ -283,6 +284,25 @@ impl SslOptionsBuilder {
         self
     }
 
+    /// If set, only these protocols are used during negotiation.
+    pub fn protos(&mut self, protos: Vec<&str>) -> &mut Self {
+        let protos: Vec<c_uchar> = protos
+            .iter()
+            .map(|p| {
+                let mut p: Vec<c_uchar> = p.bytes().map(|c| c as c_uchar).collect();
+                p.insert(0, p.len() as c_uchar);
+                p
+            })
+            .flatten()
+            .collect();
+
+        self.copts.protos = protos.as_ptr();
+        self.copts.protos_len = protos.len() as c_uint;
+
+        mem::forget(protos);
+        self
+    }
+
     /// Create the SSL options from the builder.
     pub fn finalize(&self) -> SslOptions {
         SslOptions::from_data(
@@ -299,7 +319,7 @@ impl SslOptionsBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ffi::{CStr};
+    use std::ffi::CStr;
 
     // Identifier for the C SSL options structure
     const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'S' as c_char ];
@@ -360,6 +380,34 @@ mod tests {
         let opts = SslOptionsBuilder::new()
             .disable_default_trust_store(true).finalize();
         assert!(from_c_bool(opts.copts.disableDefaultTrustStore));
+    }
+
+    #[test]
+    fn test_protos() {
+        let opts = SslOptionsBuilder::new()
+            .protos(vec!["spdy/1", "http/1.1"]).finalize();
+
+        assert_eq!(
+            vec![
+                6 as c_uchar,
+                b's' as c_uchar,
+                b'p' as c_uchar,
+                b'd' as c_uchar,
+                b'y' as c_uchar,
+                b'/' as c_uchar,
+                b'1' as c_uchar,
+                8 as c_uchar,
+                b'h' as c_uchar,
+                b't' as c_uchar,
+                b't' as c_uchar,
+                b'p' as c_uchar,
+                b'/' as c_uchar,
+                b'1' as c_uchar,
+                b'.' as c_uchar,
+                b'1' as c_uchar
+            ],
+            unsafe { std::slice::from_raw_parts(opts.protos, opts.protos_len as usize) }
+        );
     }
 
     // TODO: Test the other builder initializers
