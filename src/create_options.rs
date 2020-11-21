@@ -336,7 +336,7 @@ mod tests {
     use std::os::raw::c_char;
 
     // The currently supported MQTTAsync_createOptions::struct_version
-    const STRUCT_VER: c_int = 1;
+    const STRUCT_VER: c_int = 2;
 
     // The identifier for the create options structure
     const STRUCT_ID: [c_char; 4] = [

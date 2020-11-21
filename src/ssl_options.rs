@@ -21,7 +21,6 @@
 
 use std::{
     io,
-    mem,
     ptr,
     ffi::CString,
     os::raw::{c_char, c_uchar, c_uint},
@@ -68,6 +67,8 @@ struct SslOptionsData {
     enabled_cipher_suites: CString,
     // The path to the CA certificates, if specified.
     ca_path: CString,
+    // The list of ALPN protocols available to be negotiated.
+    protos: Vec<c_uchar>,
 }
 
 /// The SSL/TLS versions that can be requested.
@@ -92,15 +93,39 @@ impl SslOptions {
         if str.to_bytes().len() == 0 { ptr::null() } else { str.as_ptr() }
     }
 
+    // Converts the list of ALPN protocol strings into the wire format for
+    // openssl.
+    //
+    // The wire format is a single array of non-empty byte string, with a
+    // length byte prefix for each. It's described here:
+    // https://www.openssl.org/docs/man1.1.0/man3/SSL_CTX_set_alpn_protos.html
+    fn proto_vec(protos: &[&str]) -> Vec<c_uchar> {
+        let protos: Vec<c_uchar> = protos
+            .iter()
+            .map(|p| {
+                let mut p: Vec<c_uchar> = p.bytes().map(|c| c as c_uchar).collect();
+                p.insert(0, p.len() as c_uchar);
+                p
+            })
+            .flatten()
+            .collect();
+        protos
+    }
+
     // Updates the underlying C structure to match the cached strings.
     fn from_data(mut copts: ffi::MQTTAsync_SSLOptions, data: SslOptionsData) -> Self {
         let data = Box::pin(data);
+
         copts.trustStore = Self::c_str(&data.trust_store);
         copts.keyStore = Self::c_str(&data.key_store);
         copts.privateKey = Self::c_str(&data.private_key);
         copts.privateKeyPassword = Self::c_str(&data.private_key_password);
         copts.enabledCipherSuites = Self::c_str(&data.enabled_cipher_suites);
         copts.CApath = Self::c_str(&data.ca_path);
+
+        copts.protos = if data.protos.is_empty() { ptr::null() } else { data.protos.as_ptr() };
+        copts.protos_len = data.protos.len() as c_uint;
+
         Self { copts, data }
     }
 
@@ -137,6 +162,11 @@ impl SslOptions {
     /// if set.
     pub fn ca_path(&self) -> PathBuf {
         PathBuf::from(&self.data.ca_path.to_str().unwrap())
+    }
+
+    /// Gets the list of ALPN protocols available to be negotiated.
+    pub fn alpn_proto_vec(&self) -> &[c_uchar] {
+        &self.data.protos
     }
 }
 
@@ -285,21 +315,8 @@ impl SslOptionsBuilder {
     }
 
     /// If set, only these protocols are used during negotiation.
-    pub fn protos(&mut self, protos: Vec<&str>) -> &mut Self {
-        let protos: Vec<c_uchar> = protos
-            .iter()
-            .map(|p| {
-                let mut p: Vec<c_uchar> = p.bytes().map(|c| c as c_uchar).collect();
-                p.insert(0, p.len() as c_uchar);
-                p
-            })
-            .flatten()
-            .collect();
-
-        self.copts.protos = protos.as_ptr();
-        self.copts.protos_len = protos.len() as c_uint;
-
-        mem::forget(protos);
+    pub fn alpn_protos(&mut self, protos: &[&str]) -> &mut Self {
+        self.data.protos = SslOptions::proto_vec(protos);
         self
     }
 
@@ -322,7 +339,15 @@ mod tests {
     use std::ffi::CStr;
 
     // Identifier for the C SSL options structure
-    const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'S' as c_char ];
+    const STRUCT_ID: [c_char; 4] = [
+        b'M' as c_char,
+        b'Q' as c_char,
+        b'T' as c_char,
+        b'S' as c_char
+    ];
+
+    // The currently supported SSL struct version
+    const STRUCT_VERSION: i32 = 5;
 
     #[test]
     fn test_new() {
@@ -330,7 +355,7 @@ mod tests {
         //let copts = ffi::MQTTAsync_SSLOptions::default();
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
-        assert_eq!(4, opts.copts.struct_version);
+        assert_eq!(STRUCT_VERSION, opts.copts.struct_version);
         assert!(opts.copts.trustStore.is_null());
         // TODO: Check the other strings
     }
@@ -340,7 +365,7 @@ mod tests {
         let opts = SslOptionsBuilder::new().finalize();
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
-        assert_eq!(4, opts.copts.struct_version);
+        assert_eq!(STRUCT_VERSION, opts.copts.struct_version);
         assert_eq!(ptr::null(), opts.copts.trustStore);
         // TODO: Check the other strings
     }
@@ -384,30 +409,35 @@ mod tests {
 
     #[test]
     fn test_protos() {
-        let opts = SslOptionsBuilder::new()
-            .protos(vec!["spdy/1", "http/1.1"]).finalize();
+        let protos = &["spdy/1", "http/1.1"];
 
-        assert_eq!(
-            vec![
-                6 as c_uchar,
-                b's' as c_uchar,
-                b'p' as c_uchar,
-                b'd' as c_uchar,
-                b'y' as c_uchar,
-                b'/' as c_uchar,
-                b'1' as c_uchar,
-                8 as c_uchar,
-                b'h' as c_uchar,
-                b't' as c_uchar,
-                b't' as c_uchar,
-                b'p' as c_uchar,
-                b'/' as c_uchar,
-                b'1' as c_uchar,
-                b'.' as c_uchar,
-                b'1' as c_uchar
-            ],
-            unsafe { std::slice::from_raw_parts(opts.protos, opts.protos_len as usize) }
-        );
+        let v = vec![
+            6 as c_uchar,
+            b's' as c_uchar,
+            b'p' as c_uchar,
+            b'd' as c_uchar,
+            b'y' as c_uchar,
+            b'/' as c_uchar,
+            b'1' as c_uchar,
+
+            8 as c_uchar,
+            b'h' as c_uchar,
+            b't' as c_uchar,
+            b't' as c_uchar,
+            b'p' as c_uchar,
+            b'/' as c_uchar,
+            b'1' as c_uchar,
+            b'.' as c_uchar,
+            b'1' as c_uchar
+        ];
+
+        assert_eq!(v, SslOptions::proto_vec(protos));
+
+        let opts = SslOptionsBuilder::new()
+            .alpn_protos(protos)
+            .finalize();
+
+        assert_eq!(v, opts.alpn_proto_vec());
     }
 
     // TODO: Test the other builder initializers
