@@ -13,6 +13,13 @@ The Official Eclipse Paho MQTT Rust Client Library.
 This is a wrapper around the Paho C library.
 """
 
+[features]
+default = ["bundled", "ssl"]
+bundled = ["paho-mqtt-sys/bundled"]
+build_bindgen = ["paho-mqtt-sys/build_bindgen"]
+ssl = ["paho-mqtt-sys/ssl"]
+vendored-ssl = ["paho-mqtt-sys/vendored-ssl"]
+
 [dependencies]
 paho-mqtt-sys = { version = "0.4", path = "paho-mqtt-sys", default-features=false }
 libc = "0.2"
@@ -33,8 +40,3 @@ futures-util = "0.3"
 async-std = "1"
 clap = "2.33"
 
-[features]
-default = ["bundled", "ssl"]
-bundled = ["paho-mqtt-sys/bundled"]
-build_bindgen = ["paho-mqtt-sys/build_bindgen"]
-ssl = ["paho-mqtt-sys/ssl"]
