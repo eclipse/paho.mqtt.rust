@@ -165,6 +165,7 @@ impl SslOptions {
     }
 
     /// Gets the list of ALPN protocols available to be negotiated.
+    /// This is in the wire format of the data.
     pub fn alpn_proto_vec(&self) -> &[c_uchar] {
         &self.data.protos
     }

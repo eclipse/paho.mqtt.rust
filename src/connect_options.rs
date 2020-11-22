@@ -77,6 +77,8 @@ struct ConnectOptionsData {
     props: Option<Properties>,
     will_props: Option<Properties>,
     http_headers: Option<NameValueCollection>,
+    http_proxy: Option<CString>,
+    https_proxy: Option<CString>,
 }
 
 impl ConnectOptions {
@@ -146,6 +148,16 @@ impl ConnectOptions {
         copts.httpHeaders = match data.http_headers {
             Some(ref mut http_headers) => http_headers.as_c_arr_ptr(),
             _ => ptr::null()
+        };
+
+        copts.httpProxy = match data.http_proxy {
+            Some(ref proxy) => proxy.as_ptr(),
+            _ => ptr::null(),
+        };
+
+        copts.httpsProxy = match data.https_proxy {
+            Some(ref proxy) => proxy.as_ptr(),
+            _ => ptr::null(),
         };
 
         Self { copts, data }
@@ -440,6 +452,34 @@ impl ConnectOptionsBuilder {
         self
     }
 
+    /// Sets an HTTP proxy for websockets.
+    ///
+    /// # Arguments
+    ///
+    /// `proxy` The HTTP proxy
+    ///
+    pub fn http_proxy<S>(&mut self, proxy: S) -> &mut Self
+        where S: Into<String>
+    {
+        let proxy = CString::new(proxy.into()).unwrap();
+        self.data.http_proxy = Some(proxy);
+        self
+    }
+
+    /// Sets a secure HTTPS proxy for websockets.
+    ///
+    /// # Arguments
+    ///
+    /// `proxy` The HTTPS proxy
+    ///
+    pub fn https_proxy<S>(&mut self, proxy: S) -> &mut Self
+        where S: Into<String>
+    {
+        let proxy = CString::new(proxy.into()).unwrap();
+        self.data.https_proxy = Some(proxy);
+        self
+    }
+
     /// Finalize the builder to create the connect options.
     pub fn finalize(&self) -> ConnectOptions {
         ConnectOptions::from_data(
@@ -595,6 +635,52 @@ mod tests {
         let opts = ConnectOptionsBuilder::new().mqtt_version(VER).finalize();
         assert_eq!(VER as i32, opts.copts.MQTTVersion);
     }
+
+    // Test that we can set each of the HTTP and HTTPS proxy values, but also
+    // make sure we don't mist them up with cut-and-paste errors.
+    #[test]
+    fn test_proxies() {
+        const HTTP: &str  = "http://some_server:80";
+        const HTTPS: &str = "https://some_other_server:443";
+
+        let opts = ConnectOptionsBuilder::new()
+                        .http_proxy(HTTP).finalize();
+
+        assert!(!opts.copts.httpProxy.is_null());
+        assert!(opts.copts.httpsProxy.is_null());
+
+        assert!(opts.data.https_proxy.is_none());
+
+        if let Some(ref proxy) = opts.data.http_proxy {
+            assert_eq!(HTTP, proxy.to_str().unwrap());
+
+            let s = unsafe { CStr::from_ptr(opts.copts.httpProxy) };
+            assert_eq!(HTTP, s.to_str().unwrap());
+        }
+        else {
+            assert!(false);
+        };
+
+
+        let opts = ConnectOptionsBuilder::new()
+                        .https_proxy(HTTPS).finalize();
+
+        assert!(!opts.copts.httpsProxy.is_null());
+        assert!(opts.copts.httpProxy.is_null());
+
+        assert!(opts.data.http_proxy.is_none());
+
+        if let Some(ref proxy) = opts.data.https_proxy {
+            assert_eq!(HTTPS, proxy.to_str().unwrap());
+
+            let s = unsafe { CStr::from_ptr(opts.copts.httpsProxy) };
+            assert_eq!(HTTPS, s.to_str().unwrap());
+        }
+        else {
+            assert!(false);
+        };
+    }
+
 
     #[test]
     fn test_assign() {
