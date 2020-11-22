@@ -21,13 +21,6 @@
 //! Last Will and Testament (LWT) options for the Paho MQTT Rust client library.
 //!
 
-// TODO: We probably don't need the will options... at least not for the
-// public API. This is simply a message. So the public API could be:
-//
-//   let lwt = Message::new(...);
-//   let opts = ConnectOptionsBuilder::new().will_message(lwt).finalize();
-//
-
 use std::{
     ptr,
     os::raw::c_void,
@@ -60,8 +53,11 @@ use crate::{
 ///
 #[derive(Debug)]
 pub struct WillOptions {
+    /// The underlying C options struct
     pub(crate) copts: ffi::MQTTAsync_willOptions,
+    /// The local data cache for the C options
     data: Pin<Box<MessageData>>,
+    /// The will properties
     props: Properties,
 }
 
@@ -129,7 +125,7 @@ impl WillOptions {
     }
 
     /// Gets the topic string for the LWT
-    fn topic(&self) -> &str {
+    pub fn topic(&self) -> &str {
         self.data.topic.to_str().unwrap()
     }
 

@@ -47,6 +47,7 @@ pub use crate::response_options::*;    //{ResponseOptions};
 pub use crate::server_response::*;     //{ServerResponse, CommandResponse};
 pub use crate::properties::*;          //{Property, Properties};
 pub use crate::message::*;             //{Message, MessageBuilder};
+pub use crate::name_value::*;          //{NameValueCollection};
 pub use crate::token::*;               //{Token}
 pub use crate::topic::*;               //{Topic}
 pub use crate::reason_code::*;         //{ReasonCode}

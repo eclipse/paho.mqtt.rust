@@ -829,7 +829,7 @@ impl Properties {
     }
 
     /// Removes all the items from the property list.
-    fn clear(&mut self) {
+    pub fn clear(&mut self) {
         unsafe { ffi::MQTTProperties_free(&mut self.cprops) };
         self.cprops = ffi::MQTTProperties::default();
     }
