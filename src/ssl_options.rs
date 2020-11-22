@@ -347,7 +347,7 @@ mod tests {
     ];
 
     // The currently supported SSL struct version
-    const STRUCT_VERSION: i32 = 5;
+    const STRUCT_VERSION: i32 = ffi::SSL_OPTIONS_STRUCT_VERSION;
 
     #[test]
     fn test_new() {

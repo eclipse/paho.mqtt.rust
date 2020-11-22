@@ -55,7 +55,7 @@ use std::path::{Path, PathBuf};
 // TODO: Assuming the proper installed version of the library is problematic.
 //      We should check that the version is correct, if possible.
 
-const PAHO_MQTT_C_VERSION: &str = "1.3.6";
+const PAHO_MQTT_C_VERSION: &str = "1.3.7";
 
 fn main() {
     build::main();

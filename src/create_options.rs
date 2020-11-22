@@ -55,9 +55,7 @@ impl fmt::Debug for PersistenceType {
 }
 
 impl Default for PersistenceType {
-    fn default() -> Self {
-        PersistenceType::File
-    }
+    fn default() -> Self { PersistenceType::None }
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -90,51 +88,46 @@ impl CreateOptions {
 
 impl<'a> From<&'a str> for CreateOptions {
     fn from(server_uri: &'a str) -> Self {
-        let mut opts = CreateOptions::default();
-        opts.server_uri = server_uri.to_string();
-        opts
+        Self {
+            server_uri: server_uri.to_string(),
+            ..Self::default()
+        }
     }
 }
 
 impl From<String> for CreateOptions {
     fn from(server_uri: String) -> Self {
-        let mut opts = CreateOptions::default();
-        opts.server_uri = server_uri;
-        opts
+        Self {
+            server_uri,
+            ..Self::default()
+        }
     }
 }
 
 impl<'a, 'b> From<(&'a str, &'b str)> for CreateOptions {
+    /// Constructs the create options from two string reference giving the server URI
+    /// and Client ID.
     fn from((server_uri, client_id): (&'a str, &'b str)) -> Self {
-        let mut opts = CreateOptions::default();
-        opts.server_uri = server_uri.to_string();
+        let mut opts = Self::from(server_uri);
         opts.client_id = client_id.to_string();
+        if !opts.client_id.is_empty() {
+            opts.persistence = PersistenceType::File;
+        }
         opts
     }
 }
 
 impl From<(String, String)> for CreateOptions {
+    /// Constructs the create options from two strings giving the server URI
+    /// and Client ID.
     fn from((server_uri, client_id): (String, String)) -> Self {
-        let mut opts = CreateOptions::default();
-        opts.server_uri = server_uri;
-        opts.client_id = client_id;
+        let mut opts = Self { server_uri, client_id, ..Self::default() };
+        if !opts.client_id.is_empty() {
+            opts.persistence = PersistenceType::File;
+        }
         opts
     }
 }
-
-/*
-impl Default for CreateOptions {
-    /// Constructs a set of CreatieOptions with reasonable defaults.
-    fn default() -> CreateOptions {
-        CreateOptions {
-            copts: ffi::MQTTAsync_createOptions::default(),
-            server_uri: "".to_string(),
-            client_id: "".to_string(),
-            persistence: PersistenceType::File,
-        }
-    }
-}
-*/
 
 /////////////////////////////////////////////////////////////////////////////
 //                                Builder
@@ -167,7 +160,10 @@ pub struct CreateOptionsBuilder {
 impl CreateOptionsBuilder {
     /// Constructs a builder with default options.
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            persistence: PersistenceType::File,
+            ..Self::default()
+        }
     }
 
     /// Sets the the URI to the MQTT broker.
@@ -311,13 +307,19 @@ impl CreateOptionsBuilder {
 
     /// Constructs a set of create options from the builder information.
     pub fn finalize(self) -> CreateOptions {
-        CreateOptions {
+        let mut opts = CreateOptions {
             copts: self.copts,
             server_uri: self.server_uri,
             client_id: self.client_id,
             persistence: self.persistence,
             user_data: self.user_data,
+        };
+        match opts.persistence {
+            PersistenceType::File if opts.client_id.is_empty() =>
+                opts.persistence = PersistenceType::None,
+            _ => (),
         }
+        opts
     }
 
     /// Finalize the builder and create an asynchronous client.
@@ -335,9 +337,6 @@ mod tests {
     use super::*;
     use std::os::raw::c_char;
 
-    // The currently supported MQTTAsync_createOptions::struct_version
-    const STRUCT_VER: c_int = 2;
-
     // The identifier for the create options structure
     const STRUCT_ID: [c_char; 4] = [
         b'M' as c_char,
@@ -345,6 +344,9 @@ mod tests {
         b'C' as c_char,
         b'O' as c_char,
     ];
+
+    // The currently supported create struct version
+    const STRUCT_VERSION: i32 = ffi::CREATE_OPTIONS_STRUCT_VERSION;
 
     // Rust options should be the same as the C options
     #[test]
@@ -355,7 +357,7 @@ mod tests {
 
         // First, make sure C options valid
         assert_eq!(STRUCT_ID, copts.struct_id);
-        assert_eq!(STRUCT_VER, copts.struct_version);
+        assert_eq!(STRUCT_VERSION, copts.struct_version);
 
         assert_eq!(copts.struct_id, opts.copts.struct_id);
         assert_eq!(copts.struct_version, opts.copts.struct_version);
@@ -367,7 +369,11 @@ mod tests {
 
         assert_eq!("", &opts.server_uri);
         assert_eq!("", &opts.client_id);
-        //assert_eq!(PersistenceType::default(), opts.persistence);
+
+        match opts.persistence {
+            PersistenceType::None => (),
+            _ => assert!(false),
+        }
     }
 
     #[test]
@@ -378,7 +384,7 @@ mod tests {
         let copts = ffi::MQTTAsync_createOptions::default();
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
-        assert_eq!(STRUCT_VER, opts.copts.struct_version);
+        assert_eq!(STRUCT_VERSION, opts.copts.struct_version);
         assert_eq!(
             copts.sendWhileDisconnected,
             opts.copts.sendWhileDisconnected
@@ -399,7 +405,7 @@ mod tests {
         let copts = ffi::MQTTAsync_createOptions::default();
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
-        assert_eq!(STRUCT_VER, opts.copts.struct_version);
+        assert_eq!(STRUCT_VERSION, opts.copts.struct_version);
         assert_eq!(
             copts.sendWhileDisconnected,
             opts.copts.sendWhileDisconnected
@@ -418,7 +424,7 @@ mod tests {
 
         // First, make sure C options valid
         assert_eq!(STRUCT_ID, copts.struct_id);
-        assert_eq!(STRUCT_VER, copts.struct_version);
+        assert_eq!(STRUCT_VERSION, copts.struct_version);
 
         assert_eq!(copts.struct_id, opts.copts.struct_id);
         assert_eq!(copts.struct_version, opts.copts.struct_version);
@@ -447,7 +453,7 @@ mod tests {
             .finalize();
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
-        assert_eq!(STRUCT_VER, opts.copts.struct_version);
+        assert_eq!(STRUCT_VERSION, opts.copts.struct_version);
 
         assert_eq!(HOST, &opts.server_uri);
         assert_eq!(ID, &opts.client_id);
