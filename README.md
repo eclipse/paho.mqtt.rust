@@ -47,6 +47,7 @@ To keep up with the latest announcements for this project, follow:
 ### Unreleaed Features in this Branch
 
 - Started updating bindings to Paho C v1.3.7
+- Websocket HTTP/HTTPS proxy support
 - [Breaking] Persistence defaults to `None` if no Client ID specified in creation. 
 
 ### What's new in v0.8.0
