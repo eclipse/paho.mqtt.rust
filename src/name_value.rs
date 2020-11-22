@@ -28,6 +28,7 @@
 use std::{
     ffi::CString,
     pin::Pin,
+    collections::hash_map::HashMap,
 };
 
 /// The name/value pointer pair from the C library.
@@ -78,9 +79,9 @@ impl NameValueCollection
               V: AsRef<str>
     {
         coll.iter()
-            .map(|p| (
-                CString::new(p.0.as_ref()).unwrap(),
-                CString::new(p.1.as_ref()).unwrap()
+            .map(|(n,v)| (
+                CString::new(n.as_ref()).unwrap(),
+                CString::new(v.as_ref()).unwrap()
             ))
             .collect()
     }
@@ -137,6 +138,19 @@ impl Clone for NameValueCollection
 {
     fn clone(&self) -> Self {
         Self::from_data((&*self.data).clone())
+    }
+}
+
+impl From<HashMap<&str,&str>> for NameValueCollection
+{
+    fn from(hmap: HashMap<&str,&str>) -> Self {
+        let v: Vec<(CString, CString)> = hmap.into_iter()
+            .map(|(n,v)| (
+                CString::new(n).unwrap(),
+                CString::new(v).unwrap()
+            ))
+            .collect();
+        Self::from_data(NameValueData { coll: v })
     }
 }
 
@@ -217,6 +231,45 @@ mod tests {
 
         assert_eq!(sc.data.coll[2].0.as_ptr(), sc.c_coll[2].name);
         assert_eq!(sc.data.coll[2].1.as_ptr(), sc.c_coll[2].value);
+    }
+
+    #[test]
+    fn test_from_hashmap_str() {
+        let mut hmap = HashMap::new();
+        hmap.insert("name0", "val0");
+        hmap.insert("name1", "val1");
+        hmap.insert("name2", "val2");
+
+        let n = hmap.len();
+
+        let sc: NameValueCollection = hmap.into();
+        println!("From HashMap: {:?}", sc);
+
+        assert_eq!(n, sc.len());
+        assert_eq!(n+1, sc.c_coll.len());
+        assert_eq!(n, sc.data.coll.len());
+
+        // TODO: Check the entries, remembering they may be in any order.
+
+        /*
+        assert_eq!(v[0].0.as_bytes(), sc.data.coll[0].0.as_bytes());
+        assert_eq!(v[0].1.as_bytes(), sc.data.coll[0].1.as_bytes());
+
+        assert_eq!(v[1].0.as_bytes(), sc.data.coll[1].0.as_bytes());
+        assert_eq!(v[1].1.as_bytes(), sc.data.coll[1].1.as_bytes());
+
+        assert_eq!(v[2].0.as_bytes(), sc.data.coll[2].0.as_bytes());
+        assert_eq!(v[2].1.as_bytes(), sc.data.coll[2].1.as_bytes());
+
+        assert_eq!(sc.data.coll[0].0.as_ptr(), sc.c_coll[0].name);
+        assert_eq!(sc.data.coll[0].1.as_ptr(), sc.c_coll[0].value);
+
+        assert_eq!(sc.data.coll[1].0.as_ptr(), sc.c_coll[1].name);
+        assert_eq!(sc.data.coll[1].1.as_ptr(), sc.c_coll[1].value);
+
+        assert_eq!(sc.data.coll[2].0.as_ptr(), sc.c_coll[2].name);
+        assert_eq!(sc.data.coll[2].1.as_ptr(), sc.c_coll[2].value);
+        */
     }
 
     #[test]
