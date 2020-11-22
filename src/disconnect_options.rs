@@ -172,7 +172,7 @@ mod tests {
     use super::*;
     use std::{
         thread,
-        os::raw::{c_char, c_int},
+        os::raw::c_char,
     };
     use crate::{
         reason_code::NormalDisconnection,
@@ -180,8 +180,14 @@ mod tests {
     };
 
     // Identifier fo a C disconnect options struct
-    const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'D' as c_char ];
-    const STRUCT_VERSION: c_int = 1;
+    const STRUCT_ID: [c_char; 4] = [
+        b'M' as c_char,
+        b'Q' as c_char,
+        b'T' as c_char,
+        b'D' as c_char
+    ];
+
+    const STRUCT_VERSION: i32 = ffi::DISCONNECT_OPTIONS_STRUCT_VERSION;
 
     #[test]
     fn test_new() {

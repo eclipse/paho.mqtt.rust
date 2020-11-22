@@ -333,11 +333,19 @@ impl MessageBuilder
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread;
-    use std::os::raw::{c_char, c_int};
+    use std::{
+        thread,
+        os::raw::c_char,
+    };
 
-    const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'M' as c_char ];
-    const STRUCT_VER: c_int = 1;
+    const STRUCT_ID: [c_char; 4] = [
+        b'M' as c_char,
+        b'Q' as c_char,
+        b'T' as c_char,
+        b'M' as c_char
+    ];
+
+    const STRUCT_VERSION: i32 = ffi::MESSAGE_STRUCT_VERSION;
 
     // These should differ from defaults
     const TOPIC: &str = "test";
@@ -355,7 +363,7 @@ mod tests {
         let msg = Message::new(TOPIC, PAYLOAD, QOS);
 
         assert_eq!(STRUCT_ID, msg.cmsg.struct_id);
-        assert_eq!(STRUCT_VER, msg.cmsg.struct_version);
+        assert_eq!(STRUCT_VERSION, msg.cmsg.struct_version);
 
         assert_eq!(TOPIC, msg.data.topic.to_str().unwrap());
         assert_eq!(PAYLOAD, msg.data.payload.as_slice());
@@ -400,7 +408,7 @@ mod tests {
         let cmsg = ffi::MQTTAsync_message::default();
 
         assert_eq!(STRUCT_ID, cmsg.struct_id);
-        assert_eq!(STRUCT_VER, cmsg.struct_version);
+        assert_eq!(STRUCT_VERSION, cmsg.struct_version);
 
         assert_eq!(cmsg.struct_id, msg.cmsg.struct_id);
         assert_eq!(cmsg.struct_version, msg.cmsg.struct_version);

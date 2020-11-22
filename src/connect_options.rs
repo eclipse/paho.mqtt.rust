@@ -469,14 +469,22 @@ mod tests {
     use super::*;
 
     // Identifier fo a C connect options struct
-    const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'C' as c_char ];
+    const STRUCT_ID: [c_char; 4] = [
+        b'M' as c_char,
+        b'Q' as c_char,
+        b'T' as c_char,
+        b'C' as c_char
+    ];
+
+    // The currently supported connect struct version
+    const STRUCT_VERSION: i32 = ffi::CONNECT_OPTIONS_STRUCT_VERSION;
 
     #[test]
     fn test_new() {
         let opts = ConnectOptions::new();
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
-        assert_eq!(7, opts.copts.struct_version);
+        assert_eq!(STRUCT_VERSION, opts.copts.struct_version);
         assert!(opts.copts.will.is_null());
 
         assert!(opts.copts.username.is_null());

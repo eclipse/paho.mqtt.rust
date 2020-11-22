@@ -335,9 +335,6 @@ mod tests {
     use super::*;
     use std::os::raw::c_char;
 
-    // The currently supported MQTTAsync_createOptions::struct_version
-    const STRUCT_VER: c_int = 1;
-
     // The identifier for the create options structure
     const STRUCT_ID: [c_char; 4] = [
         b'M' as c_char,
@@ -345,6 +342,9 @@ mod tests {
         b'C' as c_char,
         b'O' as c_char,
     ];
+
+    // The currently supported create struct version
+    const STRUCT_VERSION: i32 = ffi::CREATE_OPTIONS_STRUCT_VERSION;
 
     // Rust options should be the same as the C options
     #[test]
@@ -355,7 +355,7 @@ mod tests {
 
         // First, make sure C options valid
         assert_eq!(STRUCT_ID, copts.struct_id);
-        assert_eq!(STRUCT_VER, copts.struct_version);
+        assert_eq!(STRUCT_VERSION, copts.struct_version);
 
         assert_eq!(copts.struct_id, opts.copts.struct_id);
         assert_eq!(copts.struct_version, opts.copts.struct_version);
@@ -378,7 +378,7 @@ mod tests {
         let copts = ffi::MQTTAsync_createOptions::default();
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
-        assert_eq!(STRUCT_VER, opts.copts.struct_version);
+        assert_eq!(STRUCT_VERSION, opts.copts.struct_version);
         assert_eq!(
             copts.sendWhileDisconnected,
             opts.copts.sendWhileDisconnected
@@ -399,7 +399,7 @@ mod tests {
         let copts = ffi::MQTTAsync_createOptions::default();
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
-        assert_eq!(STRUCT_VER, opts.copts.struct_version);
+        assert_eq!(STRUCT_VERSION, opts.copts.struct_version);
         assert_eq!(
             copts.sendWhileDisconnected,
             opts.copts.sendWhileDisconnected
@@ -418,7 +418,7 @@ mod tests {
 
         // First, make sure C options valid
         assert_eq!(STRUCT_ID, copts.struct_id);
-        assert_eq!(STRUCT_VER, copts.struct_version);
+        assert_eq!(STRUCT_VERSION, copts.struct_version);
 
         assert_eq!(copts.struct_id, opts.copts.struct_id);
         assert_eq!(copts.struct_version, opts.copts.struct_version);
@@ -447,7 +447,7 @@ mod tests {
             .finalize();
 
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
-        assert_eq!(STRUCT_VER, opts.copts.struct_version);
+        assert_eq!(STRUCT_VERSION, opts.copts.struct_version);
 
         assert_eq!(HOST, &opts.server_uri);
         assert_eq!(ID, &opts.client_id);
