@@ -139,6 +139,9 @@ mod tests {
     use crate::token::{Token};
     use crate::types::*;
 
+    // The currently supported response options struct version
+    const STRUCT_VERSION: i32 = ffi::RESPONSE_OPTIONS_STRUCT_VERSION;
+
     #[test]
     fn test_new_v3() {
         let tok = Token::new();

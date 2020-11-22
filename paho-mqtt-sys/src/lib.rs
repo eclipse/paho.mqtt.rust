@@ -42,6 +42,7 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 /////////////////////////////////////////////////////////////////////////////
 // Client creation
 
+/// The currently supported version of the C create options struct.
 pub const CREATE_OPTIONS_STRUCT_VERSION: i32 = 2;
 
 impl Default for MQTTAsync_createOptions {
@@ -76,6 +77,7 @@ impl MQTTAsync_createOptions {
 // The application must specifically set the version to 5 for MQTT v5, and
 // disable clean sessions (at a minimum).
 
+/// The currently supported version of the C connect options struct.
 pub const CONNECT_OPTIONS_STRUCT_VERSION: i32 = 8;
 
 impl Default for MQTTAsync_connectOptions {
@@ -120,6 +122,7 @@ impl Default for MQTTAsync_connectOptions {
 /////////////////////////////////////////////////////////////////////////////
 // Options
 
+/// The currently supported version of the C will options struct.
 pub const WILL_OPTIONS_STRUCT_VERSION: i32 = 1;
 
 impl Default for MQTTAsync_willOptions {
@@ -139,7 +142,7 @@ impl Default for MQTTAsync_willOptions {
     }
 }
 
-
+/// The currently supported version of the C SSL options struct.
 pub const SSL_OPTIONS_STRUCT_VERSION: i32 = 5;
 
 impl Default for MQTTAsync_SSLOptions {
@@ -167,12 +170,15 @@ impl Default for MQTTAsync_SSLOptions {
     }
 }
 
+/// The currently supported version of the C subscribe options struct.
+pub const SUBSCRIBE_OPTIONS_STRUCT_VERSION: i32 = 0;
+
 // New for MQTT v5
 impl Default for MQTTSubscribe_options {
     fn default() -> MQTTSubscribe_options {
         MQTTSubscribe_options {
             struct_id: [ b'M' as c_char, b'Q' as c_char, b'S' as c_char, b'O' as c_char ],
-            struct_version: 0,
+            struct_version: SUBSCRIBE_OPTIONS_STRUCT_VERSION,
             noLocal: 0,
             retainAsPublished: 0,
             retainHandling: 0,
@@ -180,12 +186,14 @@ impl Default for MQTTSubscribe_options {
     }
 }
 
+/// The currently suppoted version of the C response options struct.
+pub const RESPONSE_OPTIONS_STRUCT_VERSION: i32 = 1;
 
 impl Default for MQTTAsync_responseOptions {
     fn default() -> MQTTAsync_responseOptions {
         MQTTAsync_responseOptions {
             struct_id: [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'R' as c_char ],
-            struct_version: 1,
+            struct_version: RESPONSE_OPTIONS_STRUCT_VERSION,
             onSuccess: None,
             onFailure: None,
             context: ptr::null_mut(),
@@ -221,7 +229,6 @@ impl Default for MQTTProperties {
     }
 }
 
-
 impl Default for MQTTLenString {
     fn default() -> MQTTLenString {
         MQTTLenString { len: 0, data: ptr::null_mut(), }
@@ -231,6 +238,7 @@ impl Default for MQTTLenString {
 /////////////////////////////////////////////////////////////////////////////
 // Messages
 
+/// The currently suppoted version of the C message struct.
 pub const MESSAGE_STRUCT_VERSION: i32 = 1;
 
 impl Default for MQTTAsync_message {
@@ -252,6 +260,7 @@ impl Default for MQTTAsync_message {
 /////////////////////////////////////////////////////////////////////////////
 // Disconnecting
 
+/// The currently suppoted version of the C disconnect options struct.
 pub const DISCONNECT_OPTIONS_STRUCT_VERSION: i32 = 1;
 
 impl Default for MQTTAsync_disconnectOptions {
