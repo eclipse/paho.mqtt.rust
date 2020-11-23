@@ -130,6 +130,7 @@ impl<'a> Topic<'a>
                 .topic("")
                 .payload(payload)
                 .qos(self.qos)
+                .retained(self.retained)
                 .properties(props)
                 .finalize()
         };
@@ -174,6 +175,7 @@ impl<'a> Topic<'a>
                 .topic(self.topic.clone())
                 .payload(payload)
                 .qos(self.qos)
+                .retained(self.retained)
                 .properties(props)
                 .finalize()
         };
