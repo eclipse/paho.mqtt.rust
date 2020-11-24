@@ -96,3 +96,61 @@ pub fn error_message(rc: i32) -> &'static str {
     }
 }
 
+// Some Paho internal error constants
+
+/// A generic error code indicating the failure of an MQTT client operation
+pub const Failure: Error = Error::Paho(ffi::MQTTASYNC_FAILURE);
+
+/// An error in the message persistence
+pub const PersistenceError: Error = Error::Paho(ffi::MQTTASYNC_PERSISTENCE_ERROR);
+
+/// The client is disconnected
+pub const Disconnected: Error = Error::Paho(ffi::MQTTASYNC_DISCONNECTED);
+
+/// The maximum number of messages allowed to be simultaneously in-flight has
+/// been reached.
+pub const MaxMessagesInflight: Error = Error::Paho(ffi::MQTTASYNC_MAX_MESSAGES_INFLIGHT);
+
+/// An invalid UTF-8 string has been detected.
+pub const BadUtfString: Error = Error::Paho(ffi::MQTTASYNC_BAD_UTF8_STRING);
+
+/// A NULL parameter has been supplied when this is invalid.
+pub const NullParameter: Error = Error::Paho(ffi::MQTTASYNC_NULL_PARAMETER);
+
+/// The topic has been truncated (the topic string includes embedded NULL characters).
+/// String functions will not access the full topic.
+/// Use the topic length value to access the full topic.
+pub const TopicNameTruncated: Error = Error::Paho(ffi::MQTTASYNC_TOPICNAME_TRUNCATED);
+
+/// A structure parameter does not have the correct eyecatcher and version number.
+pub const BadStructure: Error = Error::Paho(ffi::MQTTASYNC_BAD_STRUCTURE);
+
+/// A qos parameter is not 0, 1 or 2
+pub const BadQos: Error = Error::Paho(ffi::MQTTASYNC_BAD_QOS);
+
+/// All 65535 MQTT msgids are being used
+pub const NoMoreMsgids: Error = Error::Paho(ffi::MQTTASYNC_NO_MORE_MSGIDS);
+
+/// The request is being discarded when not complete
+pub const OperationIncomplete: Error = Error::Paho(ffi::MQTTASYNC_OPERATION_INCOMPLETE);
+
+/// No more messages can be buffered
+pub const MaxBufferedMessages: Error = Error::Paho(ffi::MQTTASYNC_MAX_BUFFERED_MESSAGES);
+
+/// Attempting SSL connection using non-SSL version of library
+pub const SslNotSupported: Error = Error::Paho(ffi::MQTTASYNC_SSL_NOT_SUPPORTED);
+
+/// Protocol prefix in serverURI must be "tcp://", "ssl://", "ws://", or "wss://"
+/// The TLS enabled prefixes (ssl, wss) are only valid when using the AAL/TLS
+/// version of the library.
+pub const BadProtocol: Error = Error::Paho(ffi::MQTTASYNC_BAD_PROTOCOL);
+
+/// Using an option for a different version of MQTT than the client or
+/// connection is currently using.
+pub const BadMqttOption: Error = Error::Paho(ffi::MQTTASYNC_BAD_MQTT_OPTION);
+
+/// Call not applicable to the current version of MQTT in use.
+pub const WrongMqttVersion: Error = Error::Paho(ffi::MQTTASYNC_WRONG_MQTT_VERSION);
+
+/// Zero-length will topics not supported.
+pub const ZeroLenWillTopic: Error = Error::Paho(ffi::MQTTASYNC_0_LEN_WILL_TOPIC);
