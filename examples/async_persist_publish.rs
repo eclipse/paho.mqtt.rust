@@ -93,7 +93,7 @@ impl mqtt::ClientPersistence for MemPersistence
 
     // Get (retrieve) data from the persistence store.
     // We look up and return any data corresponding to the specified key.
-    fn get(&self, key: &str) -> mqtt::Result<Vec<u8>> {
+    fn get(&mut self, key: &str) -> mqtt::Result<Vec<u8>> {
         trace!("Client persistence [{}]: get key '{}'", self.name, key);
         match self.map.get(key) {
             Some(v) => Ok(v.to_vec()),
@@ -111,7 +111,7 @@ impl mqtt::ClientPersistence for MemPersistence
     }
 
     // Retrieve the complete set of keys in the persistence store.
-    fn keys(&self) -> mqtt::Result<Vec<String>> {
+    fn keys(&mut self) -> mqtt::Result<Vec<String>> {
         trace!("Client persistence [{}]: keys", self.name);
         let mut keys: Vec<String> = Vec::new();
         for key in self.map.keys() {
@@ -129,7 +129,7 @@ impl mqtt::ClientPersistence for MemPersistence
     }
 
     // Determine if the persistence store contains the specified key.
-    fn contains_key(&self, key: &str) -> bool {
+    fn contains_key(&mut self, key: &str) -> bool {
         trace!("Client persistence [{}]: contains key '{}'", self.name, key);
         self.map.contains_key(key)
     }

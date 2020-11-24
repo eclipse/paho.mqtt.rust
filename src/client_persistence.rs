@@ -58,21 +58,21 @@ pub trait ClientPersistence {
 
     /// Gets data from the persistence store.
     /// `key` They key for the desired data.
-    fn get(&self, key: &str) -> Result<Vec<u8>>;
+    fn get(&mut self, key: &str) -> Result<Vec<u8>>;
 
     /// Removes data for the specified key.
     /// `key` The key for the data to remove.
     fn remove(&mut self, key: &str) -> Result<()>;
 
     /// Gets the keys that are currently in the persistence store
-    fn keys(&self) -> Result<Vec<String>>;
+    fn keys(&mut self) -> Result<Vec<String>>;
 
     /// Clear the persistence store so that it no longer contains any data.
     fn clear(&mut self) -> Result<()>;
 
     /// Determines if the persistence store contains the key.
     /// `key` The key to look for.
-    fn contains_key(&self, key: &str) -> bool;
+    fn contains_key(&mut self, key: &str) -> bool;
 }
 
 /// The type for a client persistence object.
