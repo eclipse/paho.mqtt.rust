@@ -30,7 +30,7 @@
 #![allow(non_snake_case)]
 
 // Temporary
-#![allow(dead_code)]
+//#![allow(dead_code)]
 
 #[macro_use] extern crate log;
 extern crate paho_mqtt_sys as ffi;
