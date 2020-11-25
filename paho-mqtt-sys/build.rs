@@ -246,6 +246,19 @@ mod build {
             cmk_cfg.define("OPENSSL_ROOT_DIR", format!("{}", ssl_sp));
         }
 
+
+        let mut macos_openssl_path = String::from("");
+
+        if cfg!(target_os = "macos") && env::var("OPENSSL_ROOT_DIR").is_err() {
+            // If OPENSSL_ROOT_DIR isn't set and we're on macOS, try to find OpenSSL using Homebrew
+            let output = Command::new("brew")
+                            .args(&["--prefix", "openssl"])
+                            .output()
+                            .expect("Could not find OpenSSL using Homebrew");
+            macos_openssl_path = String::from_utf8(output.stdout).unwrap().trim_end().to_string();
+            cmk_cfg.define("OPENSSL_ROOT_DIR", macos_openssl_path.clone());
+        }
+
         // 'cmk_install_dir' is a PathBuf to the cmake install directory
         let cmk_install_path = cmk_cfg.build();
         println!("debug:CMake output dir: {}", cmk_install_path.display());
@@ -287,6 +300,9 @@ mod build {
                 println!("cargo:rustc-link-lib=crypto");
                 if let Ok(ssl_sp) = env::var("OPENSSL_ROOT_DIR") {
                     println!("cargo:rustc-link-search={}/lib", ssl_sp);
+                }
+                if !macos_openssl_path.is_empty() {
+                    println!("cargo:rustc-link-search={}/lib", macos_openssl_path);
                 }
             }
         }
@@ -365,4 +381,3 @@ mod build {
         bindings::place_bindings(&Path::new(&inc_dir));
     }
 }
-
