@@ -246,17 +246,22 @@ mod build {
             cmk_cfg.define("OPENSSL_ROOT_DIR", format!("{}", ssl_sp));
         }
 
+        #[cfg(all(feature = "ssl", target_os = "macos"))]
+        let mut macos_openssl_path: Option<String> = None;
 
-        let mut macos_openssl_path = String::from("");
-
-        if cfg!(target_os = "macos") && env::var("OPENSSL_ROOT_DIR").is_err() {
+        #[cfg(all(feature = "ssl", target_os = "macos"))]
+        if env::var("OPENSSL_ROOT_DIR").is_err() {
             // If OPENSSL_ROOT_DIR isn't set and we're on macOS, try to find OpenSSL using Homebrew
-            let output = Command::new("brew")
-                            .args(&["--prefix", "openssl"])
-                            .output()
-                            .expect("Could not find OpenSSL using Homebrew");
-            macos_openssl_path = String::from_utf8(output.stdout).unwrap().trim_end().to_string();
-            cmk_cfg.define("OPENSSL_ROOT_DIR", macos_openssl_path.clone());
+            let output = Command::new("brew").args(&["--prefix", "openssl"]).output();
+
+            match output {
+                Ok(output) => {
+                    let path = String::from_utf8(output.stdout).unwrap().trim_end().to_string();
+                    macos_openssl_path = Some(path.clone());
+                    cmk_cfg.define("OPENSSL_ROOT_DIR", path);
+                },
+                _ => println!("Could not find OpenSSL using Homebrew")
+            }
         }
 
         // 'cmk_install_dir' is a PathBuf to the cmake install directory
@@ -301,8 +306,9 @@ mod build {
                 if let Ok(ssl_sp) = env::var("OPENSSL_ROOT_DIR") {
                     println!("cargo:rustc-link-search={}/lib", ssl_sp);
                 }
-                if !macos_openssl_path.is_empty() {
-                    println!("cargo:rustc-link-search={}/lib", macos_openssl_path);
+                #[cfg(all(feature = "ssl", target_os = "macos"))]
+                if macos_openssl_path.is_some() {
+                    println!("cargo:rustc-link-search={}/lib", macos_openssl_path.unwrap());
                 }
             }
         }
