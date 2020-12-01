@@ -212,6 +212,7 @@ mod build {
     use std::path::Path;
     use std::process::Command;
     use std::env;
+    use std::str::FromStr;
 
     pub fn main() {
         println!("debug:Running the bundled build for Paho C");
@@ -268,9 +269,17 @@ mod build {
 
         // Link in the SSL libraries if configured for it.
         if cfg!(feature = "ssl") {
+            // Allow static or dynamic linking
+            let ssl_link_static = match env::var("OPENSSL_LINK_STATIC") {
+                Ok(value) => bool::from_str(value.as_str()).unwrap(),
+                Err(_) => false,
+            };
+
+            let ssl_link_kind = if ssl_link_static { "static" } else { "dylib" };
+
             if cfg!(windows) {
-                println!("cargo:rustc-link-lib=libssl");
-                println!("cargo:rustc-link-lib=libcrypto");
+                println!("cargo:rustc-link-lib={}=libssl", ssl_link_kind);
+                println!("cargo:rustc-link-lib={}=libcrypto", ssl_link_kind);
                 if let Some(openssl_root_dir) = openssl_root_dir() {
                     println!("cargo:rustc-link-search={}\\lib", openssl_root_dir);
                 }
@@ -283,8 +292,8 @@ mod build {
                 };
             }
             else {
-                println!("cargo:rustc-link-lib=ssl");
-                println!("cargo:rustc-link-lib=crypto");
+                println!("cargo:rustc-link-lib={}=ssl", ssl_link_kind);
+                println!("cargo:rustc-link-lib={}=crypto", ssl_link_kind);
                 if let Some(openssl_root_dir) = openssl_root_dir() {
                     println!("cargo:rustc-link-search={}/lib", openssl_root_dir);
                 }
