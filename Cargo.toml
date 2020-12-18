@@ -24,7 +24,7 @@ vendored-ssl = ["paho-mqtt-sys/vendored-ssl"]
 paho-mqtt-sys = { version = "0.5", path = "paho-mqtt-sys", default-features=false }
 libc = "0.2"
 futures = "0.3"
-futures-timer = "0.3"
+futures-timer = "3.0"
 log = "0.4"
 thiserror = "1.0"
 
