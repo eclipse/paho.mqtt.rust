@@ -49,7 +49,9 @@ use crate::{
 /// The options for SSL socket connections to the broker.
 #[derive(Debug)]
 pub struct SslOptions {
+    /// The underlying C struct to pass to the library
     pub(crate) copts: ffi::MQTTAsync_SSLOptions,
+    /// Cache of Rust values tied to the C struct
     data: Pin<Box<SslOptionsData>>,
 }
 
@@ -112,7 +114,7 @@ impl SslOptions {
         protos
     }
 
-    // Updates the underlying C structure to match the cached strings.
+    // Updates the underlying C structure to match the cached data.
     fn from_data(mut copts: ffi::MQTTAsync_SSLOptions, data: SslOptionsData) -> Self {
         let data = Box::pin(data);
 
@@ -162,6 +164,11 @@ impl SslOptions {
     /// if set.
     pub fn ca_path(&self) -> PathBuf {
         PathBuf::from(&self.data.ca_path.to_str().unwrap())
+    }
+
+    /// Determines if the default trust store should not be loaded.
+    pub fn is_default_trust_store_disabled(&self) -> bool {
+        self.copts.disableDefaultTrustStore != 0;
     }
 
     /// Gets the list of ALPN protocols available to be negotiated.
