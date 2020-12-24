@@ -62,15 +62,6 @@ struct ResponseOptionsData {
     sub_opts: Option<Vec<ffi::MQTTSubscribe_options>>,
 }
 
-// Implementation note: The response options also take a Token which it
-// releases into the C struct, under the assumption that each instance
-// will always be handed to the C lib. If not, it'll leak memory.
-// There's probably a better way to do this, like cache the Token,
-// and release it on a specific call to get the C struct.
-//
-// Normally the token would be returned in the callback, where we
-// regain ownership and then later drop.
-
 impl ResponseOptions {
     /// Creates a `ResponseOptions` intance for the provided token.
     /// The option's `copts` can be passed to one of the C library's
@@ -80,14 +71,7 @@ impl ResponseOptions {
     /// structure to act as the context pointer for the callback. It is
     /// up to the callback (or calling function) to recapture and release
     /// this token.
-    pub(crate) fn new<T>(mqtt_version: u32) -> Self
-        where T: Into<Token>
-    {
-        let copts = Self::c_options(mqtt_version);
-        Self::from_data(copts, ResponseOptionsData::default())
-    }
-
-    pub(crate) fn with_token<T>(mqtt_version: u32, tok: T) -> Self
+    pub(crate) fn new<T>(mqtt_version: u32, tok: T) -> Self
         where T: Into<Token>
     {
         let mut copts = Self::c_options(mqtt_version);

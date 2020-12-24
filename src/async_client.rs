@@ -641,7 +641,7 @@ impl AsyncClient {
 
         let ver = self.mqtt_version();
         let tok = DeliveryToken::new(msg);
-        let mut rsp_opts = ResponseOptions::with_token(ver, tok.clone());
+        let mut rsp_opts = ResponseOptions::new(ver, tok.clone());
 
         let rc = unsafe {
             let msg = tok.message();
@@ -673,7 +673,7 @@ impl AsyncClient {
     {
         let ver = self.mqtt_version();
         let tok = Token::from_request(ServerRequest::Subscribe);
-        let mut rsp_opts = ResponseOptions::with_token(ver, tok.clone());
+        let mut rsp_opts = ResponseOptions::new(ver, tok.clone());
         let topic = CString::new(topic.into()).unwrap();
 
         debug!("Subscribe to '{:?}' @ QOS {}", topic, qos);
@@ -744,7 +744,7 @@ impl AsyncClient {
         let ver = self.mqtt_version();
         // TOOD: Make sure topics & qos are same length (or use min)
         let tok = Token::from_request(ServerRequest::SubscribeMany(n));
-        let mut rsp_opts = ResponseOptions::with_token(ver, tok.clone());
+        let mut rsp_opts = ResponseOptions::new(ver, tok.clone());
         let topics = StringCollection::new(topics);
 
         debug!("Subscribe to '{:?}' @ QOS {:?}", topics, qos);
@@ -827,7 +827,7 @@ impl AsyncClient {
     {
         let ver = self.mqtt_version();
         let tok = Token::from_request(ServerRequest::Unsubscribe);
-        let mut rsp_opts = ResponseOptions::with_token(ver, tok.clone());
+        let mut rsp_opts = ResponseOptions::new(ver, tok.clone());
         let topic = CString::new(topic.into()).unwrap();
 
         debug!("Unsubscribe from '{:?}'", topic);
@@ -855,9 +855,9 @@ impl AsyncClient {
     pub fn unsubscribe_with_options<S>(&self, topic: S, props: Properties) -> Token
         where S: Into<String>
     {
-        let ver = self.mqtt_version();
-        let tok = Token::from_request(ServerRequest::Unsubscribe);
+        debug_assert!(self.mqtt_version() >= ffi::MQTTVERSION_5);
 
+        let tok = Token::from_request(ServerRequest::Unsubscribe);
         let mut rsp_opts = ResponseOptionsBuilder::new()
             .token(tok.clone())
             .properties(props)
@@ -893,7 +893,7 @@ impl AsyncClient {
 
         let n = topics.len();
         let tok = Token::from_request(ServerRequest::UnsubscribeMany(n));
-        let mut rsp_opts = ResponseOptions::with_token(ver, tok.clone());
+        let mut rsp_opts = ResponseOptions::new(ver, tok.clone());
         let topics = StringCollection::new(topics);
 
         debug!("Unsubscribe from '{:?}'", topics);
@@ -923,7 +923,7 @@ impl AsyncClient {
     pub fn unsubscribe_many_with_options<T>(&self, topics: &[T], props: Properties) -> Token
         where T: AsRef<str>
     {
-        let ver = self.mqtt_version();
+        debug_assert!(self.mqtt_version() >= ffi::MQTTVERSION_5);
 
         let n = topics.len();
         let tok = Token::from_request(ServerRequest::UnsubscribeMany(n));

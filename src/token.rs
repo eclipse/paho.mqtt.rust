@@ -69,12 +69,6 @@ pub type SuccessCallback = dyn Fn(&AsyncClient, u16) + 'static;
 /// Callback for the token on failed completion
 pub type FailureCallback = dyn Fn(&AsyncClient, u16, i32) + 'static;
 
-/// Callback for the token on successful completion
-pub type SuccessCallback5 = dyn Fn(&AsyncClient, u16) + 'static;
-
-/// Callback for the token on failed completion
-pub type FailureCallback5 = dyn Fn(&AsyncClient, u16, i32) + 'static;
-
 /// The result data for the token.
 /// This contains the guarded elements in the token which are updated by
 /// the C library callback when the asynchronous operation completes.
@@ -136,10 +130,6 @@ pub(crate) struct TokenInner {
     on_success: Option<Box<SuccessCallback>>,
     /// User callback for failed completion of the async action
     on_failure: Option<Box<FailureCallback>>,
-    /// User callback for successful completion of the MQTT v5 async action
-    on_success5: Option<Box<SuccessCallback5>>,
-    /// User callback for failed completion of the MQTT v5 async action
-    on_failure5: Option<Box<FailureCallback5>>,
 }
 
 impl TokenInner {
@@ -396,8 +386,6 @@ impl Default for TokenInner {
             req: ServerRequest::None,
             on_success: None,
             on_failure: None,
-            on_success5: None,
-            on_failure5: None,
         }
     }
 }

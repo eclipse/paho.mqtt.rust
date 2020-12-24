@@ -80,20 +80,6 @@ pub type ClientPersistenceType = Box<Box<dyn ClientPersistence + Send>>;
 
 /////////////////////////////////////////////////////////////////////////////
 
-/// Trait for an encoder/decoder for use with the persistence store.
-pub trait PersistenceEncoder {
-    /// Called to encode the data before writing to the persistence store.
-    fn encode(&self, buffers: Vec<&mut [u8]>) -> Result<()>;
-
-    /// Called to decode the data after reading from the persistence store.
-    fn decode(&self, buffer: &mut [u8]) -> Result<&[u8]>;
-}
-
-/// The type for a persistence encoder/decoder.
-pub type PersistenceEncoderType = Box<Box<dyn PersistenceEncoder + Send>>;
-
-/////////////////////////////////////////////////////////////////////////////
-
 /// A struct to wrap the user-defined client persistence objects for the
 /// C library, including the callback funtions from the C library.
 /// These functions receive the persistence callbacks from the C library and
@@ -108,8 +94,6 @@ pub struct UserPersistence {
     pub(crate) copts: ffi::MQTTClient_persistence,
     /// The user-supplied persistence object
     _persistence: ClientPersistenceType,
-    /// An optional encoder/decoder
-    pub(crate) encoder: Option<PersistenceEncoderType>,
 }
 
 impl UserPersistence
@@ -131,18 +115,6 @@ impl UserPersistence
                 pcontainskey: Some(UserPersistence::on_contains_key),
             },
             _persistence: persistence,
-            encoder: None,
-        }
-    }
-
-    /// Creates a new user persistence object with an encoder/decoder.
-    pub fn with_encoder(
-        persistence: ClientPersistenceType,
-        encoder: PersistenceEncoderType
-    ) -> UserPersistence {
-        UserPersistence {
-            encoder: Some(encoder),
-            ..Self::new(persistence)
         }
     }
 
@@ -324,31 +296,6 @@ impl UserPersistence
         let key = CStr::from_ptr(key).to_str().unwrap();
 
         if persist.contains_key(key) { 1 } else { 0 }
-    }
-
-    /// Optional callback from the C library to encode the data before
-    /// writing it to the store.
-    pub unsafe extern "C" fn on_encode(
-        _handle: *mut c_void,
-        _bufcount: c_int,
-        _buffers: *mut *mut c_char,
-        _buflens: *mut c_int
-    ) -> c_int {
-        trace!("UserPersistence::on_encode");
-        // TODO: Implement this
-        unimplemented!();
-    }
-
-    /// Optional callback from the C library to decode the data after
-    /// reading it back from the store.
-    pub unsafe extern "C" fn on_decode(
-        _handle: *mut c_void,
-        _buffer: *mut *mut c_char,
-        _buflen: *mut c_int,
-    ) -> c_int {
-        trace!("UserPersistence::on_decode");
-        // TODO: Implement this
-        unimplemented!();
     }
 }
 
