@@ -192,18 +192,15 @@ impl ResponseOptionsBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        token::Token,
-        types::*,
-    };
+    use crate::token::Token;
 
     // The currently supported response options struct version
-    const STRUCT_VERSION: i32 = ffi::RESPONSE_OPTIONS_STRUCT_VERSION;
+    //const STRUCT_VERSION: i32 = ffi::RESPONSE_OPTIONS_STRUCT_VERSION;
 
     #[test]
     fn test_new_v3() {
         let tok = Token::new();
-        let opts = ResponseOptions::with_token(MQTT_VERSION_3_1_1, tok.clone());
+        let opts = ResponseOptions::new(MQTT_VERSION_3_1_1, tok.clone());
 
         let inner = Token::into_raw(tok);
 
@@ -220,7 +217,7 @@ mod tests {
     #[test]
     fn test_new_v5() {
         let tok = Token::new();
-        let opts = ResponseOptions::with_token(MQTT_VERSION_5, tok.clone());
+        let opts = ResponseOptions::new(MQTT_VERSION_5, tok.clone());
 
         let inner = Token::into_raw(tok);
 

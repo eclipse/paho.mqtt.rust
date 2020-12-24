@@ -96,6 +96,15 @@ impl From<bool> for SubscribeOptions {
 	}
 }
 
+impl From<Option<bool>> for SubscribeOptions {
+	fn from(no_local: Option<bool>) -> Self {
+        match no_local {
+            Some(no_local) => SubscribeOptions::new(no_local),
+            None => SubscribeOptions::default(),
+        }
+	}
+}
+
 impl From<(bool,bool)> for SubscribeOptions {
 	fn from((no_local, retain_as_published): (bool, bool)) -> Self {
 		let mut opts = SubscribeOptions::new(no_local);

@@ -34,13 +34,17 @@
 
 use std::{
     env,
-    process,
     thread,
     time::Duration,
 };
 use paho_mqtt as mqtt;
 
+// --------------------------------------------------------------------------
+// Handlers for different types of incoming messages based on their
+// Subscription  Identifiers
+
 // Handler for data messages (i.e. topic "data/#")
+// Subscription ID: 1
 fn data_handler(msg: mqtt::Message) -> bool {
     println!("{}", msg);
     true
@@ -48,6 +52,7 @@ fn data_handler(msg: mqtt::Message) -> bool {
 
 // Handler for command messages (i.e. topic "command")
 // Return false to exit the application
+// Subscription ID: 2
 fn command_handler(msg: mqtt::Message) -> bool {
     if msg.payload_str() == "exit" {
         println!("Exit command received");
@@ -58,7 +63,7 @@ fn command_handler(msg: mqtt::Message) -> bool {
     }
 }
 
-/////////////////////////////////////////////////////////////////////////////
+// --------------------------------------------------------------------------
 
 // This will attempt to reconnect to the broker. It can be called after
 // connection is lost. In this example, we try to reconnect several times,
@@ -77,6 +82,13 @@ fn try_reconnect(cli: &mqtt::Client) -> bool
     }
     println!("Unable to reconnect after several attempts.");
     false
+}
+
+// Create a set of poperties with a single Subscription ID
+fn sub_id(id: i32) -> mqtt::Properties {
+    mqtt::properties![
+        mqtt::PropertyCode::SubscriptionIdentifier => id
+    ]
 }
 
 // --------------------------------------------------------------------------
@@ -114,6 +126,8 @@ fn main() -> mqtt::Result<()> {
         .will_message(lwt)
         .finalize();
 
+    // A table of dispatch function for incoming messages by Subscription ID.
+    // (actually sub_id-1 since we can't use zero for a subscription ID)
     let handler: Vec<fn(mqtt::Message) -> bool> = vec![
         data_handler,
         command_handler
@@ -132,17 +146,10 @@ fn main() -> mqtt::Result<()> {
                  conn_rsp.server_uri, conn_rsp.mqtt_version);
 
         if !conn_rsp.session_present {
-            // Register subscriptions on the server
+            // Register subscriptions on the server, using Subscription ID's.
             println!("Subscribing to topics...");
-
-            let props = mqtt::properties![
-                mqtt::PropertyCode::SubscriptionIdentifier => 1
-            ];
-            cli.subscribe_with_options("data/#", 0, mqtt::SubscribeOptions::default(), props)?;
-            let props = mqtt::properties![
-                mqtt::PropertyCode::SubscriptionIdentifier => 2
-            ];
-            cli.subscribe_with_options("command", 1, mqtt::SubscribeOptions::default(), props)?;
+            cli.subscribe_with_options("data/#",  0, None, sub_id(1))?;
+            cli.subscribe_with_options("command", 1, None, sub_id(2))?;
         }
     }
 
