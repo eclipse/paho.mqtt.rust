@@ -168,7 +168,7 @@ impl SslOptions {
 
     /// Determines if the default trust store should not be loaded.
     pub fn is_default_trust_store_disabled(&self) -> bool {
-        self.copts.disableDefaultTrustStore != 0;
+        self.copts.disableDefaultTrustStore != 0
     }
 
     /// Gets the list of ALPN protocols available to be negotiated.

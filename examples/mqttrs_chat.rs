@@ -136,7 +136,7 @@ fn main() -> mqtt::Result<()> {
     // Subscribe to the group messages.
 
     println!("Joining the group '{}'...", chat_group);
-    topic.subscribe_with_options(NO_LOCAL).wait()?;
+    topic.subscribe_with_options(NO_LOCAL, None).wait()?;
 
     // Let everyone know that a new user joined the group
 

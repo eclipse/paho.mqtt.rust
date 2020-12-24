@@ -3,7 +3,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2019 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2020 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -37,7 +37,9 @@ use crate::{
     create_options::CreateOptions,
     connect_options::ConnectOptions,
     disconnect_options::DisconnectOptions,
+    subscribe_options::SubscribeOptions,
     server_response::ServerResponse,
+    properties::Properties,
     message::Message,
     errors::Result,
 };
@@ -151,6 +153,23 @@ impl Client {
         self.cli.subscribe(topic, qos).wait_for(self.timeout)
     }
 
+    /// Subscribes to a single topic with v5 options
+    ///
+    /// # Arguments
+    ///
+    /// `topic` The topic name
+    /// `qos` The quality of service requested for messages
+    /// `opts` Options for the subscription
+    /// `props` MQTT v5 properties
+    ///
+    pub fn subscribe_with_options<S,T,P>(&self, topic: S, qos: i32, opts: T, props: P) -> Result<ServerResponse>
+        where S: Into<String>,
+              T: Into<SubscribeOptions>,
+              P: Into<Option<Properties>>
+    {
+        self.cli.subscribe_with_options(topic, qos, opts, props).wait_for(self.timeout)
+    }
+
     /// Subscribes to multiple topics simultaneously.
     ///
     /// # Arguments
@@ -162,6 +181,28 @@ impl Client {
         where T: AsRef<str>
     {
         self.cli.subscribe_many(topics, qos).wait_for(self.timeout)
+    }
+
+    /// Subscribes to multiple topics simultaneously with options.
+    ///
+    /// # Arguments
+    ///
+    /// `topics` The collection of topic names
+    /// `qos` The quality of service requested for messages
+    /// `opts` Subscribe options (one per topic)
+    /// `props` MQTT v5 properties
+    ///
+    pub fn subscribe_many_with_options<T,P>(
+        &self,
+        topics: &[T],
+        qos: &[i32],
+        opts: &[SubscribeOptions],
+        props: P
+    ) -> Result<ServerResponse>
+        where T: AsRef<str>,
+              P: Into<Option<Properties>>,
+    {
+        self.cli.subscribe_many_with_options(topics, qos, opts, props).wait_for(self.timeout)
     }
 
     /// Unsubscribes from a single topic.
@@ -176,6 +217,21 @@ impl Client {
         Ok(())
     }
 
+    /// Unsubscribes from a single topic.
+    ///
+    /// # Arguments
+    ///
+    /// `topic` The topic to unsubscribe. It must match a topic from a
+    ///         previous subscribe.
+    /// `props` MQTT v5 properties for the unsubscribe.
+    ///
+    pub fn unsubscribe_with_options<S>(&self, topic: S, props: Properties) -> Result<()>
+        where S: Into<String>
+    {
+        self.cli.unsubscribe_with_options(topic, props).wait_for(self.timeout)?;
+        Ok(())
+    }
+
     /// Unsubscribes from multiple topics simultaneously.
     ///
     /// # Arguments
@@ -187,6 +243,26 @@ impl Client {
         where T: AsRef<str>
     {
         self.cli.unsubscribe_many(topics).wait_for(self.timeout)?;
+        Ok(())
+    }
+
+    /// Unsubscribes from multiple topics simultaneously.
+    ///
+    /// # Arguments
+    ///
+    /// `topic` The topics to unsubscribe. Each must match a topic from a
+    ///         previous subscribe.
+    /// `props` MQTT v5 properties for the unsubscribe.
+    ///
+    pub fn unsubscribe_many_with_options<T>(
+        &self,
+        topics: &[T],
+        props: Properties
+    ) -> Result<()>
+        where T: AsRef<str>
+    {
+        self.cli.unsubscribe_many_with_options(topics, props)
+            .wait_for(self.timeout)?;
         Ok(())
     }
 

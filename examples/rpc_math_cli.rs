@@ -112,10 +112,10 @@ fn main() -> mqtt::Result<()> {
 
     let corr_id = b"1";
 
-    let props = mqtt::properties!{
+    let props = mqtt::properties![
         mqtt::PropertyCode::ResponseTopic => reply_topic,
         mqtt::PropertyCode::CorrelationData => corr_id,
-    };
+    ];
 
     // The request topic will be of the form:
     //     "requests/math/<operation>"

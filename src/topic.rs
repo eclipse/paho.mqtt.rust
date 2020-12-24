@@ -29,7 +29,7 @@ use crate::{
     },
     subscribe_options::SubscribeOptions,
     message::{Message, MessageBuilder},
-    properties::PropertyCode,
+    properties::{PropertyCode, Properties},
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -101,10 +101,11 @@ impl<'a> Topic<'a>
     }
 
     /// Subscribe to the topic with subscription options.
-    pub fn subscribe_with_options<T>(&self, opts: T) -> Token
-        where T: Into<SubscribeOptions>
+    pub fn subscribe_with_options<T,P>(&self, opts: T, props: P) -> Token
+        where T: Into<SubscribeOptions>,
+              P: Into<Option<Properties>>,
     {
-        self.cli.subscribe_with_options(self.topic.clone(), self.qos, opts)
+        self.cli.subscribe_with_options(self.topic.clone(), self.qos, opts, props)
     }
 
     /// Publish a message on the topic.
