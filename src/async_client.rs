@@ -54,7 +54,6 @@ use std::{
     ffi::{CString, CStr},
     os::raw::{c_void, c_char, c_int},
 };
-use futures::stream::Stream;
 
 use crate::{
     ffi,
@@ -987,7 +986,20 @@ impl AsyncClient {
     }
 
     /// Creates a futures stream for consuming messages.
-    pub fn get_stream(&mut self, buffer_sz: usize) -> impl Stream<Item=Option<Message>> {
+    /// This will install an internal callback to receive the incoming
+    /// messages from the client, and return the receive side of the channel.
+    /// The stream will stay open for the life of the client. If the client
+    /// gets disconnected, it will insert `None` into the channel to signal
+    /// the app about the disconnect.
+    ///
+    /// It's a best practice to open the stream _before_ connecting to the
+    /// server. When using persistent (non-clean) sessions, messages could
+    /// arriving as soon as the connection is made - even before the
+    /// connect() call returns.
+    pub fn get_stream(
+        &mut self,
+        buffer_sz: usize
+   ) -> futures::channel::mpsc::Receiver<Option<Message>> {
         use futures::channel::mpsc;
 
         let (mut tx, rx) = mpsc::channel(buffer_sz);
@@ -1003,7 +1015,6 @@ impl AsyncClient {
         }
 
         self.set_message_callback(move |_,msg| {
-            trace!("Pushing message into async stream");
             if let Err(err) = tx.try_send(msg) {
                 if err.is_full() {
                     warn!("Stream losing messages");
@@ -1019,6 +1030,7 @@ impl AsyncClient {
     }
 }
 
+// The client is safe to send or share between threads.
 unsafe impl Send for AsyncClient {}
 unsafe impl Sync for AsyncClient {}
 
