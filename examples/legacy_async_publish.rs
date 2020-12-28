@@ -42,13 +42,10 @@ fn main() {
         "tcp://localhost:1883".to_string()
     );
 
-    // Create a client to the specified host, no persistence
-    let create_opts = mqtt::CreateOptionsBuilder::new()
-        .server_uri(host)
-        .persistence(mqtt::PersistenceType::None)
-        .finalize();
+    // Create a client to the specified host
+    // Since we don't use a client ID there's no persistence
 
-    let cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|err| {
+    let cli = mqtt::AsyncClient::new(host).unwrap_or_else(|err| {
         println!("Error creating the client: {}", err);
         process::exit(1);
     });

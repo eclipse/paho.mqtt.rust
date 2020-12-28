@@ -50,6 +50,8 @@ fn time_now_hundredths() -> u64 {
         .as_millis()/10) as u64
 }
 
+// --------------------------------------------------------------------------
+
 fn main() {
     // Initialize the logger from the environment
     env_logger::init();
@@ -58,8 +60,16 @@ fn main() {
         "tcp://localhost:1883".to_string()
     );
 
-    // Create a client & define connect options
-    let cli = mqtt::AsyncClient::new(host).unwrap_or_else(|err| {
+    // Create a client with file persistence under a
+    // directory named, "persist".
+
+    let create_opts = mqtt::CreateOptionsBuilder::new()
+            .server_uri(host)
+            .client_id("rust_async_persist_pub")
+            .persistence("persist")
+            .finalize();
+
+    let cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|err| {
         println!("Error creating the client: {}", err);
         process::exit(1);
     });

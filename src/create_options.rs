@@ -20,24 +20,33 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{fmt, os::raw::c_int};
+use std::{
+    fmt,
+    os::raw::c_int,
+};
 
 use crate::{
-    async_client::AsyncClient, client_persistence::ClientPersistence, ffi, to_c_bool, Result,
+    async_client::AsyncClient,
+    client_persistence::ClientPersistence,
+    ffi,
+    to_c_bool,
+    Result,
     UserData,
 };
 
 /*
-Remember the C constants (c_uint)
-  MQTTCLIENT_PERSISTENCE_DEFAULT = 0
-  MQTTCLIENT_PERSISTENCE_NONE    = 1
-  MQTTCLIENT_PERSISTENCE_USER    = 2
+    Remember the C constants (c_uint)
+        MQTTCLIENT_PERSISTENCE_DEFAULT = 0
+        MQTTCLIENT_PERSISTENCE_NONE    = 1
+        MQTTCLIENT_PERSISTENCE_USER    = 2
 */
 
 /// The type of persistence for the client
 pub enum PersistenceType {
-    /// Data and messages are persisted to a local file (default)
+    /// Messages are persisted to files in a local directory (default).
     File,
+    /// Messages are persisted to files under the specified directory.
+    FilePath(String),
     /// No persistence is used.
     None,
     /// A user-defined persistence provided by the application.
@@ -48,6 +57,7 @@ impl fmt::Debug for PersistenceType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             PersistenceType::File => write!(f, "File"),
+            PersistenceType::FilePath(_) => write!(f, "File with Path"),
             PersistenceType::None => write!(f, "None"),
             PersistenceType::User(_) => write!(f, "User"),
         }
@@ -56,6 +66,27 @@ impl fmt::Debug for PersistenceType {
 
 impl Default for PersistenceType {
     fn default() -> Self { PersistenceType::None }
+}
+
+impl From<&str> for PersistenceType {
+    fn from(path: &str) -> Self {
+        PersistenceType::FilePath(path.to_string())
+    }
+}
+
+impl From<String> for PersistenceType {
+    fn from(path: String) -> Self {
+        PersistenceType::FilePath(path)
+    }
+}
+
+impl From<Option<PersistenceType>> for PersistenceType {
+    fn from(opt: Option<PersistenceType>) -> Self {
+        match opt {
+            Some(typ) => typ,
+            None => PersistenceType::None,
+        }
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -217,8 +248,10 @@ impl CreateOptionsBuilder {
     ///
     /// `persist` The type of persistence to use.
     ///
-    pub fn persistence(mut self, persist: PersistenceType) -> Self {
-        self.persistence = persist;
+    pub fn persistence<P>(mut self, persist: P) -> Self
+        where P: Into<PersistenceType>
+    {
+        self.persistence = persist.into();
         self
     }
 
@@ -462,3 +495,4 @@ mod tests {
         assert_eq!(MAX_BUF_MSGS, opts.copts.maxBufferedMessages);
     }
 }
+

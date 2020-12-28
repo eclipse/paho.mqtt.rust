@@ -158,6 +158,7 @@ fn main() {
     // when using persistence the client library requires it so as to name
     // the local store to keep clients separate.
     println!("Creating the MQTT client.");
+
     let create_opts = mqtt::CreateOptionsBuilder::new()
             .server_uri(host)
             .user_persistence(MemPersistence::new())

@@ -85,7 +85,7 @@ fn main() -> mqtt::Result<()> {
         .mqtt_version(MQTTV5)
         .server_uri(host)
         .client_id(client_id)
-        .persistence(mqtt::PersistenceType::None)
+        .persistence(None)
         .finalize();
 
     let mut cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|err| {

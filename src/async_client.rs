@@ -169,15 +169,25 @@ impl AsyncClient {
             user_data: opts.user_data,
         };
 
+        // We might need this for file persistence path
+        let file_path;
+
         let (ptype, pptr) = match opts.persistence {
+            PersistenceType::None =>
+                (ffi::MQTTCLIENT_PERSISTENCE_NONE, ptr::null_mut()),
+            PersistenceType::File =>
+                (ffi::MQTTCLIENT_PERSISTENCE_DEFAULT, ptr::null_mut()),
+            PersistenceType::FilePath(path) => {
+                file_path = CString::new(path).unwrap_or_default();
+                let pptr = file_path.as_ptr() as *mut c_void;
+                (ffi::MQTTCLIENT_PERSISTENCE_DEFAULT, pptr)
+            },
             PersistenceType::User(cli_persist) => {
                 let mut user_persistence = Box::new(UserPersistence::new(cli_persist));
                 let pptr = &mut user_persistence.copts as *mut _ as *mut c_void;
                 cli.user_persistence = Some(user_persistence);
                 (ffi::MQTTCLIENT_PERSISTENCE_USER, pptr)
             },
-            PersistenceType::File => (ffi::MQTTCLIENT_PERSISTENCE_DEFAULT, ptr::null_mut()),
-            PersistenceType::None => (ffi::MQTTCLIENT_PERSISTENCE_NONE, ptr::null_mut()),
         };
 
         debug!("Creating client with persistence: {}", ptype);

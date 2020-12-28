@@ -66,9 +66,7 @@ fn main() -> mqtt::Result<()> {
     let create_opts = mqtt::CreateOptionsBuilder::new()
         .mqtt_version(MQTTV5)
         .server_uri(host)
-        .persistence(mqtt::PersistenceType::None)
         .finalize();
-
 
     let mut cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|err| {
         eprintln!("Error creating the client: {}", err);
