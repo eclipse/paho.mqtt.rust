@@ -32,9 +32,7 @@ Supports Paho C v1.3.7 (Prtial support implemented)
 
 ## Latest News
 
-The code that had been sitting in GitHub for much of the year 2020 was finally released as v0.8.0. This added async/await (Futures 0.3) support, along with internal updates for the crate, and added some missing MQTT v5 support.
-
-Work is starting right away to bump the library up to support for Paho C 1.3.7. This will bring in a number of new features including Websocket HTTP/S Proxy support, improved build capabilties including (hopefully) the automatic inclusion of openssl to make cross-compiling easier.
+Work is wrapping up to bump the library up to support for Paho C 1.3.8. This will bring in a number of new features including Websocket HTTP/S Proxy support, ALPN protocols, improved build capabilties including (hopefully) the automatic inclusion of openssl to make cross-compiling easier.
 
 To keep up with the latest announcements for this project, follow:
 
@@ -46,7 +44,7 @@ To keep up with the latest announcements for this project, follow:
 
 ### Unreleaed Features in this Branch
 
-- Started updating bindings to Paho C v1.3.7
+- Started updating bindings to Paho C v1.3.8
 - Websocket HTTP/HTTPS proxy support
 - [Breaking] Persistence defaults to `None` if no Client ID specified in creation. 
 
