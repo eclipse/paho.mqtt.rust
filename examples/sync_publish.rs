@@ -65,7 +65,6 @@ fn main() {
         .qos(1)
         .finalize();
 
-
     if let Err(e) = cli.publish(msg) {
         println!("Error sending message: {:?}", e);
     }

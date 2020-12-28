@@ -46,6 +46,8 @@ To keep up with the latest announcements for this project, follow:
 
 - Started updating bindings to Paho C v1.3.8
 - Websocket HTTP/HTTPS proxy support
+- Added missing MQTT v5 support:
+    - Subscribe and Unsubscribe can now have v5 properties (i.e. Subscription Identifiers)
 - [Breaking] Persistence defaults to `None` if no Client ID specified in creation. 
 
 ### What's new in v0.8.0
@@ -193,13 +195,13 @@ bindings_paho_mqtt_c_<version>-<target>.rs
 Some of these include:
 
 ```
-bindings_paho_mqtt_c_1.3.7-x86_64-unknown-linux-gnu.rs
-bindings_paho_mqtt_c_1.3.7-x86_64-pc-windows-msvc.rs
-bindings_paho_mqtt_c_1.3.7-i686-pc-windows-msvc.rs
-bindings_paho_mqtt_c_1.3.7-aarch64-unknown-linux-gnu.rs
-bindings_paho_mqtt_c_1.3.7-armv7-unknown-linux-gnueabihf.rs
-bindings_paho_mqtt_c_1.3.7-default-32.rs
-bindings_paho_mqtt_c_1.3.7-default-64.rs
+bindings_paho_mqtt_c_1.3.8-x86_64-unknown-linux-gnu.rs
+bindings_paho_mqtt_c_1.3.8-x86_64-pc-windows-msvc.rs
+bindings_paho_mqtt_c_1.3.8-aarch64-unknown-linux-gnu.rs
+bindings_paho_mqtt_c_1.3.8-armv7-unknown-linux-gnueabihf.rs
+bindings_paho_mqtt_c_1.3.8-x86_64-apple-darwin.rs
+bindings_paho_mqtt_c_1.3.8-default-32.rs
+bindings_paho_mqtt_c_1.3.8-default-64.rs
 ```
 
 Bindings can be created for new versions of the Paho C library or for different target platforms using the command-line _bindgen_ tool. For example on an x86 version of Windows using MSVC, you can re-generate the bindings like this:
