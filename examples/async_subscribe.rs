@@ -79,7 +79,7 @@ fn main() {
                                      mqtt::QOS_1);
 
         let conn_opts = mqtt::ConnectOptionsBuilder::new()
-            .keep_alive_interval(Duration::from_secs(20))
+            .keep_alive_interval(Duration::from_secs(30))
             .mqtt_version(mqtt::MQTT_VERSION_3_1_1)
             .clean_session(false)
             .will_message(lwt)
@@ -94,6 +94,11 @@ fn main() {
 
         // Just loop on incoming messages.
         println!("Waiting for messages...");
+
+        // Note that we're not providing a way to cleanly shut down and
+        // disconnect. Therefore, when you kill this app (with a ^C or
+        // whatever) the server will get an unexpected drop and then
+        // should emit the LWT message.
 
         while let Some(msg_opt) = strm.next().await {
             if let Some(msg) = msg_opt {

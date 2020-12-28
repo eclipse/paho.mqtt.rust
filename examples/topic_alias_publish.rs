@@ -32,10 +32,10 @@
 use std::{env, process};
 use paho_mqtt as mqtt;
 
-const MQTTV5: u32 = 5;
-
-const QOS: i32 = 1;
+// This is our topic alias we'll use to publish.
 const TOPIC_ALIAS: u16 = 1;
+
+// This is the actual (long) topic name.
 const TOPIC_NAME: &str = "test/very/long/topic_name/just/to_say_hello";
 
 /////////////////////////////////////////////////////////////////////////////
@@ -48,10 +48,9 @@ fn main() -> mqtt::Result<()> {
         "tcp://localhost:1883".to_string()
     );
 
-
     // Create a client to the specified host, no persistence
     let create_opts = mqtt::CreateOptionsBuilder::new()
-        .mqtt_version(MQTTV5)
+        .mqtt_version(mqtt::MQTT_VERSION_5)
         .server_uri(host)
         .finalize();
 
@@ -61,7 +60,7 @@ fn main() -> mqtt::Result<()> {
 	});
 
     let conn_opts = mqtt::ConnectOptionsBuilder::new()
-        .mqtt_version(MQTTV5)
+        .mqtt_version(mqtt::MQTT_VERSION_5)
         .clean_start(true)
         .finalize();
 
@@ -82,7 +81,7 @@ fn main() -> mqtt::Result<()> {
 
 	// Create a topic and publish to it
 	println!("Publishing messages on the 'test' topic");
-	let mut topic = mqtt::Topic::new(&cli, TOPIC_NAME, QOS);
+	let mut topic = mqtt::Topic::new(&cli, TOPIC_NAME, mqtt::QOS_1);
 
     // First, publish with the alias to set it on the server
     topic.publish_with_alias(TOPIC_ALIAS, "Hello. Here's an alias.").wait()?;
@@ -99,8 +98,7 @@ fn main() -> mqtt::Result<()> {
     topic.publish("No alias here").wait()?;
 
 	// Disconnect from the broker
-	let tok = cli.disconnect(None);
-	tok.wait()?;
+	cli.disconnect(None).wait()?;
 
     Ok(())
 }

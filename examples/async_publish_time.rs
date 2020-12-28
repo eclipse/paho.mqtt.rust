@@ -64,11 +64,9 @@ fn main() {
         process::exit(1);
     });
 
-    let conn_opts = mqtt::ConnectOptions::new();
-
     // Connect and wait for it to complete or fail
-    if let Err(e) = cli.connect(conn_opts).wait() {
-        println!("Unable to connect: {:?}", e);
+    if let Err(err) = cli.connect(None).wait() {
+        println!("Unable to connect: {}", err);
         process::exit(1);
     }
 

@@ -7,7 +7,14 @@
 //! callbacks to receive messages and status updates. It also monitors
 //! for disconnects and performs manual re-connections.
 //!
-//! The sample demonstrates:
+//! The MQTT client lets an application keep a single "User Data" item as a
+//! boxed `Any`. It is set when the client is created and can be accessed
+//! from the various callbacks. It must adhere to Rust's usual concurrency
+//! and safety rules, so if it is to be updated by the application and
+//! callbacks, then it must be thread protected. In this example, we use a
+//! `RwLock` to provide thread safety.
+//!
+//! This sample demonstrates:
 //!   - Connecting to an MQTT server/broker.
 //!   - Client user data
 //!   - Subscribing to multiple topics simultaneously
@@ -19,7 +26,7 @@
 //!
 
 /*******************************************************************************
- * Copyright (c) 2017-2019 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2020 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0

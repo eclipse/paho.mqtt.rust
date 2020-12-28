@@ -35,8 +35,8 @@ use crate::{
 
 // TODO: Should we have a specific PersistenceResult/Error?
 
-const PERSISTENCE_SUCCESS: c_int = ffi::MQTTASYNC_SUCCESS as c_int;
-const PERSISTENCE_ERROR: c_int = ffi::MQTTCLIENT_PERSISTENCE_ERROR;
+pub const PERSISTENCE_SUCCESS: c_int = ffi::MQTTASYNC_SUCCESS as c_int;
+pub const PERSISTENCE_ERROR: c_int = ffi::MQTTCLIENT_PERSISTENCE_ERROR;
 
 
 /// Trait to implement custom persistence in the client.

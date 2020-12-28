@@ -33,13 +33,11 @@ use std::{
     process,
     collections::HashMap,
 };
-use log::{
-    trace,
-    debug
-};
+use log::trace;
 use paho_mqtt as mqtt;
 
-const PERSISTENCE_ERROR: mqtt::Error = mqtt::Error::Paho(-2);    //ffi::MQTTASYNC_PERSISTENCE_ERROR);
+// The library's persistence error.
+const PERSISTENCE_ERROR: mqtt::Error = mqtt::Error::Paho(mqtt::PERSISTENCE_ERROR);
 
 // Use a non-zero QOS to exercise the persistence store
 const QOS: i32 = 1;
@@ -49,18 +47,26 @@ const QOS: i32 = 1;
 /// The ClientPersistence maps pretty closely to a key/val store. We can use
 /// a Rust HashMap to implement an in-memory persistence pretty easily.
 /// The keys are strings, and the values are arbitrarily-sized byte buffers.
+///
+/// Note that this is an extremely silly example, because if you want to use
+/// persistence, you probably want it to be out of process so that if the
+/// client crashes and restarts, the persistence data still exists.
+///
+/// This is just here to show how the persistence API callbacks work.
+///
+#[derive(Default)]
 struct MemPersistence {
+    /// Name derived from the Client ID and Server URI
+    /// This could be used to keep a separate persistence store for each
+    /// client/server combination.
     name: String,
+    /// We'll use a HashMap for a local in-memory store.
     map: HashMap<String, Vec<u8>>,
 }
 
 impl MemPersistence {
-    fn new() -> MemPersistence {
-        MemPersistence {
-            name: "".to_string(),
-            map: HashMap::new(),
-        }
-    }
+    /// Create a new/empty persistence store.
+    fn new() -> Self { Self::default() }
 }
 
 impl mqtt::ClientPersistence for MemPersistence
@@ -117,7 +123,9 @@ impl mqtt::ClientPersistence for MemPersistence
         for key in self.map.keys() {
             keys.push(key.to_string());
         }
-        debug!("Found keys: {:?}", keys);
+        if !keys.is_empty() {
+            trace!("Found keys: {:?}", keys);
+        }
         Ok(keys)
     }
 
@@ -145,12 +153,15 @@ fn main() {
         "tcp://localhost:1883".to_string()
     );
 
-    // Create a client & define connect options
+    // Create a client & define connect options.
+    // Note that for pure publishers, you don't always need a Client ID. But
+    // when using persistence the client library requires it so as to name
+    // the local store to keep clients separate.
     println!("Creating the MQTT client.");
     let create_opts = mqtt::CreateOptionsBuilder::new()
             .server_uri(host)
             .user_persistence(MemPersistence::new())
-            .client_id("rust_async_persist_publish")
+            .client_id("rust_async_persist_pub")
             .finalize();
 
     let cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|e| {
