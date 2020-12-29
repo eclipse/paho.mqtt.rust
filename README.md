@@ -48,14 +48,13 @@ To keep up with the latest announcements for this project, follow:
 - [Breaking] Persistence defaults to `None` if no Client ID specified in creation. 
 - Ability to specify a path when using File persistence
 - Updated bindings to Paho C v1.3.8
-- Ability to start publishing (queuing) messages before fir first successful connection.
+- Ability to start publishing (queuing) messages before first successful connection.
 - New offline buffering options:
     - Ability to start publishing (queuing) messages before first successful connection.
     - Option to delete the oldest messages first from the queue when it fills up.
 - New persistence options:
     - The option to not restore messages from persistence on startup (fresh restart).
     - The option to not persist QoS 0 messages.
-- 
 - [#110] Update to `futures-timer` v3.0
 - [#95] Added Send bounds to `ClientPersistence`
 - [#92] Vendored SSL with _openssl-sys_ crate (optional)
