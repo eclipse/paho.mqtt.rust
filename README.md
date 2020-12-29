@@ -87,6 +87,12 @@ The default behaviour can be altered by enabling or disabling the features:
 
 Version 0.9 has started using the [openssl-sys](https://crates.io/crates/openssl-sys) crate which allows for further modification of the behavior through environment variables, such as specifying the location of the OpenSSL library or linking it statically. See below for details, or get more information from that crate.
 
+In particular, if you are using a pre-built OpenSSL library, you may now need to set the specific location of the library with an environment variable. For example, on Windows, you may need to do something like this:
+
+```
+set OPENSSL_DIR=C:\OpenSSL-Win64
+```
+
 ## Developing the Crate
 
 The library is a standard Rust "crate" using the _Cargo_ build tool. It uses the standard cargo commands for building:
