@@ -1,0 +1,83 @@
+// paho-mqtt/examples/ws_publish.rs
+//
+//! This is a simple MQTT message publisher using a websocket connection with
+//! the Paho Rust library.
+//!
+//! This sample demonstrates:
+//!   - Connecting to an MQTT broker using websockets.
+//!   - Publishing a message asynchronously
+//
+
+/*******************************************************************************
+ * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ *
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ *   http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * Contributors:
+ *    Frank Pagliughi - initial implementation and documentation
+ *******************************************************************************/
+
+use std::{
+    env,
+    process,
+    time::Duration,
+};
+use paho_mqtt as mqtt;
+
+/////////////////////////////////////////////////////////////////////////////
+
+fn main() {
+    // Initialize the logger from the environment
+    env_logger::init();
+
+    // Command-line option(s)
+    let mut args = env::args().skip(1);
+
+    let host = args.next().unwrap_or_else(|| "ws://localhost:8080".to_string());
+    let proxy = args.next().unwrap_or_else(String::new);
+
+    // Create the client
+    let cli = mqtt::AsyncClient::new(host).unwrap_or_else(|err| {
+        println!("Error creating the client: {}", err);
+        process::exit(1);
+    });
+
+    // Build the connect options
+    let mut conn_builder = mqtt::ConnectOptionsBuilder::new();
+
+    if !proxy.is_empty() {
+        conn_builder.http_proxy(proxy);
+    }
+
+    let conn_opts = conn_builder
+        .keep_alive_interval(Duration::from_secs(30))
+        .clean_session(true)
+        .finalize();
+
+    // Connect and wait for it to complete or fail
+    if let Err(err) = cli.connect(conn_opts).wait() {
+        println!("Unable to connect: {}", err);
+        process::exit(1);
+    }
+
+    // Create a message and publish it
+    println!("Publishing a message on the 'test' topic");
+    let msg = mqtt::Message::new("test", "Hello Rust MQTT world!", 0);
+    let tok = cli.publish(msg);
+
+    if let Err(e) = tok.wait() {
+        println!("Error sending message: {:?}", e);
+    }
+
+    // Disconnect from the broker
+    let tok = cli.disconnect(None);
+    tok.wait().unwrap();
+}
+

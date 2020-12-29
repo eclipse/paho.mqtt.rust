@@ -132,6 +132,10 @@ pub type MessageArrivedCallback = dyn FnMut(&AsyncClient, Option<Message>) + 'st
 // shared between all of the callbacks. We could use just a pointer to the
 // client and retrieve the callbacks from there, but that would require
 // every callback to synchronize data access from the callback.
+//
+// TODO: The above comment is no longer true. I fixed the C lib to have
+// separate context pointers for each of the callbacks (PR #403) a long time
+// ago! So these can be separated and managed individually.
 #[derive(Default)]
 struct CallbackContext
 {
@@ -968,9 +972,9 @@ impl AsyncClient {
     /// can be lost.
     //
     pub fn start_consuming(&mut self) -> std::sync::mpsc::Receiver<Option<Message>> {
-        use std::sync::mpsc::{self, Sender, Receiver};
+        use std::sync::mpsc;
 
-        let (tx, rx): (Sender<Option<Message>>, Receiver<Option<Message>>) = mpsc::channel();
+        let (tx, rx) = mpsc::channel::<Option<Message>>();
 
         // Make sure at least the low-level connection_lost handler is in
         // place to notify us when the connection is lost (sends a 'None' to
