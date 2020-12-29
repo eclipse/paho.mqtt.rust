@@ -3,6 +3,30 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.9.0](https://github.com/eclipse/paho.mqtt.rust/compare/v0.8.0..v0.9.0) - 2020-12-29
+
+- Websocket HTTP/HTTPS proxy support
+- Added missing MQTT v5 support:
+    - Subscribe and Unsubscribe can now have v5 properties, thus enabling Subscription Identifiers.
+- [Breaking] Persistence defaults to `None` if no Client ID specified in creation. 
+- Ability to specify a path when using File persistence
+- Updated bindings to Paho C v1.3.8
+- Ability to start publishing (queuing) messages before fir first successful connection.
+- New offline buffering options:
+    - Ability to start publishing (queuing) messages before first successful connection.
+    - Option to delete the oldest messages first from the queue when it fills up.
+- New persistence options:
+    - The option to not restore messages from persistence on startup (fresh restart).
+    - The option to not persist QoS 0 messages.
+- 
+- [#110] Update to `futures-timer` v3.0
+- [#95] Added Send bounds to `ClientPersistence`
+- [#92] Vendored SSL with _openssl-sys_ crate (optional)
+- New example apps:
+    - _sync_consume_v5.rs_ - An MQTT v5 consumer that uses Subscription ID's to handle incoming messages.
+    - _ws_publish.rs_ - Simeple websocket example with optional proxy.
+
+
 ## [v0.8.0](https://github.com/eclipse/paho.mqtt.rust/compare/v0.7.1..v0.8.0) - 2020-11-20
 
 - Upgraded Tokens to implement Futures 0.3. (async/await compatible!)

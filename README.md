@@ -2,7 +2,7 @@
 
 ![Crates.io](https://img.shields.io/crates/d/paho-mqtt)
 
-This repository contains the source code for the [Eclipse Paho](http://eclipse.org/paho) MQTT Rust client library on memory-managed operating systems such as Linux/Posix, Mac, and Windows.
+The [Eclipse Paho](http://eclipse.org/paho) MQTT Rust client library on memory-managed operating systems such as Linux/Posix, Mac, and Windows.
 
 The Rust crate is a safe wrapper around the Paho C Library.
 
@@ -13,8 +13,8 @@ The initial version of this crate is a wrapper for the Paho C library, and inclu
 - Supports MQTT v5, 3.1.1, and 3.1
 - Network Transports:
     - Standard TCP support
-    - SSL / TLS
-    - WebSockets
+    - SSL / TLS (with optional ALPN protocols)
+    - WebSockets (secure and insecure), and optional Proxies
 - QoS 0, 1, and 2
 - Last Will and Testament (LWT)
 - Message Persistence
@@ -24,15 +24,13 @@ The initial version of this crate is a wrapper for the Paho C library, and inclu
 - Offline Buffering
 - High Availability
 - Several API's:
-    - Rust Futures and Streams for asynchronous operations.
+    - Async/Await with Rust Futures and Streams for asynchronous operations.
     - Traditional asynchronous (token/wait) API
     - Synchronous/blocking  API
 
-Supports Paho C v1.3.7 (Prtial support implemented)
+Requires Paho C v1.3.8, or possibly later.
 
 ## Latest News
-
-Work is wrapping up to bump the library up to support for Paho C 1.3.8. This will bring in a number of new features including Websocket HTTP/S Proxy support, ALPN protocols, improved build capabilties including (hopefully) the automatic inclusion of openssl to make cross-compiling easier.
 
 To keep up with the latest announcements for this project, follow:
 
@@ -42,33 +40,55 @@ To keep up with the latest announcements for this project, follow:
 
 **Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
 
-### Unreleaed Features in this Branch
+### What's new in v0.9
 
-- Started updating bindings to Paho C v1.3.8
 - Websocket HTTP/HTTPS proxy support
 - Added missing MQTT v5 support:
-    - Subscribe and Unsubscribe can now have v5 properties (i.e. Subscription Identifiers)
+    - Subscribe and Unsubscribe can now have v5 properties, thus enabling Subscription Identifiers.
 - [Breaking] Persistence defaults to `None` if no Client ID specified in creation. 
+- Ability to specify a path when using File persistence
+- Updated bindings to Paho C v1.3.8
+- Ability to start publishing (queuing) messages before fir first successful connection.
+- New offline buffering options:
+    - Ability to start publishing (queuing) messages before first successful connection.
+    - Option to delete the oldest messages first from the queue when it fills up.
+- New persistence options:
+    - The option to not restore messages from persistence on startup (fresh restart).
+    - The option to not persist QoS 0 messages.
+- 
+- [#110] Update to `futures-timer` v3.0
+- [#95] Added Send bounds to `ClientPersistence`
+- [#92] Vendored SSL with _openssl-sys_ crate (optional)
+- New example apps:
+    - _sync_consume_v5.rs_ - An MQTT v5 consumer that uses Subscription ID's to handle incoming messages.
+    - _ws_publish.rs_ - Simeple websocket example with optional proxy.
 
-### What's new in v0.8.0
+## Using the Crate
 
-- Upgraded Tokens to implement Futures 0.3. (async/await compatible!)
-- std::Error type based on _thiserror_
-- Added some missing/forgotten MQTT v5 support:
-    - Connect and Will properties in connect options
-    - Reason code and properties in disconnect options
-- Ability to set additional HTTP headers in a Websocket opening handshake.
-- Added MQTT v5 topic alias capability with an example.
-- Examples using async/await
-- Removed old asynchronous (futures 0.1-style) examples
-- Message and option structs were reimplemented internally with pinned inner data structs.
-- Removed `AsyncClientBuilder`. Use `CreateClientBuilder` instead, possibly with new `create_client()` function.
-- `SslOptions` using `Path` and `PathBuf` for file names in the API instead of `String`.
-- The reason code returned from the server moved into the `ServerResponse` struct.
-- Added `ConnectResponse` as a struct instead of a tuple for the data returned in CONNACK.
-- Upgraded crate to 2018 Edition 
+To use the library, simply add this to your application's `Cargo.toml` dependencies list:
 
-## Building the Crate
+```
+paho-mqtt = "0.9"
+```
+
+By default it enables the features "bundled" and "ssl" meaning it will attempt to compile the Paho C library for the target, using the pre-built bindings, and will enable secure sockets capabilities.
+
+Note that this default behavior requires a C compiler for the target and _CMake_ to be installed.
+
+Also note that the build will use pre-generated bindings by default to speed up compile times. _If you experience segfaults or other hard crashes, the first thing to do is try using the "build_bindgen" feature in your crate to regenerate the bindings for your target._ If that doesn't fix it, then please submit an issue on [GitHub](https://github.com/eclipse/paho.mqtt.rust/issues).
+
+### Configurable Features
+
+The default behaviour can be altered by enabling or disabling the features:
+
+- _"bundled"_ - Whether to build the Paho C library contained in the Git submodule under the contained _paho-mqtt-sys_ crate. This is similar to the "vendored" feature in other Rust projects.
+- _"build_bindgen"_ - Whether to build the bindings for the target using _bindgen_. If not set, the build will attempt to find and use pre-built bindings for the target.
+- _"ssl"_ - Whether to enable the use of secure sockets and secure websocket connections. 
+- _"vendored-ssl"_ - Whether to build OpenSSL. This passes the "vendored" option to the _openssl-sys_ crate.
+
+Version 0.9 has started using the [openssl-sys](https://crates.io/crates/openssl-sys) crate which allows for further modification of the behavior through environment variables, such as specifying the location of the OpenSSL library or linking it statically. See below for details, or get more information from that crate.
+
+## Developing the Crate
 
 The library is a standard Rust "crate" using the _Cargo_ build tool. It uses the standard cargo commands for building:
 
@@ -90,7 +110,7 @@ Generates reference documentation.
 
 ###  The Paho C Library and _paho-mqtt-sys_
 
-The Paho Rust crate is a wrapper around the Paho C library. This version is **specifically matched to Paho C v 1.3.x**, and is currently using version 1.3.7. It will generally not build against newer versions of the C library, as the C lib expands functionality by extending structures, thus breaking the Rust build.
+The Paho Rust crate is a wrapper around the Paho C library. This version is **specifically matched to Paho C v 1.3.x**, and is currently using version 1.3.8. It will generally not build against newer versions of the C library, as the C lib expands functionality by extending structures, thus breaking the Rust build.
 
 The project includes a Rust _-sys_ crate, called _paho-mqtt-sys_, which provides unsafe bindings to the C library.  The repository contains a Git submodule pointing to the specific version of the C library that the Rust crate requires, and by default, it will automatically build and link to that library, using pre-generated C bindings that are also included in the repo.
 
@@ -208,13 +228,13 @@ Bindings can be created for new versions of the Paho C library or for different 
 
 ```
 $ cd paho-mqtt-sys
-$ bindgen wrapper.h -o bindings/bindings_paho_mqtt_c_1.3.7-x86_64-pc-windows-msvc.rs -- -Ipaho.mqtt.c/src
+$ bindgen wrapper.h -o bindings/bindings_paho_mqtt_c_1.3.8-x86_64-pc-windows-msvc.rs -- -Ipaho.mqtt.c/src
 ```
 
 To create bindings for a different target, use the _TARGET_ environment variable. For example, to build the 32-bit MSVC bindings for Windows on a 64-bit host, use the _i686-pc-windows-msvc_ target:
 
 ```
-$ TARGET=i686-pc-windows-msvc bindgen wrapper.h -o bindings/bindings_paho_mqtt_c_1.3.7-i686-pc-windows-msvc.rs -- -Ipaho.mqtt.c/src
+$ TARGET=i686-pc-windows-msvc bindgen wrapper.h -o bindings/bindings_paho_mqtt_c_1.3.8-i686-pc-windows-msvc.rs -- -Ipaho.mqtt.c/src
 ```
 
 ##### Bindgen linker issue

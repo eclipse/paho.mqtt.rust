@@ -1,14 +1,18 @@
 // paho-mqtt/examples/sync_consume_v5.rs
-// This is a Paho MQTT Rust client, sample application.
+// This is a Paho MQTT v5 Rust client, sample application.
 //
 //! This application is an MQTT v5 consumer/subscriber using the Rust
 //! synchronous client interface, which uses the queuing API to
 //! receive messages.
 //!
+//! It also uses MQTT v5 subscription identifiers to create an indexed table
+//! for processing messages based on the subscribed topic.
+//!
 //! The sample demonstrates:
 //!   - Connecting to an MQTT server/broker
 //!   - Checking server responses
 //!   - Subscribing to multiple topics
+//!   - MQTT v5 subscription identifiers
 //!   - Receiving messages through the queueing consumer API
 //!   - Recieving and acting upon commands via MQTT topics
 //!   - Manual reconnects
@@ -159,6 +163,9 @@ fn main() -> mqtt::Result<()> {
     println!("Waiting for messages...");
     for msg in rx.iter() {
         if let Some(msg) = msg {
+            // In a real app you'd want to do a lot more error checking and
+            // recovery, but this should give an idea about the basics.
+
             let sub_id = msg.properties()
                 .get_int(mqtt::PropertyCode::SubscriptionIdentifier)
                 .expect("No Subscription ID") as usize;
@@ -183,3 +190,4 @@ fn main() -> mqtt::Result<()> {
 
     Ok(())
 }
+
