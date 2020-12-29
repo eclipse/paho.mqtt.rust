@@ -83,7 +83,7 @@ use crate::{
         SubscribeManyToken,
     },
     client_persistence::UserPersistence,
-    errors::Result,
+    errors::{self, Result},
     string_collection::StringCollection,
     reason_code::ReasonCode,
 };
@@ -182,7 +182,8 @@ impl AsyncClient {
             PersistenceType::File =>
                 (ffi::MQTTCLIENT_PERSISTENCE_DEFAULT, ptr::null_mut()),
             PersistenceType::FilePath(path) => {
-                file_path = CString::new(path).unwrap_or_default();
+                let s = path.to_str().ok_or(errors::PersistenceError)?;
+                file_path = CString::new(s).unwrap_or_default();
                 let pptr = file_path.as_ptr() as *mut c_void;
                 (ffi::MQTTCLIENT_PERSISTENCE_DEFAULT, pptr)
             },

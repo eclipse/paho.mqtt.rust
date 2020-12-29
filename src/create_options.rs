@@ -23,6 +23,7 @@
 use std::{
     fmt,
     os::raw::c_int,
+    path::{Path, PathBuf},
 };
 
 use crate::{
@@ -41,12 +42,25 @@ use crate::{
         MQTTCLIENT_PERSISTENCE_USER    = 2
 */
 
-/// The type of persistence for the client
+/// The type of persistence for the client.
+///
+/// There is a built-in mechanism for using the file system to persist
+/// messages and data. The `File` selection will use that in the current
+/// working directory (CWD). A path can also be specified, with `FilePath`
+/// and then the persistence store will be created under that directory.
+/// Each client will create a directory under that using the MQTT client
+/// ID and server URL to name the directory. Therefore, a client ID is
+/// required by the library when using persistence.
+///
+/// The persistence type can be created from any string or path to indicate
+/// file persistence to that directory. If a directory with that name can't
+/// be found or created by the library, then a persistence error is returned
+/// when attempting to create the MQTT client object.
 pub enum PersistenceType {
     /// Messages are persisted to files in a local directory (default).
     File,
     /// Messages are persisted to files under the specified directory.
-    FilePath(String),
+    FilePath(PathBuf),
     /// No persistence is used.
     None,
     /// A user-defined persistence provided by the application.
@@ -69,13 +83,29 @@ impl Default for PersistenceType {
 }
 
 impl From<&str> for PersistenceType {
+    /// A string slice can be used to create a file path persistence.
     fn from(path: &str) -> Self {
-        PersistenceType::FilePath(path.to_string())
+        PersistenceType::FilePath(PathBuf::from(path))
     }
 }
 
 impl From<String> for PersistenceType {
+    /// A string can be used to create a file path persistence.
     fn from(path: String) -> Self {
+        PersistenceType::FilePath(PathBuf::from(path))
+    }
+}
+
+impl From<&Path> for PersistenceType {
+    /// A path can be used to create a file path persistence.
+    fn from(path: &Path) -> Self {
+        PersistenceType::FilePath(path.into())
+    }
+}
+
+impl From<PathBuf> for PersistenceType {
+    /// A path buffer can be used to create a file path persistence.
+    fn from(path: PathBuf) -> Self {
         PersistenceType::FilePath(path)
     }
 }
@@ -265,8 +295,7 @@ impl CreateOptionsBuilder {
     /// `persist` An application-defined custom persistence store.
     ///
     pub fn user_persistence<T>(mut self, persistence: T) -> Self
-    where
-        T: ClientPersistence + Send + 'static,
+        where T: ClientPersistence + Send + 'static,
     {
         let persistence: Box<Box<dyn ClientPersistence + Send>> = Box::new(Box::new(persistence));
         self.persistence = PersistenceType::User(persistence);
