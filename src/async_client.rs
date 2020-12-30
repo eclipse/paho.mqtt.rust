@@ -83,9 +83,9 @@ use crate::{
         SubscribeManyToken,
     },
     client_persistence::UserPersistence,
-    errors::{self, Result},
     string_collection::StringCollection,
     reason_code::ReasonCode,
+    errors::{self, Result, Error},
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -644,13 +644,13 @@ impl AsyncClient {
         }
     }
 
-    /// Publishes a message to an MQTT broker
+    /// Attempts to publish a message to the MQTT broker, but returns an
+    /// error immediately if there's a problem creating or queuing the
+    /// message.
     ///
-    /// # Arguments
-    ///
-    /// * `msg` The message to publish.
-    ///
-    pub fn publish(&self, msg: Message) -> DeliveryToken {
+    /// Returns a Publish Error on failure so that the original message
+    /// can be recovered and sent again.
+    pub fn try_publish(&self, msg: Message) -> Result<DeliveryToken> {
         debug!("Publish: {:?}", msg);
 
         let ver = self.mqtt_version();
@@ -667,13 +667,27 @@ impl AsyncClient {
         if rc != 0 {
             let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
             let msg: Message = tok.into();
-            DeliveryToken::from_error(msg, rc)
+            Err(Error::Publish(rc, msg))
         }
         else {
             tok.set_msgid(rsp_opts.copts.token as i16);
-            tok
+            Ok(tok)
         }
     }
+
+    /// Publishes a message to the MQTT broker.
+    ///
+    /// Returns a Delivery Token to track the progress of the operation.
+    ///
+    pub fn publish(&self, msg: Message) -> DeliveryToken {
+        match self.try_publish(msg) {
+            Ok(tok) => tok,
+            Err(Error::Publish(rc, msg)) =>
+                DeliveryToken::from_error(msg, rc),
+            _ => panic!("Unknown publish error"),
+        }
+    }
+
 
     /// Subscribes to a single topic.
     ///

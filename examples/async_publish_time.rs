@@ -66,7 +66,7 @@ fn main() {
     // fail with a persistence error.
     let create_opts = mqtt::CreateOptionsBuilder::new()
             .server_uri(host)
-            .client_id("rust_async_persist_pub")
+            .client_id("rust_async_pub_time")
             .persistence("persist")
             .finalize();
 
@@ -80,6 +80,10 @@ fn main() {
         println!("Unable to connect: {}", err);
         process::exit(1);
     }
+
+    // Note that with MQTT v5, this would be a good place to use a topic
+    // object with an alias. It might help reduce the size of the messages
+    // if the topic string is long.
 
     let topic = "data/time";
 
@@ -99,8 +103,15 @@ fn main() {
         let tf = 0.01 * (t as f64);
 
         let msg = mqtt::Message::new(topic, format!("{:.3}", tf), 1);
-        if let Err(e) = cli.publish(msg).wait() {
-            println!("Error sending message: {:?}", e);
+
+        // We don't need to use `try_publish()` here since we just wait on
+        // the token, but this shows how we could use it.
+        match cli.try_publish(msg) {
+            Err(err) =>
+                eprintln!("Error creating/queuing the message: {}", err),
+            Ok(tok) => if let Err(err) = tok.wait() {
+                eprintln!("Error sending message: {}", err);
+            },
         }
     }
 }

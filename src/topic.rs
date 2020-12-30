@@ -30,6 +30,7 @@ use crate::{
     subscribe_options::SubscribeOptions,
     message::{Message, MessageBuilder},
     properties::{PropertyCode, Properties},
+    errors::Result,
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -95,6 +96,27 @@ impl<'a> Topic<'a>
         }
     }
 
+    /// Create a message for the topic using the supplied payload
+    fn create_message<V>(&self, payload: V) -> Message
+        where V: Into<Vec<u8>>
+    {
+        // OPTIMIZE: This could be more efficient.
+        if self.alias == 0 {
+            Message::new(&self.topic, payload, self.qos)
+        }
+        else {
+            let props = properties!{ PropertyCode::TopicAlias => self.alias };
+            MessageBuilder::new()
+                .topic("")
+                .payload(payload)
+                .qos(self.qos)
+                .retained(self.retained)
+                .properties(props)
+                .finalize()
+        }
+    }
+
+
     /// Subscribe to the topic.
     pub fn subscribe(&self) -> Token {
         self.cli.subscribe(self.topic.clone(), self.qos)
@@ -112,7 +134,7 @@ impl<'a> Topic<'a>
     ///
     /// If a topic alias was previously sent, this will use the integer alias
     /// property instead of sending the topic string.
-    /// Topis aliases are only applicable for MQTT v5 connections.
+    /// Topic aliases are only applicable for MQTT v5 connections.
     ///
     /// # Arguments
     ///
@@ -121,21 +143,28 @@ impl<'a> Topic<'a>
     pub fn publish<V>(&self, payload: V) -> DeliveryToken
         where V: Into<Vec<u8>>
     {
-        // OPTIMIZE: This could be more efficient.
-        let msg = if self.alias == 0 {
-            Message::new(&self.topic, payload, self.qos)
-        }
-        else {
-            let props = properties!{ PropertyCode::TopicAlias => self.alias };
-            MessageBuilder::new()
-                .topic("")
-                .payload(payload)
-                .qos(self.qos)
-                .retained(self.retained)
-                .properties(props)
-                .finalize()
-        };
+        let msg = self.create_message(payload);
         self.cli.publish(msg)
+    }
+
+    /// Attempts to publish a message on the topic, but returns an error
+    /// immediately if there's a problem creating or queuing the message for
+    /// transmission.
+    ///
+    /// If a topic alias was previously sent, this will use the integer alias
+    /// property instead of sending the topic string.
+    /// Topic aliases are only applicable for MQTT v5 connections.
+    ///
+    /// # Arguments
+    ///
+    /// `payload` The payload of the message
+    ///
+    /// Returns a Publish Error containing the complete message on failure.
+    pub fn try_publish<V>(&self, payload: V) -> Result<DeliveryToken>
+        where V: Into<Vec<u8>>
+    {
+        let msg = self.create_message(payload);
+        self.cli.try_publish(msg)
     }
 
     /// Publish a message with a topic alias.
@@ -167,20 +196,21 @@ impl<'a> Topic<'a>
         where V: Into<Vec<u8>>
     {
         self.alias = alias;
-        let msg = if alias == 0 {
-            Message::new(&self.topic, payload, self.qos)
-        }
-        else {
-            let props = properties!{ PropertyCode::TopicAlias => alias };
-            MessageBuilder::new()
-                .topic(self.topic.clone())
-                .payload(payload)
-                .qos(self.qos)
-                .retained(self.retained)
-                .properties(props)
-                .finalize()
-        };
-        self.cli.publish(msg)
+        self.publish(payload)
+    }
+
+    /// Attempts to publish a message on the topic using and setting a new topic
+    /// alias, but returns an error immediately if there's a problem creating or
+    /// queuing the message for transmission.
+    ///
+    /// See `publish_with_alias()` for more information.
+    ///
+    /// Returns a Publish Error containing the complete message on failure.
+    pub fn try_publish_with_alias<V>(&mut self, alias: u16, payload: V) -> Result<DeliveryToken>
+        where V: Into<Vec<u8>>
+    {
+        self.alias = alias;
+        self.try_publish(payload)
     }
 }
 
