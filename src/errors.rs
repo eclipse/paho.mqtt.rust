@@ -37,6 +37,9 @@ pub enum Error {
     #[error("{}", error_message(*.0))]
     Paho(i32),
     /// An error from the Paho C library with an additional description.
+    // TODO: Consider getting rid of this as it makes it more difficult to
+    //  match to a Paho Error as sometimes the same error has a description
+    //  and other times it doesn't.
     #[error("[{0}] {1}")]
     PahoDescr(i32, String),
     /// A synchronous error when publishing creating or queuing the message.

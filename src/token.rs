@@ -100,6 +100,11 @@ impl TokenData {
             complete: true,
             ret_code: rc,
             err_msg: if rc != 0 {
+                         // TODO: Get rid of this? It seems to be redundant
+                         // and confusing as the error message is just derived
+                         // from the i32 error. Having it causes the error to
+                         // fail the match to Error::Paho(_)
+                         // Or, even better, get rid of Error::PahoDescr()
                          Some(String::from(errors::error_message(rc)))
                      }
                      else { None },
@@ -449,8 +454,19 @@ impl Token {
         block_on(self)
     }
 
+    /// Non-blocking check to see if the token is complete.
+    ///
+    /// Returns `None` if the operation is still in progress, otherwise
+    /// returns the result of the operation which can be an error or,
+    /// on success, the response from the server.
+    pub fn try_wait(&mut self) -> Option<Result<ServerResponse>> {
+        self.now_or_never()
+    }
+
     /// Blocks the caller a limited amount of time waiting for the
     /// asynchronous operation to complete.
+    // TODO: We probably shouldn't consume the token if it's not complete.
+    //      Maybe take '&mut self'?
     pub fn wait_for(self, dur: Duration) -> Result<ServerResponse> {
         block_on(async move {
             let f = self.fuse();
@@ -571,7 +587,6 @@ impl Into<Token> for DeliveryToken {
     }
 }
 
-
 impl Future for DeliveryToken {
     type Output = Result<()>;
 
@@ -669,6 +684,48 @@ mod tests {
 
         tok2.inner.on_complete(0, 0, None, ptr::null_mut());
         let _ = thr.join().unwrap();
+    }
+
+    #[test]
+    fn test_try_wait() {
+        const ERR_CODE: i32 = -42;
+        let mut tok = Token::from_error(ERR_CODE);
+
+        match tok.try_wait() {
+            //Some(Err(Error::Paho(ERR_CODE))) => (),
+            Some(Err(Error::PahoDescr(ERR_CODE, _))) => (),
+            Some(Err(_)) => assert!(false),
+            Some(Ok(_)) => assert!(false),
+            None => assert!(false)
+        }
+
+        // An unsignaled token
+        let mut tok = Token::new();
+
+        // If it's not done, we should get None
+        match tok.try_wait() {
+            None => (),
+            Some(Err(_)) => assert!(false),
+            Some(Ok(_)) => assert!(false),
+        }
+
+        // Complete the token
+        {
+            let mut data = tok.inner.lock.lock().unwrap();
+            data.complete = true;
+            data.ret_code = ERR_CODE;
+            //data.err_msg = err_msg;
+        }
+
+        // Now it should resolve to Some(Err(...))
+        match tok.try_wait() {
+            Some(Err(Error::Paho(ERR_CODE))) => (),
+            //Some(Err(Error::PahoDescr(ERR_CODE, _))) => (),
+            Some(Err(_)) => assert!(false),
+            Some(Ok(_)) => assert!(false),
+            None => assert!(false)
+        }
+
     }
 }
 
