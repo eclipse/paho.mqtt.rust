@@ -25,45 +25,62 @@ use std::{
 use thiserror::Error;
 use crate::{
     ffi,
+    message::Message,
     reason_code::ReasonCode,
 };
 
 /// The errors from an MQTT operation.
 #[derive(Error, Debug)]
 pub enum Error {
+    /// An error from the underlying Paho C library.
+    /// These are brought out as individual constants, below.
     #[error("{}", error_message(*.0))]
     Paho(i32),
+    /// An error from the Paho C library with an additional description.
     #[error("[{0}] {1}")]
     PahoDescr(i32, String),
+    /// A synchronous error when publishing creating or queuing the message.
+    #[error("{}", error_message(*.0))]
+    Publish(i32, Message),
+    /// An MQTT v5 error from a reason code.
     #[error("{0}")]
     ReasonCode(ReasonCode),
+    /// An low-level I/O error
     #[error("I/O failed: {0}")]
     Io(#[from] io::Error),
+    /// An error parsing a UTF-8 string
     #[error("String UTF-8 Error")]
     Utf8(#[from] str::Utf8Error),
+    /// A string NUL error
     #[error("String NUL Error")]
     Nul(#[from] std::ffi::NulError),
+    /// A timeout, particularly from a synchronous operation.
     #[error("Timeout")]
     Timeout,
+    /// A general error with description
     #[error("{0}")]
     General(&'static str),
+    /// A general error with description
     #[error("{0}")]
     GeneralString(String),
 }
 
 impl From<i32> for Error {
+    /// Create an error from a Paho C return code.
     fn from(rc: i32) -> Error {
         Error::Paho(rc)
     }
 }
 
 impl From<&'static str> for Error {
+    /// Create a general error from a string.
     fn from(descr: &'static str) -> Error {
         Error::General(descr)
     }
 }
 
 impl From<String> for Error {
+    /// Create a general error from a string.
     fn from(descr: String) -> Error {
         Error::GeneralString(descr)
     }
