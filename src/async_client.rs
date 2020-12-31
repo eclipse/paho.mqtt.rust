@@ -128,14 +128,12 @@ pub type DisconnectedCallback = dyn FnMut(&AsyncClient, Properties, ReasonCode) 
 pub type MessageArrivedCallback = dyn FnMut(&AsyncClient, Option<Message>) + 'static;
 
 // The context provided for the client callbacks.
-// Note that the Paho C library maintains a single void* context pointer
-// shared between all of the callbacks. We could use just a pointer to the
-// client and retrieve the callbacks from there, but that would require
-// every callback to synchronize data access from the callback.
 //
-// TODO: The above comment is no longer true. I fixed the C lib to have
-// separate context pointers for each of the callbacks (PR #403) a long time
-// ago! So these can be separated and managed individually.
+// Originally these needed to be kept together and managed with a single
+// context in the C lib. Now, we just keep them together to easily manage
+// for thread-protection with a Mutex.
+// These are now independent, so don't need to be kept inside a single mutex.
+// Even better, it would be nice to be able to run the callbacks lock-free.
 #[derive(Default)]
 struct CallbackContext
 {
@@ -234,21 +232,17 @@ impl AsyncClient {
     unsafe extern "C" fn on_connected(context: *mut c_void, _cause: *mut c_char) {
         debug!("Connected! {:?}", context);
 
-        if context.is_null() {
-            error!("Connected callback received a null context.");
-            return;
-        }
-
-        let cli = AsyncClient::from_raw(context);
-        {
-            let mut cbctx = cli.inner.callback_context.lock().unwrap();
-
-            if let Some(ref mut cb) = cbctx.on_connected {
-                trace!("Invoking connected callback");
-                cb(&cli);
+        if !context.is_null() {
+            let cli = AsyncClient::from_raw(context);
+            {
+                let mut cbctx = cli.inner.callback_context.lock().unwrap();
+                if let Some(ref mut cb) = cbctx.on_connected {
+                    trace!("Invoking connected callback");
+                    cb(&cli);
+                }
             }
+            let _ = cli.into_raw();
         }
-        let _ = cli.into_raw();
     }
 
     // Low-level callback from the C library when the connection is lost.
@@ -256,67 +250,63 @@ impl AsyncClient {
     unsafe extern "C" fn on_connection_lost(context: *mut c_void, _cause: *mut c_char) {
         warn!("Connection lost. Context: {:?}", context);
 
-        if context.is_null() {
-            error!("Connection lost callback received a null context.");
-            return;
-        }
+        if !context.is_null() {
+            let cli = AsyncClient::from_raw(context);
+            {
+                let mut cbctx = cli.inner.callback_context.lock().unwrap();
 
-        let cli = AsyncClient::from_raw(context);
-        {
-            let mut cbctx = cli.inner.callback_context.lock().unwrap();
+                // Push a None into the message stream to cleanly
+                // shutdown any consumers.
+                if let Some(ref mut cb) = cbctx.on_message_arrived {
+                    trace!("Invoking message callback with None");
+                    cb(&cli, None);
+                }
 
-            // Push a None into the message stream to cleanly
-            // shutdown any consumers.
-            if let Some(ref mut cb) = cbctx.on_message_arrived {
-                trace!("Invoking message callback with None");
-                cb(&cli, None);
+                if let Some(ref mut cb) = cbctx.on_connection_lost {
+                    trace!("Invoking connection lost callback");
+                    cb(&cli);
+                }
             }
-
-            if let Some(ref mut cb) = cbctx.on_connection_lost {
-                trace!("Invoking connection lost callback");
-                cb(&cli);
-            }
+            let _ = cli.into_raw();
         }
-        let _ = cli.into_raw();
     }
 
     // Low-level callback from the C library for when a disconnect packet arrives.
-    unsafe extern "C" fn on_disconnected(context: *mut c_void, cprops: *mut ffi::MQTTProperties,
-                                         reason: ffi::MQTTReasonCodes) {
+    unsafe extern "C" fn on_disconnected(
+        context: *mut c_void,
+        cprops: *mut ffi::MQTTProperties,
+        reason: ffi::MQTTReasonCodes
+    ) {
         debug!("Disconnected on context {:?}, with reason code: {}", context, reason);
 
-        if context.is_null() {
-            error!("Disconnected callback received a null context.");
-            return;
-        }
+        if !context.is_null() {
+            let cli = AsyncClient::from_raw(context);
+            let reason_code = ReasonCode::from(reason);
+            let props = Properties::from_c_struct(&*cprops);
+            {
+                let mut cbctx = cli.inner.callback_context.lock().unwrap();
 
-        let cli = AsyncClient::from_raw(context);
-        let reason_code = ReasonCode::from(reason);
-        let props = Properties::from_c_struct(&*cprops);
-        {
-            let mut cbctx = cli.inner.callback_context.lock().unwrap();
-
-            if let Some(ref mut cb) = cbctx.on_disconnected {
-                trace!("Invoking disconnected callback");
-                cb(&cli, props, reason_code);
+                if let Some(ref mut cb) = cbctx.on_disconnected {
+                    trace!("Invoking disconnected callback");
+                    cb(&cli, props, reason_code);
+                }
             }
+            let _ = cli.into_raw();
         }
-        let _ = cli.into_raw();
     }
 
     // Low-level callback from the C library when a message arrives from the broker.
     // We pass the call on to the handler registered with the client, if any.
-    unsafe extern "C" fn on_message_arrived(context: *mut c_void,
-                                            topic_name: *mut c_char,
-                                            topic_len: c_int,
-                                            mut cmsg: *mut ffi::MQTTAsync_message) -> c_int {
+    unsafe extern "C" fn on_message_arrived(
+        context: *mut c_void,
+        topic_name: *mut c_char,
+        topic_len: c_int,
+        mut cmsg: *mut ffi::MQTTAsync_message
+    ) -> c_int {
         debug!("Message arrived. Context: {:?}, topic: {:?} len {:?} cmsg: {:?}: {:?}",
                context, topic_name, topic_len, cmsg, *cmsg);
 
-        if context.is_null() {
-            error!("Message arrived callback received a null context.");
-        }
-        else {
+        if !context.is_null() {
             let cli = AsyncClient::from_raw(context);
             {
                 let mut cbctx = cli.inner.callback_context.lock().unwrap();
@@ -406,12 +396,14 @@ impl AsyncClient {
     ///
     /// * `opts` The connect options
     ///
-    pub fn connect_with_callbacks<FS,FF>(&self,
-                                         mut opts: ConnectOptions,
-                                         success_cb: FS,
-                                         failure_cb: FF) -> ConnectToken
-        where FS: Fn(&AsyncClient,u16) + 'static,
-              FF: Fn(&AsyncClient,u16,i32) + 'static
+    pub fn connect_with_callbacks<FS,FF>(
+        &self,
+        mut opts: ConnectOptions,
+        success_cb: FS,
+        failure_cb: FF
+    ) -> ConnectToken
+    where FS: Fn(&AsyncClient,u16) + 'static,
+          FF: Fn(&AsyncClient,u16,i32) + 'static
     {
         debug!("Connecting handle with callbacks: {:?}", self.inner.handle);
         debug!("Connect opts: {:?}", opts);
@@ -463,11 +455,13 @@ impl AsyncClient {
     /// * `success_cb` The callback for a successful connection.
     /// * `failure_cb` The callback for a failed connection attempt.
     ///
-    pub fn reconnect_with_callbacks<FS,FF>(&self,
-                                           success_cb: FS,
-                                           failure_cb: FF) -> ConnectToken
-        where FS: Fn(&AsyncClient,u16) + 'static,
-              FF: Fn(&AsyncClient,u16,i32) + 'static
+    pub fn reconnect_with_callbacks<FS,FF>(
+        &self,
+        success_cb: FS,
+        failure_cb: FF
+    ) -> ConnectToken
+    where FS: Fn(&AsyncClient,u16) + 'static,
+          FF: Fn(&AsyncClient,u16,i32) + 'static
     {
         let connopts = {
             let lkopts = self.inner.opts.lock().unwrap();
@@ -484,7 +478,7 @@ impl AsyncClient {
     ///            default of immediate (zero timeout) disconnect.
     ///
     pub fn disconnect<T>(&self, opt_opts: T) -> Token
-            where T: Into<Option<DisconnectOptions>>
+        where T: Into<Option<DisconnectOptions>>
     {
         if let Some(mut opts) = opt_opts.into() {
             debug!("Disconnecting");
