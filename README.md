@@ -40,6 +40,11 @@ To keep up with the latest announcements for this project, follow:
 
 **Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
 
+### Unreleased Features in this Branch
+
+- A `try_publish()` funciton for the `AsyncClient` and `Topic`, and a `Token::try_wait()`. See Issue [#101](https://github.com/eclipse/paho.mqtt.rust/issues/101).
+- [#28](https://github.com/eclipse/paho.mqtt.rust/issues/28) Some instructions for using the "cross" tool for cross-compiling.
+
 ### What's new in v0.9
 
 - Websocket HTTP/HTTPS proxy support
@@ -55,9 +60,9 @@ To keep up with the latest announcements for this project, follow:
 - New persistence options:
     - The option to not restore messages from persistence on startup (fresh restart).
     - The option to not persist QoS 0 messages.
-- [#110] Update to `futures-timer` v3.0
-- [#95] Added Send bounds to `ClientPersistence`
-- [#92] Vendored SSL with _openssl-sys_ crate (optional)
+- [#110](https://github.com/eclipse/paho.mqtt.rust/issues/110) Update to `futures-timer` v3.0
+- [#95](https://github.com/eclipse/paho.mqtt.rust/issues/95) Added Send bounds to `ClientPersistence`
+- [#92](https://github.com/eclipse/paho.mqtt.rust/issues/92) Vendored SSL with _openssl-sys_ crate (optional)
 - New example apps:
     - _sync_consume_v5.rs_ - An MQTT v5 consumer that uses Subscription ID's to handle incoming messages.
     - _ws_publish.rs_ - Simeple websocket example with optional proxy.
@@ -91,6 +96,36 @@ In particular, if you are using a pre-built OpenSSL library, you may now need to
 
 ```
 set OPENSSL_DIR=C:\OpenSSL-Win64
+```
+
+## Cross-Compiling
+
+The crate can be cross-compiled using the Rust cross-compilers. But remember that the default feature set calls for automatically building the Paho C library, and in order to do that you also need the C cross sompiler for the target.
+
+With those installed, you typically also need to auomatically build OpenSSL as part of the Paho if you don't have a version available for the target. You might want to generate the C bindings as well. It might look something like this:
+
+```
+$ cargo build --target=mips-unknown-linux-gnu \
+    --features="vendored-ssl,build_bindgen" --examples
+```
+
+For more info, see [The Rust Book](https://rust-lang.github.io/rustup/cross-compilation.html).
+
+### Cross-Compiling with the "cross" project.
+
+The [cross](https://github.com/rust-embedded/cross) project is a cross-compilation build tool that utilizes docker containers pre-loaded with the build tools for a number of targets. It requires [Docker](https://docs.docker.com/get-docker/) to be installed and running on your system.
+
+Then build/install the `cross` tool:
+
+```
+$ cargo install cross
+```
+
+After that, you should be able to build the project for any of the supported targets. Just use the `cross` command instead of cargo.
+
+```
+$ cross build --target=armv7-unknown-linux-gnueabihf \
+    --features=vendored-ssl --examples
 ```
 
 ## Developing the Crate
