@@ -264,16 +264,19 @@ For example, to do a full build for `ARMv7`, which includes Raspberry Pi's, Beag
 
     $ cargo build --target=armv7-unknown-linux-gnueabihf --examples
 
-This builds the main crate, the *-sys* crate, and it cross-compiles the Paho C library. It uses SSL, so it requires you to have a version of the SSL development library installed with the cross-compiler.
-
-If you use the `--vendored-ssl` feature, you might also need to the correct `CC` environment variable if the triplet of the cross-compiler doesn't exactly match that of the Rust target:
+This builds the main crate, the *-sys* crate, and it cross-compiles the Paho C library. It uses SSL, so it requires you to have a version of the SSL development library installed with the cross-compiler. If the SSL libraries are not available you can compile and link them as part of the Rust build using the `--vendored-ssl` feature:
 ```
-$ CC_armv7-unknown-linux-gnueabihf=armv7-unknown-linux-gnueabihf-gcc cargo build --target=armv7-unknown-linux-gnueabihf --features="vendored-ssl" --examples
+$ cargo build --target=armv7-unknown-linux-gnueabihf --features="vendored-ssl" --examples
 ```
 
 If you don't want to use SSL with the cross-compiler:
 ```
 $ cargo build --target=armv7-unknown-linux-gnueabihf --no-default-features --features="bundled" --examples
+```
+
+If the triplet of the installed cross-compiler doesn't exactly match that of the Rust target, you might also need to correct the `CC` environment variable:
+```
+$ CC_armv7-unknown-linux-gnueabihf=armv7-unknown-linux-gnueabihf-gcc cargo build --target=armv7-unknown-linux-gnueabihf --features="vendored-ssl" --examples
 ```
 
 #### Cross-Compiling with the "cross" project.
