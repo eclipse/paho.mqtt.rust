@@ -40,12 +40,13 @@ To keep up with the latest announcements for this project, follow:
 
 **Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
 
-### Unreleased Features in this Branch
+### What's new in v0.9.1
 
-- A `try_publish()` funciton for the `AsyncClient` and `Topic`, and a `Token::try_wait()`. See Issue [#101](https://github.com/eclipse/paho.mqtt.rust/issues/101).
+- [#101](https://github.com/eclipse/paho.mqtt.rust/issues/101) `Token::try_wait()` to check for the result of a `Token` without blocking.
+- [#101](https://github.com/eclipse/paho.mqtt.rust/issues/101) A `try_publish()` function for the `AsyncClient` and `Topic` which return a synchronous result that the message was created and queued for transmission successfully.
 - [#28](https://github.com/eclipse/paho.mqtt.rust/issues/28) Some instructions for using the "cross" tool for cross-compiling.
 
-### What's new in v0.9
+### What's new in v0.9.0
 
 - Websocket HTTP/HTTPS proxy support
 - Added missing MQTT v5 support:
