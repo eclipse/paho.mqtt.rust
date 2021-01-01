@@ -253,9 +253,12 @@ export LIBCLANG_PATH=/usr/lib/llvm-3.9/lib
 
 ### Cross-Compiling
 
-I was pleasantly surprised to discover that the *cmake* crate automatically handles cross-compiling libraries. You'll need a C cross-compiler installed on your system. See here for more info about cross-compiling Rust, in general:
+The *cmake* crate automatically handles cross-compiling libraries. You'll need a C cross-compiler installed on your system. See here for more info about cross-compiling Rust, in general:
 
 https://github.com/japaric/rust-cross
+
+[The Rust Book](https://rust-lang.github.io/rustup/cross-compilation.html)
+
 
 For example, to do a full build for `ARMv7`, which includes Raspberry Pi's, BeagleBones, UDOO Neo's, and lots of other ARM maker boards:
 
@@ -263,30 +266,17 @@ For example, to do a full build for `ARMv7`, which includes Raspberry Pi's, Beag
 
 This builds the main crate, the *-sys* crate, and it cross-compiles the Paho C library. It uses SSL, so it requires you to have a version of the SSL development library installed with the cross-compiler.
 
-If you use the `--vendored-ssl` feature, you probably also need to the correct `CC` environment variable:
+If you use the `--vendored-ssl` feature, you might also need to the correct `CC` environment variable if the triplet of the cross-compiler doesn't exactly match that of the Rust target:
 ```
 $ CC_armv7-unknown-linux-gnueabihf=armv7-unknown-linux-gnueabihf-gcc cargo build --target=armv7-unknown-linux-gnueabihf --features="vendored-ssl" --examples
 ```
 
-If you don't have SSL for the cross-compiler:
+If you don't want to use SSL with the cross-compiler:
 ```
 $ cargo build --target=armv7-unknown-linux-gnueabihf --no-default-features --features="bundled" --examples
 ```
 
-## Cross-Compiling
-
-The crate can be cross-compiled using the Rust cross-compilers. But remember that the default feature set calls for automatically building the Paho C library, and in order to do that you also need the C cross compiler for the target.
-
-With those installed, you typically also need to auomatically build OpenSSL as part of the Paho if you don't have a version available for the target. You might want to generate the C bindings as well. It might look something like this:
-
-```
-$ cargo build --target=mips-unknown-linux-gnu \
-    --features="vendored-ssl,build_bindgen" --examples
-```
-
-For more info, see [The Rust Book](https://rust-lang.github.io/rustup/cross-compilation.html).
-
-### Cross-Compiling with the "cross" project.
+#### Cross-Compiling with the "cross" project.
 
 The [cross](https://github.com/rust-embedded/cross) project is a cross-compilation build tool that utilizes docker containers pre-loaded with the build tools for a number of targets. It requires [Docker](https://docs.docker.com/get-docker/) to be installed and running on your system.
 
@@ -322,7 +312,7 @@ Building without SSL is like this:
 
 ```
 $  cargo build --no-default-features --features="bundled" \
-    --release --target=x86_64-unknown-linux-musl --examples 
+    --target=x86_64-unknown-linux-musl --examples 
 ```
 
 ## Logging
