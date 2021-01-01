@@ -71,9 +71,7 @@ To keep up with the latest announcements for this project, follow:
 
 To use the library, simply add this to your application's `Cargo.toml` dependencies list:
 
-```
-paho-mqtt = "0.9"
-```
+    paho-mqtt = "0.9"
 
 By default it enables the features "bundled" and "ssl" meaning it will attempt to compile the Paho C library for the target, using the pre-built bindings, and will enable secure sockets capabilities.
 
@@ -94,39 +92,7 @@ Version 0.9 has started using the [openssl-sys](https://crates.io/crates/openssl
 
 In particular, if you are using a pre-built OpenSSL library, you may now need to set the specific location of the library with an environment variable. For example, on Windows, you may need to do something like this:
 
-```
-set OPENSSL_DIR=C:\OpenSSL-Win64
-```
-
-## Cross-Compiling
-
-The crate can be cross-compiled using the Rust cross-compilers. But remember that the default feature set calls for automatically building the Paho C library, and in order to do that you also need the C cross sompiler for the target.
-
-With those installed, you typically also need to auomatically build OpenSSL as part of the Paho if you don't have a version available for the target. You might want to generate the C bindings as well. It might look something like this:
-
-```
-$ cargo build --target=mips-unknown-linux-gnu \
-    --features="vendored-ssl,build_bindgen" --examples
-```
-
-For more info, see [The Rust Book](https://rust-lang.github.io/rustup/cross-compilation.html).
-
-### Cross-Compiling with the "cross" project.
-
-The [cross](https://github.com/rust-embedded/cross) project is a cross-compilation build tool that utilizes docker containers pre-loaded with the build tools for a number of targets. It requires [Docker](https://docs.docker.com/get-docker/) to be installed and running on your system.
-
-Then build/install the `cross` tool:
-
-```
-$ cargo install cross
-```
-
-After that, you should be able to build the project for any of the supported targets. Just use the `cross` command instead of cargo.
-
-```
-$ cross build --target=armv7-unknown-linux-gnueabihf \
-    --features=vendored-ssl --examples
-```
+    set OPENSSL_DIR=C:\OpenSSL-Win64
 
 ## Developing the Crate
 
@@ -197,6 +163,8 @@ The crate can also be build without SSL by using `--no-default-features`. For ex
 
     $ cargo build --no-default-features --features "bundled"
 
+##### Linking OpenSSL Statically
+
 Enable the `--vendored-ssl` feature to build the crate with a compiled and statically linked copy of OpenSSL. The `--vendored-ssl` feature also enables the `bundled` and `ssl` features, so either of these command will work:
 
     $ cargo build --features "vendored-ssl"
@@ -248,21 +216,17 @@ But each release of the Rust crate is build against a specific version of the Pa
 
 The crate comes with a number of pre-built bindings for several popular targets in: `paho-mqtt-sys/bindings`. These are files with names in the form:
 
-```
-bindings_paho_mqtt_c_<version>-<target>.rs
-```
+    bindings_paho_mqtt_c_<version>-<target>.rs
 
 Some of these include:
 
-```
-bindings_paho_mqtt_c_1.3.8-x86_64-unknown-linux-gnu.rs
-bindings_paho_mqtt_c_1.3.8-x86_64-pc-windows-msvc.rs
-bindings_paho_mqtt_c_1.3.8-aarch64-unknown-linux-gnu.rs
-bindings_paho_mqtt_c_1.3.8-armv7-unknown-linux-gnueabihf.rs
-bindings_paho_mqtt_c_1.3.8-x86_64-apple-darwin.rs
-bindings_paho_mqtt_c_1.3.8-default-32.rs
-bindings_paho_mqtt_c_1.3.8-default-64.rs
-```
+    bindings_paho_mqtt_c_1.3.8-x86_64-unknown-linux-gnu.rs
+    bindings_paho_mqtt_c_1.3.8-x86_64-pc-windows-msvc.rs
+    bindings_paho_mqtt_c_1.3.8-aarch64-unknown-linux-gnu.rs
+    bindings_paho_mqtt_c_1.3.8-armv7-unknown-linux-gnueabihf.rs
+    bindings_paho_mqtt_c_1.3.8-x86_64-apple-darwin.rs
+    bindings_paho_mqtt_c_1.3.8-default-32.rs
+    bindings_paho_mqtt_c_1.3.8-default-64.rs
 
 Bindings can be created for new versions of the Paho C library or for different target platforms using the command-line _bindgen_ tool. For example on an x86 version of Windows using MSVC, you can re-generate the bindings like this:
 
@@ -294,9 +258,7 @@ https://github.com/japaric/rust-cross
 
 For example, to do a full build for `ARMv7`, which includes Raspberry Pi's, BeagleBones, UDOO Neo's, and lots of other ARM maker boards:
 
-```
-$ cargo build --target=armv7-unknown-linux-gnueabihf --examples
-```
+    $ cargo build --target=armv7-unknown-linux-gnueabihf --examples
 
 This builds the main crate, the *-sys* crate, and it cross-compiles the Paho C library. It uses SSL, so it requires you to have a version of the SSL development library installed with the cross-compiler.
 
@@ -310,6 +272,58 @@ If you don't have SSL for the cross-compiler:
 $ cargo build --target=armv7-unknown-linux-gnueabihf --no-default-features --features="bundled" --examples
 ```
 
+## Cross-Compiling
+
+The crate can be cross-compiled using the Rust cross-compilers. But remember that the default feature set calls for automatically building the Paho C library, and in order to do that you also need the C cross compiler for the target.
+
+With those installed, you typically also need to auomatically build OpenSSL as part of the Paho if you don't have a version available for the target. You might want to generate the C bindings as well. It might look something like this:
+
+```
+$ cargo build --target=mips-unknown-linux-gnu \
+    --features="vendored-ssl,build_bindgen" --examples
+```
+
+For more info, see [The Rust Book](https://rust-lang.github.io/rustup/cross-compilation.html).
+
+### Cross-Compiling with the "cross" project.
+
+The [cross](https://github.com/rust-embedded/cross) project is a cross-compilation build tool that utilizes docker containers pre-loaded with the build tools for a number of targets. It requires [Docker](https://docs.docker.com/get-docker/) to be installed and running on your system.
+
+Then build/install the `cross` tool:
+
+    $ cargo install cross
+
+After that, you should be able to build the project for any of the supported targets. Just use the `cross` command instead of cargo.
+
+```
+$ cross build --target=armv7-unknown-linux-gnueabihf \
+    --features=vendored-ssl --examples
+```
+
+## Fully Static Builds with _musl_
+
+With the v0.9 release and beyond, it should be fairly easy to create fully static builds of applications that use the Paho crate using the _musl_ library and tools.
+
+On a recent Ubuntu/Mint Linux host it should work as follows, but should be similar on any development host once the tools are installed.
+
+First install the Rust compiler for _musl_ and the tools:
+
+    $ rustup target add x86_64-unknown-linux-musl
+    $ sudo apt install musl-tools
+
+Check the _musl_ compiler:
+
+    $ musl-gcc --version
+    cc (Ubuntu 7.5.0-3ubuntu1~18.04) 7.5.0
+    ...
+
+Building without SSL is like this:
+
+```
+$  cargo build --no-default-features --features="bundled" \
+    --release --target=x86_64-unknown-linux-musl --examples 
+```
+
 ## Logging
 
 The Rust library uses the `log` crate to output debug and trace information. Applications can choose to use one of the available logger implementations or define one of their own. More information is available at:
@@ -318,26 +332,20 @@ https://docs.rs/log/0.4.0/log/
 
 The sample applications use the environment log crate, `env_logger` to configure output via the `RUST_LOG` environment variable. To use this, the following call is specified in the samples before using any of the Rust MQTT API:
 
-```
-env_logger::init().unwrap();
-```
+    env_logger::init().unwrap();
 
 And then the library will output information as defined by the environment. Use like:
 
-```
-$ RUST_LOG=debug ./async_publish
-DEBUG:paho_mqtt::async_client: Creating client with persistence: 0, 0x0
-DEBUG:paho_mqtt::async_client: AsyncClient handle: 0x7f9ae2eab004
-DEBUG:paho_mqtt::async_client: Connecting handle: 0x7f9ae2eab004
-...
-```
+    $ RUST_LOG=debug ./async_publish
+    DEBUG:paho_mqtt::async_client: Creating client with persistence: 0, 0x0
+    DEBUG:paho_mqtt::async_client: AsyncClient handle: 0x7f9ae2eab004
+    DEBUG:paho_mqtt::async_client: Connecting handle: 0x7f9ae2eab004
+    ...
 
 In addition, the underlying Paho C library has its own logging capabilities which can be used to trace network and protocol transactions. It is configured by the environment variables `MQTT_C_CLIENT_TRACE` and `MQTT_C_CLIENT_TRACE_LEVEL`. The former names the log file, with the special value "ON" to log to stdout. The latter specifies one of the levels: ERROR, PROTOCOL, MINIMUM, MEDIUM and MAXIMUM.
 
-```
-export MQTT_C_CLIENT_TRACE=ON
-export MQTT_C_CLIENT_TRACE_LEVEL=PROTOCOL
-```
+    export MQTT_C_CLIENT_TRACE=ON
+    export MQTT_C_CLIENT_TRACE_LEVEL=PROTOCOL
 
 ## Example
 
