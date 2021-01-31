@@ -1051,6 +1051,33 @@ impl AsyncClient {
 
         rx
     }
+
+    /// same as get_stream except this uses an unbounded channel
+    pub fn get_stream_unbounded(
+        &mut self,
+   ) -> futures::channel::mpsc::UnboundedReceiver<Option<Message>> {
+        use futures::channel::mpsc;
+
+        let (mut tx, rx) = mpsc::unbounded();
+
+        // Make sure at least the low-level connection_lost handler is in
+        // place to notify us when the connection is lost (sends a 'None' to
+        // the receiver).
+        let ctx: &InnerAsyncClient = &self.inner;
+        unsafe {
+            ffi::MQTTAsync_setConnectionLostCallback(self.inner.handle,
+                                                     ctx as *const _ as *mut c_void,
+                                                     Some(AsyncClient::on_connection_lost));
+        }
+
+        self.set_message_callback(move |_,msg| {
+            if let Err(err) = tx.unbounded_send(msg) {
+                warn!("Stream is dropped");
+            }
+        });
+
+        rx
+    }
 }
 
 // The client is safe to send or share between threads.
