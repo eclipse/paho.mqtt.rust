@@ -29,11 +29,13 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-// Temporary
-//#![allow(dead_code)]
-
 #[macro_use] extern crate log;
 extern crate paho_mqtt_sys as ffi;
+
+//use crossbeam_channel as channel;
+
+pub use crossbeam_channel::Receiver;
+pub use async_channel::Receiver as AsyncReceiver;
 
 pub use crate::async_client::*;        //{AsyncClient, AsyncClientBuilder};
 pub use crate::client::*;              //{Client, ClientBuilder};

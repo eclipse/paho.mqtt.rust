@@ -54,7 +54,7 @@ use std::{
     ffi::{CString, CStr},
     os::raw::{c_void, c_char, c_int},
 };
-
+use crossbeam_channel as channel;
 use crate::{
     ffi,
     UserData,
@@ -84,6 +84,7 @@ use crate::{
     },
     client_persistence::UserPersistence,
     string_collection::StringCollection,
+    Receiver, AsyncReceiver,
     reason_code::ReasonCode,
     errors::{self, Result, Error},
 };
@@ -972,7 +973,8 @@ impl AsyncClient {
         else { tok }
     }
 
-    /// Starts the client consuming messages.
+    /// Starts the client consuming messages for a blocking (non-async) app.
+    ///
     /// This starts the client receiving messages and placing them into an
     /// mpsc queue. It returns the receiving-end of the queue for the
     /// application to get the messages.
@@ -980,10 +982,9 @@ impl AsyncClient {
     /// should be called before subscribing to any topics, otherwise messages
     /// can be lost.
     //
-    pub fn start_consuming(&mut self) -> std::sync::mpsc::Receiver<Option<Message>> {
-        use std::sync::mpsc;
+    pub fn start_consuming(&mut self) -> Receiver<Option<Message>> {
 
-        let (tx, rx) = mpsc::channel::<Option<Message>>();
+        let (tx, rx) = channel::unbounded::<Option<Message>>();
 
         // Make sure at least the low-level connection_lost handler is in
         // place to notify us when the connection is lost (sends a 'None' to
@@ -1009,6 +1010,7 @@ impl AsyncClient {
     }
 
     /// Creates a futures stream for consuming messages.
+    ///
     /// This will install an internal callback to receive the incoming
     /// messages from the client, and return the receive side of the channel.
     /// The stream will stay open for the life of the client. If the client
@@ -1022,10 +1024,9 @@ impl AsyncClient {
     pub fn get_stream(
         &mut self,
         buffer_sz: usize
-   ) -> futures::channel::mpsc::Receiver<Option<Message>> {
-        use futures::channel::mpsc;
+   ) -> AsyncReceiver<Option<Message>> {
 
-        let (mut tx, rx) = mpsc::channel(buffer_sz);
+        let (tx, rx) = async_channel::bounded(buffer_sz);
 
         // Make sure at least the low-level connection_lost handler is in
         // place to notify us when the connection is lost (sends a 'None' to

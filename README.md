@@ -40,33 +40,15 @@ To keep up with the latest announcements for this project, follow:
 
 **Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
 
+### Unreleased Features in this Branch
+
+- Switched consumers/streams to use crossbeam channels and async_channel's, respectively.
+
 ### What's new in v0.9.1
 
 - [#101](https://github.com/eclipse/paho.mqtt.rust/issues/101) `Token::try_wait()` to check for the result of a `Token` without blocking.
 - [#101](https://github.com/eclipse/paho.mqtt.rust/issues/101) A `try_publish()` function for the `AsyncClient` and `Topic` which return a synchronous result that the message was created and queued for transmission successfully.
 - [#28](https://github.com/eclipse/paho.mqtt.rust/issues/28) Some instructions for using the "cross" tool for cross-compiling.
-
-### What's new in v0.9.0
-
-- Websocket HTTP/HTTPS proxy support
-- Added missing MQTT v5 support:
-    - Subscribe and Unsubscribe can now have v5 properties, thus enabling Subscription Identifiers.
-- [Breaking] Persistence defaults to `None` if no Client ID specified in creation. 
-- Ability to specify a path when using File persistence
-- Updated bindings to Paho C v1.3.8
-- Ability to start publishing (queuing) messages before first successful connection.
-- New offline buffering options:
-    - Ability to start publishing (queuing) messages before first successful connection.
-    - Option to delete the oldest messages first from the queue when it fills up.
-- New persistence options:
-    - The option to not restore messages from persistence on startup (fresh restart).
-    - The option to not persist QoS 0 messages.
-- [#110](https://github.com/eclipse/paho.mqtt.rust/issues/110) Update to `futures-timer` v3.0
-- [#95](https://github.com/eclipse/paho.mqtt.rust/issues/95) Added Send bounds to `ClientPersistence`
-- [#92](https://github.com/eclipse/paho.mqtt.rust/issues/92) Vendored SSL with _openssl-sys_ crate (optional)
-- New example apps:
-    - _sync_consume_v5.rs_ - An MQTT v5 consumer that uses Subscription ID's to handle incoming messages.
-    - _ws_publish.rs_ - Simeple websocket example with optional proxy.
 
 ## Using the Crate
 

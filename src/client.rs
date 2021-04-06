@@ -27,11 +27,7 @@
 //!
 //! The synchronous calls use a default timeout
 
-use std::{
-    time::Duration,
-    sync::mpsc,
-};
-
+use std::time::Duration;
 use crate::{
     async_client::AsyncClient,
     create_options::CreateOptions,
@@ -41,6 +37,7 @@ use crate::{
     server_response::ServerResponse,
     properties::Properties,
     message::Message,
+    Receiver,
     errors::Result,
 };
 
@@ -274,7 +271,7 @@ impl Client {
     /// should be called before subscribing to any topics, otherwise messages
     /// can be lost.
     //
-    pub fn start_consuming(&mut self) -> mpsc::Receiver<Option<Message>> {
+    pub fn start_consuming(&mut self) -> Receiver<Option<Message>> {
         self.cli.start_consuming()
     }
 }
