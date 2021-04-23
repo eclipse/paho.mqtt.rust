@@ -106,7 +106,7 @@ impl WillOptions {
         mut copts: ffi::MQTTAsync_willOptions,
         data: Pin<Box<MessageData>>
     ) -> Self {
-        copts.topicName = if data.topic.as_bytes().len() != 0 {
+        copts.topicName = if !data.topic.as_bytes().is_empty() {
             data.topic.as_ptr()
         }
         else {
@@ -172,7 +172,7 @@ impl Clone for WillOptions {
     /// to them.
     fn clone(&self) -> Self {
         Self::from_data(
-            self.copts.clone(),
+            self.copts,
             (&*self.data).clone()
         )
     }

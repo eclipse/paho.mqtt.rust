@@ -23,8 +23,6 @@
 
 //! MQTT support types
 
-use ffi;
-
 /// The default version to connect with.
 /// First try v3.1.1, and if that fails, try v3.1
 pub const MQTT_VERSION_DEFAULT: u32 = ffi::MQTTVERSION_DEFAULT;

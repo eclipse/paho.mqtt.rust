@@ -161,7 +161,7 @@ impl SubscribeOptionsBuilder {
 
     /// Finalizes the builder to create the subscribe options.
     pub fn finalize(&self) -> SubscribeOptions {
-        SubscribeOptions { copts: self.copts.clone(), }
+        SubscribeOptions { copts: self.copts }
     }
 }
 

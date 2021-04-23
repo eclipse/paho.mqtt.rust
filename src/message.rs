@@ -115,7 +115,7 @@ impl Message {
         let data = Box::pin(data);
         cmsg.payload = data.payload.as_ptr() as *const _ as *mut c_void;
         cmsg.payloadlen = data.payload.len() as i32;
-        cmsg.properties = data.props.cprops.clone();
+        cmsg.properties = data.props.cprops;
         Self { cmsg, data, }
     }
 
@@ -134,17 +134,16 @@ impl Message {
             props: Properties::from_c_struct(&cmsg.properties),
          };
 
-        Self::from_data(cmsg.clone(), data)
+        Self::from_data(*cmsg, data)
     }
 
     /// Gets the topic for the message.
-    /// Note that this copies the topic.
     pub fn topic(&self) -> &str {
-        self.data.topic.to_str().unwrap()
+        self.data.topic.to_str().expect("paho.mqtt.c already validated utf8")
     }
 
     /// Gets the payload of the message.
-    /// This returns the payload as a binary vector.
+    /// This returns the payload as a slice.
     pub fn payload(&self) -> &[u8] {
         self.data.payload.as_slice()
     }
@@ -153,7 +152,7 @@ impl Message {
     ///
     /// This utilizes the "lossy" style of conversion from the std library.
     /// If the contents of the CStr are valid UTF-8 data, this function will
-    /// return a `Cow::Borrowed([&str])` with the the corresponding `[&str]` slice.
+    /// return a `Cow::Borrowed(&str)` with the the corresponding `&str` slice.
     /// Otherwise, it will replace any invalid UTF-8 sequences with U+FFFD
     /// REPLACEMENT CHARACTER and return a `Cow::Owned(String)` with the result.
     pub fn payload_str(&self) -> Cow<'_, str> {
@@ -188,7 +187,7 @@ impl Default for Message {
 impl Clone for Message {
     fn clone(&self) -> Self {
         Self::from_data(
-            self.cmsg.clone(),
+            self.cmsg,
             (&*self.data).clone()
         )
     }
@@ -323,6 +322,12 @@ impl MessageBuilder
             props: self.props,
         };
         Message::from_data(cmsg, data)
+    }
+}
+
+impl Default for MessageBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

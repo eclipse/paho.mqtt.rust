@@ -253,7 +253,7 @@ impl Property {
             Self::new_binary(code, v.clone())
         }
         else if let Some(v) = rval.downcast_ref::<&[u8]>() {
-            return Self::new_binary(code, *v);
+            Self::new_binary(code, *v)
         }
         else if let Some(v) = rval.downcast_ref::<&[u8 ; 1]>() {
             Self::new_binary(code, v.to_vec())
@@ -355,7 +355,7 @@ impl Property {
             Self::new_string(code, &*v)
         }
         else if let Some(v) = rval.downcast_ref::<&str>() {
-            return Self::new_string(code, v);
+            Self::new_string(code, v)
         }
         else if let Some(v) = rval.downcast_ref::<(String,String)>() {
             Self::new_string_pair(code, &v.0, &v.1)
@@ -471,9 +471,9 @@ impl Property {
 
     /// Creates a property from a C lib MQTTProperty struct.
     fn from_c_property(cprop: &ffi::MQTTProperty) -> Result<Property> {
-        let mut cprop = cprop.clone();
+        let mut cprop = *cprop;
         let typ = match PropertyCode::new(cprop.identifier)
-                    .and_then(|c| Some(c.property_type())) {
+                    .map(|c| c.property_type()) {
             Some(typ) => typ,
             None => return Err(INVALID_PROPERTY_ID.into())
         };
@@ -749,7 +749,7 @@ impl Clone for Property {
     /// For string any binary properties, this also clones the heap memory
     /// so that each property is managing separate allocations.
     fn clone(&self) -> Self {
-        let mut cprop = self.cprop.clone();
+        let mut cprop = self.cprop;
 
         unsafe {
             match self.property_type() {
@@ -1311,7 +1311,7 @@ mod tests {
         let val = "replies/myqueue";
         let org_prop = Property::new_string(PropertyCode::ResponseTopic, val).unwrap();
 
-        let prop = org_prop.clone();
+        let prop = org_prop;
 
         unsafe {
             assert_eq!(prop.cprop.identifier, PropertyCode::ResponseTopic as Code);
