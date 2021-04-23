@@ -138,13 +138,12 @@ impl Message {
     }
 
     /// Gets the topic for the message.
-    /// Note that this copies the topic.
     pub fn topic(&self) -> &str {
-        self.data.topic.to_str().unwrap()
+        self.data.topic.to_str().expect("paho.mqtt.c already validated utf8")
     }
 
     /// Gets the payload of the message.
-    /// This returns the payload as a binary vector.
+    /// This returns the payload as a slice.
     pub fn payload(&self) -> &[u8] {
         self.data.payload.as_slice()
     }
@@ -153,7 +152,7 @@ impl Message {
     ///
     /// This utilizes the "lossy" style of conversion from the std library.
     /// If the contents of the CStr are valid UTF-8 data, this function will
-    /// return a `Cow::Borrowed([&str])` with the the corresponding `[&str]` slice.
+    /// return a `Cow::Borrowed(&str)` with the the corresponding `&str` slice.
     /// Otherwise, it will replace any invalid UTF-8 sequences with U+FFFD
     /// REPLACEMENT CHARACTER and return a `Cow::Owned(String)` with the result.
     pub fn payload_str(&self) -> Cow<'_, str> {
