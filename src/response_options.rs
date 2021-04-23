@@ -104,7 +104,7 @@ impl ResponseOptions {
     ) -> Self {
         let mut data = Box::pin(data);
 
-        copts.properties = data.props.cprops.clone();
+        copts.properties = data.props.cprops;
 
         let (p, n) = match data.sub_opts {
             Some(ref mut sub_opts) => (
@@ -179,7 +179,7 @@ impl ResponseOptionsBuilder {
     /// Create the response options from the builder.
     pub fn finalize(&self) -> ResponseOptions {
         ResponseOptions::from_data(
-            self.copts.clone(),
+            self.copts,
             self.data.clone()
         )
     }

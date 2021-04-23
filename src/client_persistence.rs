@@ -26,7 +26,6 @@ use std::{
     ffi::{CString, CStr},
     os::raw::{c_void, c_char, c_int},
 };
-use libc;
 
 use crate::{
     ffi,
@@ -131,9 +130,9 @@ impl UserPersistence
             let client_id = CStr::from_ptr(client_id).to_str().unwrap();
             let server_uri = CStr::from_ptr(server_uri).to_str().unwrap();
 
-            let persist: &mut Box<dyn ClientPersistence> = mem::transmute(context);
+            let persist = &mut *(context as *mut std::boxed::Box<dyn ClientPersistence>);
 
-            if let Ok(_) = persist.open(client_id, server_uri) {
+            if persist.open(client_id, server_uri).is_ok() {
                 *handle = context;
                 return PERSISTENCE_SUCCESS;
             }
@@ -148,7 +147,7 @@ impl UserPersistence
             return PERSISTENCE_ERROR;
         }
 
-        let persist: &mut Box<dyn ClientPersistence> = mem::transmute(handle);
+        let persist = &mut *(handle as *mut std::boxed::Box<dyn ClientPersistence>);
 
         match persist.close() {
             Ok(_) => PERSISTENCE_SUCCESS,
@@ -170,7 +169,7 @@ impl UserPersistence
         if bufcount == 0 {
             return PERSISTENCE_SUCCESS;
         }
-        let persist: &mut Box<dyn ClientPersistence> = mem::transmute(handle);
+        let persist = &mut *(handle as *mut std::boxed::Box<dyn ClientPersistence>);
         let key = CStr::from_ptr(key).to_str().unwrap();
 
         let mut bufs: Vec<&[u8]> = Vec::new();
@@ -197,7 +196,7 @@ impl UserPersistence
                 buffer.is_null() || buflen.is_null() {
             return PERSISTENCE_ERROR;
         }
-        let persist: &mut Box<dyn ClientPersistence> = mem::transmute(handle);
+        let persist = &mut *(handle as *mut std::boxed::Box<dyn ClientPersistence>);
         let key = CStr::from_ptr(key).to_str().unwrap();
 
         match persist.get(key) {
@@ -221,7 +220,7 @@ impl UserPersistence
         if handle.is_null() || key.is_null() {
             return PERSISTENCE_ERROR;
         }
-        let persist: &mut Box<dyn ClientPersistence> = mem::transmute(handle);
+        let persist = &mut *(handle as *mut std::boxed::Box<dyn ClientPersistence>);
         let key = CStr::from_ptr(key).to_str().unwrap();
 
         match persist.remove(key) {
@@ -240,7 +239,7 @@ impl UserPersistence
             return PERSISTENCE_ERROR;
         }
 
-        let persist: &mut Box<dyn ClientPersistence> = mem::transmute(handle);
+        let persist = &mut *(handle as *mut std::boxed::Box<dyn ClientPersistence>);
 
         *keys = ptr::null_mut();
         *nkeys = 0;
@@ -251,14 +250,14 @@ impl UserPersistence
                 if n != 0 {
                     // TODO OPTIMIZE: This does a lot of copying
                     let ckeys = libc::malloc(n * mem::size_of::<usize>()) as *mut *mut c_char;
-                    for i in 0..n {
-                        let s = CString::new(k[i].clone()).unwrap();
+                    for (i, s) in k.into_iter().enumerate() {
+                        let s = CString::new(s).unwrap();
                         let sb = s.as_bytes_with_nul();
                         let sn = sb.len();
                         let cbuf = libc::malloc(sn) as *mut c_char;
                         ptr::copy(sb.as_ptr(), cbuf as *mut u8, sn);
 
-                        *ckeys.offset(i as isize) = cbuf;
+                        *ckeys.add(i) = cbuf;
                     }
                     *keys = ckeys;
                     *nkeys = n as c_int;
@@ -276,7 +275,7 @@ impl UserPersistence
         if handle.is_null() {
             return PERSISTENCE_ERROR;
         }
-        let persist: &mut Box<dyn ClientPersistence> = mem::transmute(handle);
+        let persist = &mut *(handle as *mut std::boxed::Box<dyn ClientPersistence>);
 
         match persist.clear() {
             Ok(_) => PERSISTENCE_SUCCESS,
@@ -292,7 +291,7 @@ impl UserPersistence
         if handle.is_null() || key.is_null() {
             return PERSISTENCE_ERROR;
         }
-        let persist: &mut Box<dyn ClientPersistence> = mem::transmute(handle);
+        let persist = &mut *(handle as *mut std::boxed::Box<dyn ClientPersistence>);
         let key = CStr::from_ptr(key).to_str().unwrap();
 
         if persist.contains_key(key) { 1 } else { 0 }

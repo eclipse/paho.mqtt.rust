@@ -1155,20 +1155,16 @@ mod tests {
         let data = cli.user_data();
         assert!(data.is_some());
 
-        if let Some(lock) = data.unwrap().downcast_ref::<Mutex<Vec<&str>>>() {
-            let mut v = lock.lock().unwrap();
-            assert_eq!(3, v.len());
-            assert_eq!("zero", v[0]);
-            assert_eq!("one",  v[1]);
-            assert_eq!("two",  v[2]);
+        let lock = data.unwrap().downcast_ref::<Mutex<Vec<&str>>>().unwrap();
+        let mut v = lock.lock().unwrap();
+        assert_eq!(3, v.len());
+        assert_eq!("zero", v[0]);
+        assert_eq!("one",  v[1]);
+        assert_eq!("two",  v[2]);
 
-            v.push("three");
-            assert_eq!(4, v.len());
-            assert_eq!("three", v[3]);
-        }
-        else {
-            assert!(false);
-        }
+        v.push("three");
+        assert_eq!(4, v.len());
+        assert_eq!("three", v[3]);
     }
 
     #[test]
@@ -1185,28 +1181,23 @@ mod tests {
         assert!(data.is_some());
         let data = data.unwrap();
 
-        if let Some(lock) = data.downcast_ref::<RwLock<Vec<&str>>>() {
-            // Try reading
-            {
-                let v = lock.read().unwrap();
-                assert_eq!(3, v.len());
-                assert_eq!("zero", v[0]);
-                assert_eq!("one",  v[1]);
-                assert_eq!("two",  v[2]);
-            }
-
-            // Now try writing
-            {
-                let mut v = lock.write().unwrap();
-                v.push("three");
-                assert_eq!(4, v.len());
-                assert_eq!("three", v[3]);
-            }
-        }
-        else {
-            assert!(false);
+        let lock = data.downcast_ref::<RwLock<Vec<&str>>>().unwrap();
+        // Try reading
+        {
+            let v = lock.read().unwrap();
+            assert_eq!(3, v.len());
+            assert_eq!("zero", v[0]);
+            assert_eq!("one",  v[1]);
+            assert_eq!("two",  v[2]);
         }
 
+        // Now try writing
+        {
+            let mut v = lock.write().unwrap();
+            v.push("three");
+            assert_eq!(4, v.len());
+            assert_eq!("three", v[3]);
+        }
     }
 
     // Determine that a client can be sent across threads.

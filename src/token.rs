@@ -306,11 +306,9 @@ impl TokenInner {
                     cb(cli, msgid);
                 }
             }
-            else {
-                if let Some(ref cb) = self.on_failure {
-                    trace!("Invoking TokenInner::on_failure callback");
-                    cb(cli, msgid, rc);
-                }
+            else if let Some(ref cb) = self.on_failure {
+                trace!("Invoking TokenInner::on_failure callback");
+                cb(cli, msgid, rc);
             }
         }
 
@@ -351,11 +349,9 @@ impl TokenInner {
                     cb(cli, msgid);
                 }
             }
-            else {
-                if let Some(ref cb) = self.on_failure {
-                    trace!("Invoking TokenInner::on_failure callback");
-                    cb(cli, msgid, rc);
-                }
+            else if let Some(ref cb) = self.on_failure {
+                trace!("Invoking TokenInner::on_failure callback");
+                cb(cli, msgid, rc);
             }
         }
 
@@ -576,14 +572,14 @@ impl DeliveryToken {
 
 unsafe impl Send for DeliveryToken {}
 
-impl Into<Message> for DeliveryToken {
-    fn into(self) -> Message { self.msg }
+impl From<DeliveryToken> for Message {
+    fn from(v: DeliveryToken) -> Message { v.msg }
 }
 
-impl Into<Token> for DeliveryToken {
+impl From<DeliveryToken> for Token {
     /// Converts the delivery token into a Token
-    fn into(self) -> Token {
-        Token { inner: self.inner }
+    fn from(v: DeliveryToken) -> Token {
+        Token { inner: v.inner }
     }
 }
 

@@ -92,7 +92,7 @@ impl SslOptions {
     // The C library expects unset values in the SSL options struct to be
     // NULL rather than empty string.
     fn c_str(str: &CString) -> *const c_char {
-        if str.to_bytes().len() == 0 { ptr::null() } else { str.as_ptr() }
+        if str.to_bytes().is_empty() { ptr::null() } else { str.as_ptr() }
     }
 
     // Converts the list of ALPN protocol strings into the wire format for
@@ -190,7 +190,7 @@ impl Default for SslOptions {
 impl Clone for SslOptions {
     fn clone(&self) -> Self {
         Self::from_data(
-            self.copts.clone(),
+            self.copts,
             (&*self.data).clone()
         )
     }
@@ -224,7 +224,7 @@ impl SslOptionsBuilder {
     {
         self.data.trust_store = CString::new(
             trust_store.as_ref().to_str()
-                .ok_or(io::Error::new(io::ErrorKind::Other, "Path string error"))?
+                .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Path string error"))?
         )?;
         Ok(self)
     }
@@ -238,7 +238,7 @@ impl SslOptionsBuilder {
     {
         self.data.key_store = CString::new(
             key_store.as_ref().to_str()
-                .ok_or(io::Error::new(io::ErrorKind::Other, "Path string error"))?
+                .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Path string error"))?
         )?;
         Ok(self)
     }
@@ -250,7 +250,7 @@ impl SslOptionsBuilder {
     {
         self.data.private_key = CString::new(
             private_key.as_ref().to_str()
-                .ok_or(io::Error::new(io::ErrorKind::Other, "Path string error"))?
+                .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Path string error"))?
         )?;
         Ok(self)
     }
@@ -308,7 +308,7 @@ impl SslOptionsBuilder {
     {
         self.data.ca_path = CString::new(
             ca_path.as_ref().to_str()
-                .ok_or(io::Error::new(io::ErrorKind::Other, "Path string error"))?
+                .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Path string error"))?
         )?;
         Ok(self)
     }
@@ -331,7 +331,7 @@ impl SslOptionsBuilder {
     /// Create the SSL options from the builder.
     pub fn finalize(&self) -> SslOptions {
         SslOptions::from_data(
-            self.copts.clone(),
+            self.copts,
             self.data.clone()
         )
     }

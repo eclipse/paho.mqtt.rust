@@ -12,7 +12,7 @@
 //!  - Using MQTT v5 properties
 //!  - Publishing RPC request messages
 //!  - Using asynchronous tokens
-//!	 - Subscribing to reply topic
+//!  - Subscribing to reply topic
 //
 
 /*******************************************************************************

@@ -115,7 +115,7 @@ impl Message {
         let data = Box::pin(data);
         cmsg.payload = data.payload.as_ptr() as *const _ as *mut c_void;
         cmsg.payloadlen = data.payload.len() as i32;
-        cmsg.properties = data.props.cprops.clone();
+        cmsg.properties = data.props.cprops;
         Self { cmsg, data, }
     }
 
@@ -134,7 +134,7 @@ impl Message {
             props: Properties::from_c_struct(&cmsg.properties),
          };
 
-        Self::from_data(cmsg.clone(), data)
+        Self::from_data(*cmsg, data)
     }
 
     /// Gets the topic for the message.
@@ -188,7 +188,7 @@ impl Default for Message {
 impl Clone for Message {
     fn clone(&self) -> Self {
         Self::from_data(
-            self.cmsg.clone(),
+            self.cmsg,
             (&*self.data).clone()
         )
     }

@@ -182,7 +182,7 @@ impl ConnectOptions {
     /// done with it, we must recover and drop it (i.e. in the completion
     /// callback).
     pub fn set_token(&mut self, tok: ConnectToken) {
-        let tok: Token = tok.into();
+        let tok: Token = tok;
 
         if self.copts.MQTTVersion < ffi::MQTTVERSION_5 as i32 {
             self.copts.onSuccess = Some(TokenInner::on_success);
@@ -208,7 +208,7 @@ impl Default for ConnectOptions {
 impl Clone for ConnectOptions {
     fn clone(&self) -> Self {
         Self::from_data(
-            self.copts.clone(),
+            self.copts,
             (&*self.data).clone()
         )
     }
@@ -483,7 +483,7 @@ impl ConnectOptionsBuilder {
     /// Finalize the builder to create the connect options.
     pub fn finalize(&self) -> ConnectOptions {
         ConnectOptions::from_data(
-            self.copts.clone(),
+            self.copts,
             self.data.clone()
         )
     }
@@ -623,7 +623,7 @@ mod tests {
 
         // Compare the strings to the C-arrays in copts
         for (i, ref svr) in servers.iter().enumerate() {
-            let s = unsafe { CStr::from_ptr(*opts.copts.serverURIs.offset(i as isize)) };
+            let s = unsafe { CStr::from_ptr(*opts.copts.serverURIs.add(i)) };
             assert_eq!(&svr[..], s.to_str().unwrap());
         }
     }
