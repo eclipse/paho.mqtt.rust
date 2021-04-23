@@ -172,7 +172,12 @@ impl ResponseOptionsBuilder {
 
     /// Sets a single set of subscribe options - for a call to subscribe_many()
     pub fn subscribe_many_options(&mut self, opts: &[SubscribeOptions]) -> &mut Self {
-        self.data.sub_opts = Some(opts.iter().map(|opt| opt.copts).collect());
+        match opts {
+            [] => {}
+            // This is necessary, as the `MQTTAsync_subscribeMany` paho.mqtt.c function uses `opts` over `optlist` when `count <= 1`
+            [opts] => self.copts.subscribeOptions = opts.copts,
+            _ => self.data.sub_opts = Some(opts.iter().map(|opt| opt.copts).collect())
+        }
         self
     }
 
