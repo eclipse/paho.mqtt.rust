@@ -419,24 +419,24 @@ mod tests {
     fn test_protos() {
         let protos = &["spdy/1", "http/1.1"];
 
-        let v = vec![
-            6 as c_uchar,
-            b's' as c_uchar,
-            b'p' as c_uchar,
-            b'd' as c_uchar,
-            b'y' as c_uchar,
-            b'/' as c_uchar,
-            b'1' as c_uchar,
+        let v: Vec<c_uchar> = vec![
+            6,
+            b's',
+            b'p',
+            b'd',
+            b'y',
+            b'/',
+            b'1',
 
-            8 as c_uchar,
-            b'h' as c_uchar,
-            b't' as c_uchar,
-            b't' as c_uchar,
-            b'p' as c_uchar,
-            b'/' as c_uchar,
-            b'1' as c_uchar,
-            b'.' as c_uchar,
-            b'1' as c_uchar
+            8,
+            b'h',
+            b't',
+            b't',
+            b'p',
+            b'/',
+            b'1',
+            b'.',
+            b'1'
         ];
 
         assert_eq!(v, SslOptions::proto_vec(protos));

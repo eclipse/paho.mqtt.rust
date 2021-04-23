@@ -111,7 +111,7 @@ impl ResponseOptions {
                 sub_opts.as_mut_ptr(),
                 sub_opts.len() as c_int
             ),
-            _ => (ptr::null_mut(), 0 as c_int)
+            _ => (ptr::null_mut(), 0)
         };
 
         copts.subscribeOptionsList = p;
