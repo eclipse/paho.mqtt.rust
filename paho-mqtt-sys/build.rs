@@ -268,24 +268,22 @@ mod build {
 
         // Link in the SSL libraries if configured for it.
         if cfg!(feature = "ssl") {
+            let openssl_root_dir = openssl_root_dir();
             if cfg!(windows) {
                 println!("cargo:rustc-link-lib=libssl");
                 println!("cargo:rustc-link-lib=libcrypto");
-                if let Some(openssl_root_dir) = openssl_root_dir() {
+                let openssl_root_dir = openssl_root_dir
+                    .as_deref()
+                    .or_else(|| cfg!(target_arch = "x86").then(||"C:\\OpenSSL-Win32"))
+                    .or_else(|| cfg!(target_arch = "x86_64").then(||"C:\\OpenSSL-Win64"));
+                if let Some(openssl_root_dir) = openssl_root_dir {
                     println!("cargo:rustc-link-search={}\\lib", openssl_root_dir);
                 }
-                else {
-                    #[cfg(target_arch = "x86")]
-                    println!("cargo:rustc-link-search={}\\lib", "C:\\OpenSSL-Win32");
-
-                    #[cfg(target_arch = "x86_64")]
-                    println!("cargo:rustc-link-search={}\\lib", "C:\\OpenSSL-Win64");
-                };
             }
             else {
                 println!("cargo:rustc-link-lib=ssl");
                 println!("cargo:rustc-link-lib=crypto");
-                if let Some(openssl_root_dir) = openssl_root_dir() {
+                if let Some(openssl_root_dir) = openssl_root_dir {
                     println!("cargo:rustc-link-search={}/lib", openssl_root_dir);
                 }
             }

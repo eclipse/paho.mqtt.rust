@@ -434,7 +434,7 @@ mod tests {
 
         match opts.persistence {
             PersistenceType::None => (),
-            _ => assert!(false),
+            _ => unreachable!(),
         }
     }
 

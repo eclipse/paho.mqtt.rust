@@ -1,3 +1,4 @@
+#![allow(clippy::clippy::missing_safety_doc)]
 // lib.rs
 //
 // This file is part of the Eclipse Paho MQTT Rust Client library.

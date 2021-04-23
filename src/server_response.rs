@@ -140,7 +140,7 @@ impl ServerResponse {
                 }
                 else if !rsp.alt.qosList.is_null() {
                     for i in 0..n {
-                        qosv.push(*rsp.alt.qosList.offset(i as isize));
+                        qosv.push(*rsp.alt.qosList.add(i));
                     }
                 }
                 debug!("Subscribed to {} topics w/ QoS: {:?}", qosv.len(), qosv);
@@ -183,7 +183,7 @@ impl ServerResponse {
                 }
                 else if !rsp.alt.sub.reasonCodes.is_null() {
                     for i in 0..n {
-                        qosv.push(rsp.alt.sub.reasonCodes.offset(i as isize) as i32);
+                        qosv.push(rsp.alt.sub.reasonCodes.add(i) as i32);
                     }
                 }
                 debug!("Subscribed to {} topics w/ QoS: {:?}", qosv.len(), qosv);
@@ -202,7 +202,7 @@ impl ServerResponse {
                 }
                 else if !rsp.alt.sub.reasonCodes.is_null() {
                     for i in 0..n {
-                        qosv.push(rsp.alt.unsub.reasonCodes.offset(i as isize) as i32);
+                        qosv.push(rsp.alt.unsub.reasonCodes.add(i) as i32);
                     }
                 }
                 debug!("Subscribed to {} topics w/ Qos: {:?}", qosv.len(), qosv);

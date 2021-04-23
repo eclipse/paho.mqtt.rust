@@ -41,7 +41,6 @@ use {
         task::{Context, Poll, Waker},
         ffi::CStr,
         os::raw::c_void,
-        convert::Into,
     },
     futures::{
         executor::block_on,
@@ -306,11 +305,9 @@ impl TokenInner {
                     cb(cli, msgid);
                 }
             }
-            else {
-                if let Some(ref cb) = self.on_failure {
-                    trace!("Invoking TokenInner::on_failure callback");
-                    cb(cli, msgid, rc);
-                }
+            else if let Some(ref cb) = self.on_failure {
+                trace!("Invoking TokenInner::on_failure callback");
+                cb(cli, msgid, rc);
             }
         }
 
@@ -351,11 +348,9 @@ impl TokenInner {
                     cb(cli, msgid);
                 }
             }
-            else {
-                if let Some(ref cb) = self.on_failure {
-                    trace!("Invoking TokenInner::on_failure callback");
-                    cb(cli, msgid, rc);
-                }
+            else if let Some(ref cb) = self.on_failure {
+                trace!("Invoking TokenInner::on_failure callback");
+                cb(cli, msgid, rc);
             }
         }
 
@@ -482,6 +477,12 @@ impl Token {
     }
 }
 
+impl Default for Token {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 unsafe impl Send for Token {}
 
 impl Future for Token {
@@ -576,14 +577,14 @@ impl DeliveryToken {
 
 unsafe impl Send for DeliveryToken {}
 
-impl Into<Message> for DeliveryToken {
-    fn into(self) -> Message { self.msg }
+impl From<DeliveryToken> for Message {
+    fn from(v: DeliveryToken) -> Message { v.msg }
 }
 
-impl Into<Token> for DeliveryToken {
+impl From<DeliveryToken> for Token {
     /// Converts the delivery token into a Token
-    fn into(self) -> Token {
-        Token { inner: self.inner }
+    fn from(v: DeliveryToken) -> Token {
+        Token { inner: v.inner }
     }
 }
 
@@ -692,11 +693,9 @@ mod tests {
         let mut tok = Token::from_error(ERR_CODE);
 
         match tok.try_wait() {
-            //Some(Err(Error::Paho(ERR_CODE))) => (),
-            Some(Err(Error::PahoDescr(ERR_CODE, _))) => (),
-            Some(Err(_)) => assert!(false),
-            Some(Ok(_)) => assert!(false),
-            None => assert!(false)
+            // Some(Err(Error::Paho(ERR_CODE))) => {}
+            Some(Err(Error::PahoDescr(ERR_CODE, _))) => {}
+            Some(Err(_)) | Some(Ok(_)) | None => unreachable!()
         }
 
         // An unsignaled token
@@ -705,8 +704,7 @@ mod tests {
         // If it's not done, we should get None
         match tok.try_wait() {
             None => (),
-            Some(Err(_)) => assert!(false),
-            Some(Ok(_)) => assert!(false),
+            Some(Err(_)) | Some(Ok(_)) => unreachable!(),
         }
 
         // Complete the token
@@ -721,9 +719,7 @@ mod tests {
         match tok.try_wait() {
             Some(Err(Error::Paho(ERR_CODE))) => (),
             //Some(Err(Error::PahoDescr(ERR_CODE, _))) => (),
-            Some(Err(_)) => assert!(false),
-            Some(Ok(_)) => assert!(false),
-            None => assert!(false)
+            Some(Err(_)) | Some(Ok(_)) | None => unreachable!()
         }
 
     }

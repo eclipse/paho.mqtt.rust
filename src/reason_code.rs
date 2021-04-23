@@ -25,7 +25,6 @@ use std::{
     fmt,
     ffi::CStr,
 };
-use ffi;
 
 /// MQTT v5 single-byte reason codes.
 #[repr(u8)]

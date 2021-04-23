@@ -50,7 +50,7 @@ impl DisconnectOptions {
 
     // Ensures that the underlying C struct points to cached values
     fn from_data(mut copts: ffi::MQTTAsync_disconnectOptions, props: Properties) -> Self {
-        copts.properties = props.cprops.clone();
+        copts.properties = props.cprops;
         Self { copts, props }
     }
 
@@ -87,7 +87,7 @@ impl Default for DisconnectOptions {
 impl Clone for DisconnectOptions {
     fn clone(&self) -> Self {
         Self::from_data(
-            self.copts.clone(),
+            self.copts,
             self.props.clone()
         )
     }
@@ -157,7 +157,7 @@ impl DisconnectOptionsBuilder {
     /// Finalize the builder to create the disconnect options.
     pub fn finalize(&self) -> DisconnectOptions {
         DisconnectOptions::from_data(
-            self.copts.clone(),
+            self.copts,
             self.props.clone()
         )
     }

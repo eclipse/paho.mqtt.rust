@@ -182,7 +182,7 @@ impl ConnectOptions {
     /// done with it, we must recover and drop it (i.e. in the completion
     /// callback).
     pub fn set_token(&mut self, tok: ConnectToken) {
-        let tok: Token = tok.into();
+        let tok: Token = tok;
 
         if self.copts.MQTTVersion < ffi::MQTTVERSION_5 as i32 {
             self.copts.onSuccess = Some(TokenInner::on_success);
@@ -208,7 +208,7 @@ impl Default for ConnectOptions {
 impl Clone for ConnectOptions {
     fn clone(&self) -> Self {
         Self::from_data(
-            self.copts.clone(),
+            self.copts,
             (&*self.data).clone()
         )
     }
@@ -483,7 +483,7 @@ impl ConnectOptionsBuilder {
     /// Finalize the builder to create the connect options.
     pub fn finalize(&self) -> ConnectOptions {
         ConnectOptions::from_data(
-            self.copts.clone(),
+            self.copts,
             self.data.clone()
         )
     }
@@ -559,17 +559,11 @@ mod tests {
 
         assert!(!opts.copts.ssl.is_null());
 
-        if let Some(ref ssl_opts) = opts.data.ssl {
-            // TODO: Test that ssl_opts.get_trust_store() is TRUST_STORE?
-            assert!(true);
-            assert_eq!(&ssl_opts.copts as *const _, opts.copts.ssl);
-            let ts = unsafe { CStr::from_ptr((*opts.copts.ssl).trustStore) };
-            assert_eq!(TRUST_STORE, ts.to_str().unwrap());
-        }
-        else {
-            // The SSL option should be set
-            assert!(false);
-        };
+        let ssl_opts= opts.data.ssl.as_ref().unwrap();
+        // TODO: Test that ssl_opts.get_trust_store() is TRUST_STORE?
+        assert_eq!(&ssl_opts.copts as *const _, opts.copts.ssl);
+        let ts = unsafe { CStr::from_ptr((*opts.copts.ssl).trustStore) };
+        assert_eq!(TRUST_STORE, ts.to_str().unwrap());
     }
 
     #[test]
@@ -581,15 +575,12 @@ mod tests {
 
         assert!(!opts.copts.username.is_null());
 
-        if let Some(ref user_name) = opts.data.user_name {
-            assert_eq!(NAME, user_name.to_str().unwrap());
+        let user_name = opts.data.user_name.as_deref().unwrap();
+        assert_eq!(NAME, user_name.to_str().unwrap());
 
-            let s = unsafe { CStr::from_ptr(opts.copts.username) };
-            assert_eq!(NAME, s.to_str().unwrap());
-        }
-        else {
-            assert!(false);
-        };
+        let s = unsafe { CStr::from_ptr(opts.copts.username) };
+        assert_eq!(NAME, s.to_str().unwrap());
+        
     }
 
     #[test]
@@ -601,15 +592,11 @@ mod tests {
 
         assert!(!opts.copts.password.is_null());
 
-        if let Some(ref password) = opts.data.password {
-            assert_eq!(PSWD, password.to_str().unwrap());
+        let password = opts.data.password.as_deref().unwrap();
+        assert_eq!(PSWD, password.to_str().unwrap());
 
-            let s = unsafe { CStr::from_ptr(opts.copts.password) };
-            assert_eq!(PSWD, s.to_str().unwrap());
-        }
-        else {
-            assert!(false);
-        };
+        let s = unsafe { CStr::from_ptr(opts.copts.password) };
+        assert_eq!(PSWD, s.to_str().unwrap());
     }
 
     #[test]
@@ -623,7 +610,7 @@ mod tests {
 
         // Compare the strings to the C-arrays in copts
         for (i, ref svr) in servers.iter().enumerate() {
-            let s = unsafe { CStr::from_ptr(*opts.copts.serverURIs.offset(i as isize)) };
+            let s = unsafe { CStr::from_ptr(*opts.copts.serverURIs.add(i)) };
             assert_eq!(&svr[..], s.to_str().unwrap());
         }
     }
@@ -651,15 +638,11 @@ mod tests {
 
         assert!(opts.data.https_proxy.is_none());
 
-        if let Some(ref proxy) = opts.data.http_proxy {
-            assert_eq!(HTTP, proxy.to_str().unwrap());
+        let proxy = opts.data.http_proxy.as_deref().unwrap();
+        assert_eq!(HTTP, proxy.to_str().unwrap());
 
-            let s = unsafe { CStr::from_ptr(opts.copts.httpProxy) };
-            assert_eq!(HTTP, s.to_str().unwrap());
-        }
-        else {
-            assert!(false);
-        };
+        let s = unsafe { CStr::from_ptr(opts.copts.httpProxy) };
+        assert_eq!(HTTP, s.to_str().unwrap());
 
 
         let opts = ConnectOptionsBuilder::new()
@@ -670,15 +653,11 @@ mod tests {
 
         assert!(opts.data.http_proxy.is_none());
 
-        if let Some(ref proxy) = opts.data.https_proxy {
-            assert_eq!(HTTPS, proxy.to_str().unwrap());
+        let proxy = opts.data.https_proxy.as_deref().unwrap();
+        assert_eq!(HTTPS, proxy.to_str().unwrap());
 
-            let s = unsafe { CStr::from_ptr(opts.copts.httpsProxy) };
-            assert_eq!(HTTPS, s.to_str().unwrap());
-        }
-        else {
-            assert!(false);
-        };
+        let s = unsafe { CStr::from_ptr(opts.copts.httpsProxy) };
+        assert_eq!(HTTPS, s.to_str().unwrap());
     }
 
 
@@ -709,18 +688,12 @@ mod tests {
         assert_eq!(USER_NAME, opts.data.user_name.as_ref().unwrap().to_str().unwrap());
         assert_eq!(PASSWORD, opts.data.password.as_ref().unwrap().to_str().unwrap());
 
-        if let Some(ref user_name) = opts.data.user_name {
-            assert_eq!(user_name.as_ptr(), opts.copts.username)
-        }
-        else {
-            assert!(false)
-        };
-        if let Some(ref password) = opts.data.password {
-            assert_eq!(password.as_ptr(), opts.copts.password)
-        }
-        else {
-            assert!(false)
-        };
+        let user_name = opts.data.user_name.as_deref().unwrap();
+        assert_eq!(user_name.as_ptr(), opts.copts.username);
+        
+        let password = opts.data.password.as_deref().unwrap();
+        assert_eq!(password.as_ptr(), opts.copts.password);
+        
 
         assert_eq!(CONNECT_TIMEOUT_SECS as i32, opts.copts.connectTimeout);
     }
@@ -736,17 +709,13 @@ mod tests {
             .mqtt_version(MQTT_VERSION_5)   // building options
             .finalize();
 
-        if let Some(ref props) = opts.data.props {
-            assert_eq!(1, props.len());
-            assert_eq!(Some(60), props.get_int(PropertyCode::SessionExpiryInterval));
+        let props = opts.data.props.as_ref().unwrap();
+        assert_eq!(1, props.len());
+        assert_eq!(Some(60), props.get_int(PropertyCode::SessionExpiryInterval));
 
-            assert!(!opts.copts.connectProperties.is_null());
-            assert_eq!(&props.cprops as *const _ as *mut ffi::MQTTProperties,
-                       opts.copts.connectProperties);
-        }
-        else {
-            assert!(false)
-        };
+        assert!(!opts.copts.connectProperties.is_null());
+        assert_eq!(&props.cprops as *const _ as *mut ffi::MQTTProperties,
+                    opts.copts.connectProperties);
     }
 
     #[test]
@@ -765,17 +734,13 @@ mod tests {
             .will_message(lwt)
             .finalize();
 
-        if let Some(ref will_props) = opts.data.will_props {
-            assert_eq!(1, will_props.len());
-            assert_eq!(Some(60), will_props.get_int(PropertyCode::WillDelayInterval));
+        let will_props = opts.data.will_props.as_ref().unwrap();
+        assert_eq!(1, will_props.len());
+        assert_eq!(Some(60), will_props.get_int(PropertyCode::WillDelayInterval));
 
-            assert!(!opts.copts.willProperties.is_null());
-            assert_eq!(&will_props.cprops as *const _ as *mut ffi::MQTTProperties,
-                       opts.copts.willProperties);
-        }
-        else {
-            assert!(false)
-        };
+        assert!(!opts.copts.willProperties.is_null());
+        assert_eq!(&will_props.cprops as *const _ as *mut ffi::MQTTProperties,
+                    opts.copts.willProperties);
     }
 
 
