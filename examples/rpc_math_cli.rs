@@ -31,13 +31,11 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-#[macro_use] extern crate paho_mqtt as mqtt;
+#[macro_use]
+extern crate paho_mqtt as mqtt;
 
-use std::{
-    env,
-    process,
-};
 use serde_json::json;
+use std::{env, process};
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -95,7 +93,8 @@ fn main() -> mqtt::Result<()> {
     // response. The Client ID will help form a unique "reply to" topic
     // for us.
 
-    let client_id = rsp.properties()
+    let client_id = rsp
+        .properties()
         .get_string(mqtt::PropertyCode::AssignedClientIdentifer)
         .unwrap_or_else(|| {
             eprintln!("Unable to retrieve Client ID");
@@ -124,7 +123,8 @@ fn main() -> mqtt::Result<()> {
     // The payload is the JSON array of arguments for the operation.
     // These are the remaining arguments from the command line.
 
-    let math_args: Vec<_> = args[1..].iter()
+    let math_args: Vec<_> = args[1..]
+        .iter()
         .map(|s| s.parse::<f64>())
         .filter_map(Result::ok)
         .collect();
@@ -151,8 +151,10 @@ fn main() -> mqtt::Result<()> {
     // Since we only sent one request, this should certainly be our reply!
 
     if let Some(msg) = rx.recv().unwrap() {
-        let reply_corr_id = msg.properties()
-            .get_binary(mqtt::PropertyCode::CorrelationData).unwrap();
+        let reply_corr_id = msg
+            .properties()
+            .get_binary(mqtt::PropertyCode::CorrelationData)
+            .unwrap();
 
         if reply_corr_id == corr_id {
             let ret: f64 = serde_json::from_str(&msg.payload_str()).unwrap();
@@ -170,4 +172,3 @@ fn main() -> mqtt::Result<()> {
     cli.disconnect(None).wait()?;
     Ok(())
 }
-

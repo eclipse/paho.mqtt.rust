@@ -27,11 +27,7 @@ use std::{
 };
 
 use crate::{
-    async_client::AsyncClient,
-    client_persistence::ClientPersistence,
-    ffi,
-    to_c_bool,
-    Result,
+    async_client::AsyncClient, client_persistence::ClientPersistence, ffi, to_c_bool, Result,
     UserData,
 };
 
@@ -79,7 +75,9 @@ impl fmt::Debug for PersistenceType {
 }
 
 impl Default for PersistenceType {
-    fn default() -> Self { PersistenceType::None }
+    fn default() -> Self {
+        PersistenceType::None
+    }
 }
 
 impl From<&str> for PersistenceType {
@@ -182,7 +180,11 @@ impl From<(String, String)> for CreateOptions {
     /// Constructs the create options from two strings giving the server URI
     /// and Client ID.
     fn from((server_uri, client_id): (String, String)) -> Self {
-        let mut opts = Self { server_uri, client_id, ..Self::default() };
+        let mut opts = Self {
+            server_uri,
+            client_id,
+            ..Self::default()
+        };
         if !opts.client_id.is_empty() {
             opts.persistence = PersistenceType::File;
         }
@@ -279,7 +281,8 @@ impl CreateOptionsBuilder {
     /// `persist` The type of persistence to use.
     ///
     pub fn persistence<P>(mut self, persist: P) -> Self
-        where P: Into<PersistenceType>
+    where
+        P: Into<PersistenceType>,
     {
         self.persistence = persist.into();
         self
@@ -295,7 +298,8 @@ impl CreateOptionsBuilder {
     /// `persist` An application-defined custom persistence store.
     ///
     pub fn user_persistence<T>(mut self, persistence: T) -> Self
-        where T: ClientPersistence + Send + 'static,
+    where
+        T: ClientPersistence + Send + 'static,
     {
         let persistence: Box<Box<dyn ClientPersistence + Send>> = Box::new(Box::new(persistence));
         self.persistence = PersistenceType::User(persistence);
@@ -377,8 +381,9 @@ impl CreateOptionsBuilder {
             user_data: self.user_data,
         };
         match opts.persistence {
-            PersistenceType::File if opts.client_id.is_empty() =>
-                opts.persistence = PersistenceType::None,
+            PersistenceType::File if opts.client_id.is_empty() => {
+                opts.persistence = PersistenceType::None
+            }
             _ => (),
         }
         opts
@@ -524,4 +529,3 @@ mod tests {
         assert_eq!(MAX_BUF_MSGS, opts.copts.maxBufferedMessages);
     }
 }
-

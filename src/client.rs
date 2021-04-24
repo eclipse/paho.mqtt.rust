@@ -27,19 +27,13 @@
 //!
 //! The synchronous calls use a default timeout
 
-use std::time::Duration;
 use crate::{
-    async_client::AsyncClient,
-    create_options::CreateOptions,
-    connect_options::ConnectOptions,
-    disconnect_options::DisconnectOptions,
-    subscribe_options::SubscribeOptions,
-    server_response::ServerResponse,
-    properties::Properties,
-    message::Message,
+    async_client::AsyncClient, connect_options::ConnectOptions, create_options::CreateOptions,
+    disconnect_options::DisconnectOptions, errors::Result, message::Message,
+    properties::Properties, server_response::ServerResponse, subscribe_options::SubscribeOptions,
     Receiver,
-    errors::Result,
 };
+use std::time::Duration;
 
 /////////////////////////////////////////////////////////////////////////////
 // Client
@@ -57,13 +51,14 @@ pub struct Client {
 impl Client {
     /// Creates a new MQTT client which can connect to an MQTT broker.
     pub fn new<T>(opts: T) -> Result<Client>
-        where T: Into<CreateOptions>
+    where
+        T: Into<CreateOptions>,
     {
         let async_cli = AsyncClient::new(opts)?;
 
         let cli = Client {
             cli: async_cli,
-            timeout: Duration::from_secs(5*60),
+            timeout: Duration::from_secs(5 * 60),
         };
         //cli.start_consuming();
         Ok(cli)
@@ -86,8 +81,9 @@ impl Client {
     }
 
     /// Connects to an MQTT broker using the specified connect options.
-    pub fn connect<T>(&self, opt_opts:T) -> Result<ServerResponse>
-        where T: Into<Option<ConnectOptions>>
+    pub fn connect<T>(&self, opt_opts: T) -> Result<ServerResponse>
+    where
+        T: Into<Option<ConnectOptions>>,
     {
         self.cli.connect(opt_opts).wait_for(self.timeout)
     }
@@ -99,8 +95,9 @@ impl Client {
     /// `opt_opts` Optional disconnect options. Specifying `None` will use
     ///            default of immediate (zero timeout) disconnect.
     ///
-    pub fn disconnect<T>(&self, opt_opts:T) -> Result<()>
-        where T: Into<Option<DisconnectOptions>>
+    pub fn disconnect<T>(&self, opt_opts: T) -> Result<()>
+    where
+        T: Into<Option<DisconnectOptions>>,
     {
         self.cli.disconnect(opt_opts).wait_for(self.timeout)?;
         Ok(())
@@ -159,12 +156,21 @@ impl Client {
     /// `opts` Options for the subscription
     /// `props` MQTT v5 properties
     ///
-    pub fn subscribe_with_options<S,T,P>(&self, topic: S, qos: i32, opts: T, props: P) -> Result<ServerResponse>
-        where S: Into<String>,
-              T: Into<SubscribeOptions>,
-              P: Into<Option<Properties>>
+    pub fn subscribe_with_options<S, T, P>(
+        &self,
+        topic: S,
+        qos: i32,
+        opts: T,
+        props: P,
+    ) -> Result<ServerResponse>
+    where
+        S: Into<String>,
+        T: Into<SubscribeOptions>,
+        P: Into<Option<Properties>>,
     {
-        self.cli.subscribe_with_options(topic, qos, opts, props).wait_for(self.timeout)
+        self.cli
+            .subscribe_with_options(topic, qos, opts, props)
+            .wait_for(self.timeout)
     }
 
     /// Subscribes to multiple topics simultaneously.
@@ -175,7 +181,8 @@ impl Client {
     /// `qos` The quality of service requested for messages
     ///
     pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> Result<ServerResponse>
-        where T: AsRef<str>
+    where
+        T: AsRef<str>,
     {
         self.cli.subscribe_many(topics, qos).wait_for(self.timeout)
     }
@@ -189,17 +196,20 @@ impl Client {
     /// `opts` Subscribe options (one per topic)
     /// `props` MQTT v5 properties
     ///
-    pub fn subscribe_many_with_options<T,P>(
+    pub fn subscribe_many_with_options<T, P>(
         &self,
         topics: &[T],
         qos: &[i32],
         opts: &[SubscribeOptions],
-        props: P
+        props: P,
     ) -> Result<ServerResponse>
-        where T: AsRef<str>,
-              P: Into<Option<Properties>>,
+    where
+        T: AsRef<str>,
+        P: Into<Option<Properties>>,
     {
-        self.cli.subscribe_many_with_options(topics, qos, opts, props).wait_for(self.timeout)
+        self.cli
+            .subscribe_many_with_options(topics, qos, opts, props)
+            .wait_for(self.timeout)
     }
 
     /// Unsubscribes from a single topic.
@@ -223,9 +233,12 @@ impl Client {
     /// `props` MQTT v5 properties for the unsubscribe.
     ///
     pub fn unsubscribe_with_options<S>(&self, topic: S, props: Properties) -> Result<()>
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
-        self.cli.unsubscribe_with_options(topic, props).wait_for(self.timeout)?;
+        self.cli
+            .unsubscribe_with_options(topic, props)
+            .wait_for(self.timeout)?;
         Ok(())
     }
 
@@ -237,7 +250,8 @@ impl Client {
     ///         previous subscribe.
     ///
     pub fn unsubscribe_many<T>(&self, topics: &[T]) -> Result<()>
-        where T: AsRef<str>
+    where
+        T: AsRef<str>,
     {
         self.cli.unsubscribe_many(topics).wait_for(self.timeout)?;
         Ok(())
@@ -251,14 +265,12 @@ impl Client {
     ///         previous subscribe.
     /// `props` MQTT v5 properties for the unsubscribe.
     ///
-    pub fn unsubscribe_many_with_options<T>(
-        &self,
-        topics: &[T],
-        props: Properties
-    ) -> Result<()>
-        where T: AsRef<str>
+    pub fn unsubscribe_many_with_options<T>(&self, topics: &[T], props: Properties) -> Result<()>
+    where
+        T: AsRef<str>,
     {
-        self.cli.unsubscribe_many_with_options(topics, props)
+        self.cli
+            .unsubscribe_many_with_options(topics, props)
             .wait_for(self.timeout)?;
         Ok(())
     }
@@ -283,8 +295,8 @@ impl Client {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread;
     use std::sync::Arc;
+    use std::thread;
 
     // Determine that a client can be sent across threads and signaled.
     // As long as it compiles, this indicates that Client implements the
@@ -317,4 +329,3 @@ mod tests {
         let _ = thr.join().unwrap();
     }
 }
-

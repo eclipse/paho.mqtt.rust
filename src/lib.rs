@@ -30,38 +30,36 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 extern crate paho_mqtt_sys as ffi;
 
 //use crossbeam_channel as channel;
 
-pub use crossbeam_channel::Receiver;
 pub use async_channel::Receiver as AsyncReceiver;
+pub use crossbeam_channel::Receiver;
 
-pub use crate::async_client::*;        //{AsyncClient, AsyncClientBuilder};
-pub use crate::client::*;              //{Client, ClientBuilder};
-pub use crate::create_options::*;      //{CreateOptions, CreateOptionsBuilder};
-pub use crate::connect_options::*;     //{ConnectOptions, ConnectOptionsBuilder, MQTT_VERSION_3_1_1, ...};
-pub use crate::will_options::*;        //{WillOptions, WillOptionsBuilder};
-pub use crate::ssl_options::*;         //{SslOptions, SslOptionsBuilder};
-pub use crate::disconnect_options::*;  //{DisconnectOptions, DisconnectOptionsBuilder};
-pub use crate::subscribe_options::*;   //{SubscribeOptions};
-pub use crate::response_options::*;    //{ResponseOptions};
-pub use crate::server_response::*;     //{ServerResponse, CommandResponse};
-pub use crate::properties::*;          //{Property, Properties};
-pub use crate::message::*;             //{Message, MessageBuilder};
-pub use crate::name_value::*;          //{NameValueCollection};
-pub use crate::token::*;               //{Token}
-pub use crate::topic::*;               //{Topic}
-pub use crate::reason_code::*;         //{ReasonCode}
-pub use crate::types::*;               //...
+pub use crate::async_client::*; //{AsyncClient, AsyncClientBuilder};
+pub use crate::client::*; //{Client, ClientBuilder};
 pub use crate::client_persistence::*;
-pub use crate::errors::*;              //{Result, Error, ErrorKind};
+pub use crate::connect_options::*; //{ConnectOptions, ConnectOptionsBuilder, MQTT_VERSION_3_1_1, ...};
+pub use crate::create_options::*; //{CreateOptions, CreateOptionsBuilder};
+pub use crate::disconnect_options::*; //{DisconnectOptions, DisconnectOptionsBuilder};
+pub use crate::errors::*;
+pub use crate::message::*; //{Message, MessageBuilder};
+pub use crate::name_value::*; //{NameValueCollection};
+pub use crate::properties::*; //{Property, Properties};
+pub use crate::reason_code::*; //{ReasonCode}
+pub use crate::response_options::*; //{ResponseOptions};
+pub use crate::server_response::*; //{ServerResponse, CommandResponse};
+pub use crate::ssl_options::*; //{SslOptions, SslOptionsBuilder};
+pub use crate::subscribe_options::*; //{SubscribeOptions};
+pub use crate::token::*; //{Token}
+pub use crate::topic::*; //{Topic}
+pub use crate::types::*; //...
+pub use crate::will_options::*; //{WillOptions, WillOptionsBuilder}; //{Result, Error, ErrorKind};
 
-use std::{
-    os::raw::c_int,
-    any::Any,
-};
+use std::{any::Any, os::raw::c_int};
 
 mod macros;
 
@@ -135,12 +133,16 @@ pub mod name_value;
 /// client as "user data" to be accessed from callbacks, etc.
 pub type UserData = Box<dyn Any + 'static + Send + Sync>;
 
-
 // --------------------------------------------------------------------------
 
 /// Convert a Rust bool to a Paho C boolean
 pub fn to_c_bool(on: bool) -> c_int {
-    if on { 1 } else { 0 }
+    if on {
+        1
+    }
+    else {
+        0
+    }
 }
 
 /// Converts a C integer boolean to a Rust bool

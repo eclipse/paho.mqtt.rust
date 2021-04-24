@@ -28,8 +28,8 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{env, process};
 use paho_mqtt as mqtt;
+use std::{env, process};
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -38,9 +38,9 @@ fn main() {
     env_logger::init();
 
     // Command-line option(s)
-    let host = env::args().nth(1).unwrap_or_else(||
-        "tcp://localhost:1883".to_string()
-    );
+    let host = env::args()
+        .nth(1)
+        .unwrap_or_else(|| "tcp://localhost:1883".to_string());
 
     // Create a client to the specified host
     // Since we don't use a client ID there's no persistence

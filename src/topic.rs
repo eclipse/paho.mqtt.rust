@@ -1,5 +1,5 @@
 // topic.rs
-// 
+//
 // A set of message parameters to repeatedly publish to the same topic.
 //
 // This file is part of the Eclipse Paho MQTT Rust Client library.
@@ -23,14 +23,11 @@
 
 use crate::{
     async_client::AsyncClient,
-    token::{
-        Token,
-        DeliveryToken,
-    },
-    subscribe_options::SubscribeOptions,
-    message::{Message, MessageBuilder},
-    properties::{PropertyCode, Properties},
     errors::Result,
+    message::{Message, MessageBuilder},
+    properties::{Properties, PropertyCode},
+    subscribe_options::SubscribeOptions,
+    token::{DeliveryToken, Token},
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -54,8 +51,7 @@ pub struct Topic<'a> {
     alias: u16,
 }
 
-impl<'a> Topic<'a> 
-{
+impl<'a> Topic<'a> {
     /// Creates a new topic object for publishing messages.
     ///
     /// # Arguments
@@ -65,7 +61,8 @@ impl<'a> Topic<'a>
     /// `qos` The quality of service for messages
     ///
     pub fn new<T>(cli: &'a AsyncClient, topic: T, qos: i32) -> Topic<'a>
-        where T: Into<String>
+    where
+        T: Into<String>,
     {
         Topic {
             cli,
@@ -85,7 +82,8 @@ impl<'a> Topic<'a>
     /// `qos` The quality of service for messages
     ///
     pub fn new_retained<T>(cli: &'a AsyncClient, topic: T, qos: i32) -> Topic<'a>
-        where T: Into<String>
+    where
+        T: Into<String>,
     {
         Topic {
             cli,
@@ -98,14 +96,15 @@ impl<'a> Topic<'a>
 
     /// Create a message for the topic using the supplied payload
     fn create_message<V>(&self, payload: V) -> Message
-        where V: Into<Vec<u8>>
+    where
+        V: Into<Vec<u8>>,
     {
         // OPTIMIZE: This could be more efficient.
         if self.alias == 0 {
             Message::new(&self.topic, payload, self.qos)
         }
         else {
-            let props = properties!{ PropertyCode::TopicAlias => self.alias };
+            let props = properties! { PropertyCode::TopicAlias => self.alias };
             MessageBuilder::new()
                 .topic("")
                 .payload(payload)
@@ -116,18 +115,19 @@ impl<'a> Topic<'a>
         }
     }
 
-
     /// Subscribe to the topic.
     pub fn subscribe(&self) -> Token {
         self.cli.subscribe(self.topic.clone(), self.qos)
     }
 
     /// Subscribe to the topic with subscription options.
-    pub fn subscribe_with_options<T,P>(&self, opts: T, props: P) -> Token
-        where T: Into<SubscribeOptions>,
-              P: Into<Option<Properties>>,
+    pub fn subscribe_with_options<T, P>(&self, opts: T, props: P) -> Token
+    where
+        T: Into<SubscribeOptions>,
+        P: Into<Option<Properties>>,
     {
-        self.cli.subscribe_with_options(self.topic.clone(), self.qos, opts, props)
+        self.cli
+            .subscribe_with_options(self.topic.clone(), self.qos, opts, props)
     }
 
     /// Publish a message on the topic.
@@ -141,7 +141,8 @@ impl<'a> Topic<'a>
     /// `payload` The payload of the message
     ///
     pub fn publish<V>(&self, payload: V) -> DeliveryToken
-        where V: Into<Vec<u8>>
+    where
+        V: Into<Vec<u8>>,
     {
         let msg = self.create_message(payload);
         self.cli.publish(msg)
@@ -161,7 +162,8 @@ impl<'a> Topic<'a>
     ///
     /// Returns a Publish Error containing the complete message on failure.
     pub fn try_publish<V>(&self, payload: V) -> Result<DeliveryToken>
-        where V: Into<Vec<u8>>
+    where
+        V: Into<Vec<u8>>,
     {
         let msg = self.create_message(payload);
         self.cli.try_publish(msg)
@@ -193,7 +195,8 @@ impl<'a> Topic<'a>
     /// `payload` The payload of the message
     ///
     pub fn publish_with_alias<V>(&mut self, alias: u16, payload: V) -> DeliveryToken
-        where V: Into<Vec<u8>>
+    where
+        V: Into<Vec<u8>>,
     {
         self.alias = alias;
         self.publish(payload)
@@ -207,10 +210,10 @@ impl<'a> Topic<'a>
     ///
     /// Returns a Publish Error containing the complete message on failure.
     pub fn try_publish_with_alias<V>(&mut self, alias: u16, payload: V) -> Result<DeliveryToken>
-        where V: Into<Vec<u8>>
+    where
+        V: Into<Vec<u8>>,
     {
         self.alias = alias;
         self.try_publish(payload)
     }
 }
-

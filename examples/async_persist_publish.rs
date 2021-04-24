@@ -28,13 +28,9 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{
-    env,
-    process,
-    collections::HashMap,
-};
 use log::trace;
 use paho_mqtt as mqtt;
+use std::{collections::HashMap, env, process};
 
 // The library's persistence error.
 const PERSISTENCE_ERROR: mqtt::Error = mqtt::Error::Paho(mqtt::PERSISTENCE_ERROR);
@@ -66,11 +62,12 @@ struct MemPersistence {
 
 impl MemPersistence {
     /// Create a new/empty persistence store.
-    fn new() -> Self { Self::default() }
+    fn new() -> Self {
+        Self::default()
+    }
 }
 
-impl mqtt::ClientPersistence for MemPersistence
-{
+impl mqtt::ClientPersistence for MemPersistence {
     // Open the persistence store.
     // We don't need to do anything here since the store is in memory.
     // We just capture the name for logging/debugging purposes.
@@ -103,7 +100,7 @@ impl mqtt::ClientPersistence for MemPersistence
         trace!("Client persistence [{}]: get key '{}'", self.name, key);
         match self.map.get(key) {
             Some(v) => Ok(v.to_vec()),
-            None => Err(PERSISTENCE_ERROR)
+            None => Err(PERSISTENCE_ERROR),
         }
     }
 
@@ -112,7 +109,7 @@ impl mqtt::ClientPersistence for MemPersistence
         trace!("Client persistence [{}]: remove key '{}'", self.name, key);
         match self.map.remove(key) {
             Some(_) => Ok(()),
-            None => Err(PERSISTENCE_ERROR)
+            None => Err(PERSISTENCE_ERROR),
         }
     }
 
@@ -149,9 +146,9 @@ fn main() {
     // Initialize the logger from the environment
     env_logger::init();
 
-    let host = env::args().nth(1).unwrap_or_else(||
-        "tcp://localhost:1883".to_string()
-    );
+    let host = env::args()
+        .nth(1)
+        .unwrap_or_else(|| "tcp://localhost:1883".to_string());
 
     // Create a client & define connect options.
     // Note that for pure publishers, you don't always need a Client ID. But
@@ -160,10 +157,10 @@ fn main() {
     println!("Creating the MQTT client.");
 
     let create_opts = mqtt::CreateOptionsBuilder::new()
-            .server_uri(host)
-            .user_persistence(MemPersistence::new())
-            .client_id("rust_async_persist_pub")
-            .finalize();
+        .server_uri(host)
+        .user_persistence(MemPersistence::new())
+        .client_id("rust_async_persist_pub")
+        .finalize();
 
     let cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|e| {
         println!("Error creating the client: {:?}", e);

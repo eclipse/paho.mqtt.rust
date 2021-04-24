@@ -29,8 +29,8 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{env, process};
 use paho_mqtt as mqtt;
+use std::{env, process};
 
 // This is our topic alias we'll use to publish.
 const TOPIC_ALIAS: u16 = 1;
@@ -41,12 +41,12 @@ const TOPIC_NAME: &str = "test/very/long/topic_name/just/to_say_hello";
 /////////////////////////////////////////////////////////////////////////////
 
 fn main() -> mqtt::Result<()> {
-	// Initialize the logger from the environment
-	env_logger::init();
+    // Initialize the logger from the environment
+    env_logger::init();
 
-    let host = env::args().nth(1).unwrap_or_else(||
-        "tcp://localhost:1883".to_string()
-    );
+    let host = env::args()
+        .nth(1)
+        .unwrap_or_else(|| "tcp://localhost:1883".to_string());
 
     // Create a client to the specified host, no persistence
     let create_opts = mqtt::CreateOptionsBuilder::new()
@@ -54,51 +54,58 @@ fn main() -> mqtt::Result<()> {
         .server_uri(host)
         .finalize();
 
-	let cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|err| {
-		println!("Error creating the client: {}", err);
-		process::exit(1);
-	});
+    let cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|err| {
+        println!("Error creating the client: {}", err);
+        process::exit(1);
+    });
 
     let conn_opts = mqtt::ConnectOptionsBuilder::new()
         .mqtt_version(mqtt::MQTT_VERSION_5)
         .clean_start(true)
         .finalize();
 
-	// Connect and wait for it to complete or fail
+    // Connect and wait for it to complete or fail
 
     let rsp = cli.connect(conn_opts).wait().unwrap_or_else(|err| {
         eprintln!("Unable to connect: {:?}", err);
         process::exit(1);
     });
 
-    match rsp.properties().get_val::<u16>(mqtt::PropertyCode::TopicAliasMaximum) {
+    match rsp
+        .properties()
+        .get_val::<u16>(mqtt::PropertyCode::TopicAliasMaximum)
+    {
         None | Some(0) => {
             eprintln!("The server doesn't support Topic Aliases.");
             process::exit(2);
-        },
+        }
         Some(n) => println!("The server supports up to {} aliases.", n),
     }
 
-	// Create a topic and publish to it
-	println!("Publishing messages on the 'test' topic");
-	let mut topic = mqtt::Topic::new(&cli, TOPIC_NAME, mqtt::QOS_1);
+    // Create a topic and publish to it
+    println!("Publishing messages on the 'test' topic");
+    let mut topic = mqtt::Topic::new(&cli, TOPIC_NAME, mqtt::QOS_1);
 
     // First, publish with the alias to set it on the server
-    topic.publish_with_alias(TOPIC_ALIAS, "Hello. Here's an alias.").wait()?;
+    topic
+        .publish_with_alias(TOPIC_ALIAS, "Hello. Here's an alias.")
+        .wait()?;
 
     // These publishes now use the alias
     for _ in 0..4 {
         topic.publish("Hello there").wait()?;
-	}
+    }
 
     // Publishing with alias zero removes it.
-    topic.publish_with_alias(0, "Hello. Removed the alias.").wait()?;
+    topic
+        .publish_with_alias(0, "Hello. Removed the alias.")
+        .wait()?;
 
     // Subsequent publishes use the topic name string.
     topic.publish("No alias here").wait()?;
 
-	// Disconnect from the broker
-	cli.disconnect(None).wait()?;
+    // Disconnect from the broker
+    cli.disconnect(None).wait()?;
 
     Ok(())
 }

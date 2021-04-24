@@ -17,17 +17,9 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{
-    io,
-    result,
-    str,
-};
+use crate::{ffi, message::Message, reason_code::ReasonCode};
+use std::{io, result, str};
 use thiserror::Error;
-use crate::{
-    ffi,
-    message::Message,
-    reason_code::ReasonCode,
-};
 
 /// The errors from an MQTT operation.
 #[derive(Error, Debug)]
@@ -112,7 +104,7 @@ pub fn error_message(rc: i32) -> &'static str {
         ffi::MQTTASYNC_BAD_MQTT_OPTION => "Bad option",
         ffi::MQTTASYNC_WRONG_MQTT_VERSION => "Wrong MQTT version",
         ffi::MQTTASYNC_0_LEN_WILL_TOPIC => "Zero length Will Topic",
-         _ => "Unknown Error",
+        _ => "Unknown Error",
     }
 }
 

@@ -29,17 +29,13 @@
 //! as the "call options".
 //!
 
-use std::{
-    ptr,
-    pin::Pin,
-    os::raw::c_int,
-};
+use std::{os::raw::c_int, pin::Pin, ptr};
 
 use crate::{
     ffi,
-    token::{Token, TokenInner},
     properties::Properties,
     subscribe_options::SubscribeOptions,
+    token::{Token, TokenInner},
     types::*,
 };
 
@@ -72,7 +68,8 @@ impl ResponseOptions {
     /// up to the callback (or calling function) to recapture and release
     /// this token.
     pub(crate) fn new<T>(mqtt_version: u32, tok: T) -> Self
-        where T: Into<Token>
+    where
+        T: Into<Token>,
     {
         let mut copts = Self::c_options(mqtt_version);
         copts.context = tok.into().into_raw();
@@ -98,20 +95,14 @@ impl ResponseOptions {
         }
     }
 
-    fn from_data(
-        mut copts: ffi::MQTTAsync_responseOptions,
-        data: ResponseOptionsData
-    ) -> Self {
+    fn from_data(mut copts: ffi::MQTTAsync_responseOptions, data: ResponseOptionsData) -> Self {
         let mut data = Box::pin(data);
 
         copts.properties = data.props.cprops;
 
         let (p, n) = match data.sub_opts {
-            Some(ref mut sub_opts) => (
-                sub_opts.as_mut_ptr(),
-                sub_opts.len() as c_int
-            ),
-            _ => (ptr::null_mut(), 0)
+            Some(ref mut sub_opts) => (sub_opts.as_mut_ptr(), sub_opts.len() as c_int),
+            _ => (ptr::null_mut(), 0),
         };
 
         copts.subscribeOptionsList = p;
@@ -125,7 +116,7 @@ impl Default for ResponseOptions {
     fn default() -> Self {
         Self::from_data(
             ffi::MQTTAsync_responseOptions::default(),
-            ResponseOptionsData::default()
+            ResponseOptionsData::default(),
         )
     }
 }
@@ -152,7 +143,8 @@ impl ResponseOptionsBuilder {
 
     /// Sets the token for the response.
     pub fn token<T>(&mut self, tok: T) -> &mut Self
-        where T: Into<Token>
+    where
+        T: Into<Token>,
     {
         self.copts.context = tok.into().into_raw();
         self
@@ -176,17 +168,14 @@ impl ResponseOptionsBuilder {
             [] => {}
             // This is necessary, as the `MQTTAsync_subscribeMany` paho.mqtt.c function uses `opts` over `optlist` when `count <= 1`
             [opts] => self.copts.subscribeOptions = opts.copts,
-            _ => self.data.sub_opts = Some(opts.iter().map(|opt| opt.copts).collect())
+            _ => self.data.sub_opts = Some(opts.iter().map(|opt| opt.copts).collect()),
         }
         self
     }
 
     /// Create the response options from the builder.
     pub fn finalize(&self) -> ResponseOptions {
-        ResponseOptions::from_data(
-            self.copts,
-            self.data.clone()
-        )
+        ResponseOptions::from_data(self.copts, self.data.clone())
     }
 }
 
@@ -262,7 +251,7 @@ mod tests {
     #[test]
     fn test_sub_many_opts() {
         let tok = Token::new();
-        let sub_opts = vec![SubscribeOptions::new(true) ; 4];
+        let sub_opts = vec![SubscribeOptions::new(true); 4];
         let opts = ResponseOptionsBuilder::new()
             .token(tok.clone())
             .subscribe_many_options(&sub_opts)
@@ -285,4 +274,3 @@ mod tests {
         let _ = unsafe { Token::from_raw(inner) };
     }
 }
-

@@ -32,13 +32,8 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{
-    env,
-    process,
-    thread,
-    time::Duration,
-};
 use paho_mqtt as mqtt;
+use std::{env, process, thread, time::Duration};
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -47,8 +42,7 @@ use paho_mqtt as mqtt;
 // with a few second pause between each attempt. A real system might keep
 // trying indefinitely, with a backoff, or something like that.
 
-fn try_reconnect(cli: &mqtt::Client) -> bool
-{
+fn try_reconnect(cli: &mqtt::Client) -> bool {
     println!("Connection lost. Waiting to retry connection");
     for _ in 0..12 {
         thread::sleep(Duration::from_millis(5000));
@@ -67,9 +61,9 @@ fn main() {
     // Initialize the logger from the environment
     env_logger::init();
 
-    let host = env::args().nth(1).unwrap_or_else(||
-        "tcp://localhost:1883".to_string()
-    );
+    let host = env::args()
+        .nth(1)
+        .unwrap_or_else(|| "tcp://localhost:1883".to_string());
 
     // Create the client. Use an ID for a persistent session.
     // A real system should try harder to use a unique ID.
@@ -98,7 +92,7 @@ fn main() {
         .will_message(lwt)
         .finalize();
 
-    let subscriptions = [ "test", "hello" ];
+    let subscriptions = ["test", "hello"];
     let qos = [1, 1];
 
     // Make the connection to the broker
@@ -106,8 +100,10 @@ fn main() {
     match cli.connect(conn_opts) {
         Ok(rsp) => {
             if let Some(conn_rsp) = rsp.connect_response() {
-                println!("Connected to: '{}' with MQTT version {}",
-                         conn_rsp.server_uri, conn_rsp.mqtt_version);
+                println!(
+                    "Connected to: '{}' with MQTT version {}",
+                    conn_rsp.server_uri, conn_rsp.mqtt_version
+                );
                 if !conn_rsp.session_present {
                     // Register subscriptions on the server
                     println!("Subscribing to topics, with requested QoS: {:?}...", qos);
@@ -122,7 +118,7 @@ fn main() {
                     }
                 }
             }
-        },
+        }
         Err(e) => {
             println!("Error connecting to the broker: {:?}", e);
             process::exit(1);
@@ -137,8 +133,7 @@ fn main() {
         if let Some(msg) = msg {
             println!("{}", msg);
         }
-        else if cli.is_connected() ||
-                !try_reconnect(&cli) {
+        else if cli.is_connected() || !try_reconnect(&cli) {
             break;
         }
     }

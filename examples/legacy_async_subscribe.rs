@@ -34,15 +34,10 @@
 
 use paho_mqtt as mqtt;
 
-use std::{
-    env,
-    process,
-    thread,
-    time::Duration
-};
+use std::{env, process, thread, time::Duration};
 
 // The topics to which we subscribe.
-const TOPICS: &[&str] = &[ "test", "hello" ];
+const TOPICS: &[&str] = &["test", "hello"];
 const QOS: &[i32] = &[1, 1];
 
 /////////////////////////////////////////////////////////////////////////////
@@ -76,9 +71,9 @@ fn main() {
     // Initialize the logger from the environment
     env_logger::init();
 
-    let host = env::args().nth(1).unwrap_or_else(||
-        "tcp://localhost:1883".to_string()
-    );
+    let host = env::args()
+        .nth(1)
+        .unwrap_or_else(|| "tcp://localhost:1883".to_string());
 
     // Create the client. Use an ID for a persistent session.
     // A real system should try harder to use a unique ID.
@@ -109,7 +104,7 @@ fn main() {
 
     // Attach a closure to the client to receive callback
     // on incoming messages.
-    cli.set_message_callback(|_cli,msg| {
+    cli.set_message_callback(|_cli, msg| {
         if let Some(msg) = msg {
             let topic = msg.topic();
             let payload_str = msg.payload_str();

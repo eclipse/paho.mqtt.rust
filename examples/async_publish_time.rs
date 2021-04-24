@@ -29,16 +29,11 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{
-    env,
-    process,
-    thread,
-    time::{
-        SystemTime,
-        Duration
-    },
-};
 use paho_mqtt as mqtt;
+use std::{
+    env, process, thread,
+    time::{Duration, SystemTime},
+};
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -47,7 +42,8 @@ fn time_now_hundredths() -> u64 {
     (SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
-        .as_millis()/10) as u64
+        .as_millis()
+        / 10) as u64
 }
 
 // --------------------------------------------------------------------------
@@ -56,19 +52,19 @@ fn main() {
     // Initialize the logger from the environment
     env_logger::init();
 
-    let host = env::args().nth(1).unwrap_or_else(||
-        "tcp://localhost:1883".to_string()
-    );
+    let host = env::args()
+        .nth(1)
+        .unwrap_or_else(|| "tcp://localhost:1883".to_string());
 
     // Create a client with file persistence under a directory named,
     // "persist". Any string or Path can be used to specify the directory.
     // If the library can't find or create the path, client creation will
     // fail with a persistence error.
     let create_opts = mqtt::CreateOptionsBuilder::new()
-            .server_uri(host)
-            .client_id("rust_async_pub_time")
-            .persistence("persist")
-            .finalize();
+        .server_uri(host)
+        .client_id("rust_async_pub_time")
+        .persistence("persist")
+        .finalize();
 
     let cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|err| {
         println!("Error creating the client: {}", err);
@@ -107,11 +103,12 @@ fn main() {
         // We don't need to use `try_publish()` here since we just wait on
         // the token, but this shows how we could use it.
         match cli.try_publish(msg) {
-            Err(err) =>
-                eprintln!("Error creating/queuing the message: {}", err),
-            Ok(tok) => if let Err(err) = tok.wait() {
-                eprintln!("Error sending message: {}", err);
-            },
+            Err(err) => eprintln!("Error creating/queuing the message: {}", err),
+            Ok(tok) => {
+                if let Err(err) = tok.wait() {
+                    eprintln!("Error sending message: {}", err);
+                }
+            }
         }
     }
 }

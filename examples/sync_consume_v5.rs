@@ -36,12 +36,8 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{
-    env,
-    thread,
-    time::Duration,
-};
 use paho_mqtt as mqtt;
+use std::{env, thread, time::Duration};
 
 // --------------------------------------------------------------------------
 // Handlers for different types of incoming messages based on their
@@ -74,8 +70,7 @@ fn command_handler(msg: mqtt::Message) -> bool {
 // with a few second pause between each attempt. A real system might keep
 // trying indefinitely, with a backoff, or something like that.
 
-fn try_reconnect(cli: &mqtt::Client) -> bool
-{
+fn try_reconnect(cli: &mqtt::Client) -> bool {
     println!("Connection lost. Waiting to retry connection");
     for _ in 0..12 {
         thread::sleep(Duration::from_millis(5000));
@@ -101,9 +96,9 @@ fn main() -> mqtt::Result<()> {
     // Initialize the logger from the environment
     env_logger::init();
 
-    let host = env::args().nth(1).unwrap_or_else(||
-        "tcp://localhost:1883".to_string()
-    );
+    let host = env::args()
+        .nth(1)
+        .unwrap_or_else(|| "tcp://localhost:1883".to_string());
 
     // Create the client. Use an ID for a persistent session.
     // A real system should try harder to use a unique ID.
@@ -132,10 +127,7 @@ fn main() -> mqtt::Result<()> {
 
     // A table of dispatch function for incoming messages by Subscription ID.
     // (actually sub_id-1 since we can't use zero for a subscription ID)
-    let handler: Vec<fn(mqtt::Message) -> bool> = vec![
-        data_handler,
-        command_handler
-    ];
+    let handler: Vec<fn(mqtt::Message) -> bool> = vec![data_handler, command_handler];
 
     // Make the connection to the broker
 
@@ -146,13 +138,15 @@ fn main() -> mqtt::Result<()> {
     // subscription(s). If not, we subscribe for incoming requests.
 
     if let Some(conn_rsp) = rsp.connect_response() {
-        println!("Connected to: '{}' with MQTT version {}",
-                 conn_rsp.server_uri, conn_rsp.mqtt_version);
+        println!(
+            "Connected to: '{}' with MQTT version {}",
+            conn_rsp.server_uri, conn_rsp.mqtt_version
+        );
 
         if !conn_rsp.session_present {
             // Register subscriptions on the server, using Subscription ID's.
             println!("Subscribing to topics...");
-            cli.subscribe_with_options("data/#",  0, None, sub_id(1))?;
+            cli.subscribe_with_options("data/#", 0, None, sub_id(1))?;
             cli.subscribe_with_options("command", 1, None, sub_id(2))?;
         }
     }
@@ -166,16 +160,16 @@ fn main() -> mqtt::Result<()> {
             // In a real app you'd want to do a lot more error checking and
             // recovery, but this should give an idea about the basics.
 
-            let sub_id = msg.properties()
+            let sub_id = msg
+                .properties()
                 .get_int(mqtt::PropertyCode::SubscriptionIdentifier)
                 .expect("No Subscription ID") as usize;
 
-            if !handler[sub_id-1](msg) {
+            if !handler[sub_id - 1](msg) {
                 break;
             }
         }
-        else if cli.is_connected() ||
-                !try_reconnect(&cli) {
+        else if cli.is_connected() || !try_reconnect(&cli) {
             break;
         }
     }
@@ -190,4 +184,3 @@ fn main() -> mqtt::Result<()> {
 
     Ok(())
 }
-

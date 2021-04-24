@@ -32,15 +32,12 @@
 //!
 
 use {
-    std::{
-        ptr,
-        time::Duration,
-        sync::{Arc, Mutex},
-        future::Future,
-        pin::Pin,
-        task::{Context, Poll, Waker},
-        ffi::CStr,
-        os::raw::c_void,
+    crate::{
+        async_client::AsyncClient,
+        errors::{self, Error, Result},
+        ffi,
+        message::Message,
+        server_response::{ServerRequest, ServerResponse},
     },
     futures::{
         executor::block_on,
@@ -49,13 +46,15 @@ use {
         select,
     },
     futures_timer::Delay,
-
-    crate::{
-        ffi,
-        async_client::{AsyncClient},
-        message::Message,
-        server_response::{ServerRequest, ServerResponse},
-        errors::{self, Result, Error},
+    std::{
+        ffi::CStr,
+        future::Future,
+        os::raw::c_void,
+        pin::Pin,
+        ptr,
+        sync::{Arc, Mutex},
+        task::{Context, Poll, Waker},
+        time::Duration,
     },
 };
 
@@ -71,7 +70,7 @@ pub type FailureCallback = dyn Fn(&AsyncClient, u16, i32) + 'static;
 /// The result data for the token.
 /// This contains the guarded elements in the token which are updated by
 /// the C library callback when the asynchronous operation completes.
-#[derive(Debug,Default)]
+#[derive(Debug, Default)]
 pub(crate) struct TokenData {
     /// Whether the async action has completed
     complete: bool,
@@ -84,13 +83,16 @@ pub(crate) struct TokenData {
     /// The server response (dependent on the request type)
     srvr_rsp: ServerResponse,
     /// To wake the future on completion
-    waker: Option<Waker>
+    waker: Option<Waker>,
 }
 
 impl TokenData {
     /// Creates token data for a specific message
     pub fn from_message_id(msg_id: i16) -> TokenData {
-        TokenData { msg_id, ..TokenData::default() }
+        TokenData {
+            msg_id,
+            ..TokenData::default()
+        }
     }
 
     /// Creates a new token that is already signaled with a code.
@@ -99,14 +101,16 @@ impl TokenData {
             complete: true,
             ret_code: rc,
             err_msg: if rc != 0 {
-                         // TODO: Get rid of this? It seems to be redundant
-                         // and confusing as the error message is just derived
-                         // from the i32 error. Having it causes the error to
-                         // fail the match to Error::Paho(_)
-                         // Or, even better, get rid of Error::PahoDescr()
-                         Some(String::from(errors::error_message(rc)))
-                     }
-                     else { None },
+                // TODO: Get rid of this? It seems to be redundant
+                // and confusing as the error message is just derived
+                // from the i32 error. Having it causes the error to
+                // fail the match to Error::Paho(_)
+                // Or, even better, get rid of Error::PahoDescr()
+                Some(String::from(errors::error_message(rc)))
+            }
+            else {
+                None
+            },
             ..TokenData::default()
         }
     }
@@ -144,67 +148,80 @@ impl TokenInner {
 
     /// Creates a token for a specific request type
     pub fn from_request(req: ServerRequest) -> Arc<TokenInner> {
-        Arc::new(
-            TokenInner { req, ..TokenInner::default() }
-        )
+        Arc::new(TokenInner {
+            req,
+            ..TokenInner::default()
+        })
     }
 
     /// Creates a new, un-signaled delivery Token.
     /// This is a token which tracks delivery of a message.
     pub fn from_message(msg: &Message) -> Arc<TokenInner> {
-        Arc::new(
-            TokenInner {
-                lock: Mutex::new(TokenData::from_message_id(msg.cmsg.msgid as i16)),
-                ..TokenInner::default()
-            }
-        )
+        Arc::new(TokenInner {
+            lock: Mutex::new(TokenData::from_message_id(msg.cmsg.msgid as i16)),
+            ..TokenInner::default()
+        })
     }
 
     /// Creates a new, un-signaled Token with callbacks.
-    pub fn from_client<FS,FF>(cli: &AsyncClient,
-                              req: ServerRequest,
-                              success_cb: FS,
-                              failure_cb: FF) -> Arc<TokenInner>
-        where FS: Fn(&AsyncClient,u16) + 'static,
-              FF: Fn(&AsyncClient,u16,i32) + 'static
+    pub fn from_client<FS, FF>(
+        cli: &AsyncClient,
+        req: ServerRequest,
+        success_cb: FS,
+        failure_cb: FF,
+    ) -> Arc<TokenInner>
+    where
+        FS: Fn(&AsyncClient, u16) + 'static,
+        FF: Fn(&AsyncClient, u16, i32) + 'static,
     {
-        Arc::new(
-            TokenInner {
-                cli: Some(cli.clone()),
-                req,
-                on_success: Some(Box::new(success_cb)),
-                on_failure: Some(Box::new(failure_cb)),
-                ..TokenInner::default()
-            }
-        )
+        Arc::new(TokenInner {
+            cli: Some(cli.clone()),
+            req,
+            on_success: Some(Box::new(success_cb)),
+            on_failure: Some(Box::new(failure_cb)),
+            ..TokenInner::default()
+        })
     }
 
     /// Creates a new Token signaled with a return code.
     pub fn from_error(rc: i32) -> Arc<TokenInner> {
-        Arc::new(
-            TokenInner {
-                lock: Mutex::new(TokenData::from_error(rc)),
-                ..TokenInner::default()
-            }
-        )
+        Arc::new(TokenInner {
+            lock: Mutex::new(TokenData::from_error(rc)),
+            ..TokenInner::default()
+        })
     }
 
     // Callback from the C library for when an async operation succeeds.
-    pub(crate) unsafe extern "C" fn on_success(context: *mut c_void, rsp: *mut ffi::MQTTAsync_successData) {
+    pub(crate) unsafe extern "C" fn on_success(
+        context: *mut c_void,
+        rsp: *mut ffi::MQTTAsync_successData,
+    ) {
         debug!("Token success! {:?}, {:?}", context, rsp);
-        if context.is_null() { return }
+        if context.is_null() {
+            return;
+        }
 
         let tok = Token::from_raw(context);
 
         // TODO: Maybe compare this msgid to the one in the token?
-        let msgid = if !rsp.is_null() { (*rsp).token as u16 } else { 0 };
+        let msgid = if !rsp.is_null() {
+            (*rsp).token as u16
+        }
+        else {
+            0
+        };
         tok.inner.on_complete(msgid, 0, None, rsp);
     }
 
     // Callback from the C library when an async operation fails.
-    pub(crate) unsafe extern "C" fn on_failure(context: *mut c_void, rsp: *mut ffi::MQTTAsync_failureData) {
+    pub(crate) unsafe extern "C" fn on_failure(
+        context: *mut c_void,
+        rsp: *mut ffi::MQTTAsync_failureData,
+    ) {
         debug!("Token failure! {:?}, {:?}", context, rsp);
-        if context.is_null() { return }
+        if context.is_null() {
+            return;
+        }
 
         let tok = Token::from_raw(context);
 
@@ -228,21 +245,36 @@ impl TokenInner {
     }
 
     // Callback from the C library for when an MQTT v5 async operation succeeds.
-    pub(crate) unsafe extern "C" fn on_success5(context: *mut c_void, rsp: *mut ffi::MQTTAsync_successData5) {
+    pub(crate) unsafe extern "C" fn on_success5(
+        context: *mut c_void,
+        rsp: *mut ffi::MQTTAsync_successData5,
+    ) {
         debug!("Token v5 success! {:?}, {:?}", context, rsp);
-        if context.is_null() { return }
+        if context.is_null() {
+            return;
+        }
 
         let tok = Token::from_raw(context);
 
         // TODO: Maybe compare this msgid to the one in the token?
-        let msgid = if !rsp.is_null() { (*rsp).token as u16 } else { 0 };
+        let msgid = if !rsp.is_null() {
+            (*rsp).token as u16
+        }
+        else {
+            0
+        };
         tok.inner.on_complete5(msgid, 0, None, rsp);
     }
 
     // Callback from the C library when an MQTT v5 async operation fails.
-    pub(crate) unsafe extern "C" fn on_failure5(context: *mut c_void, rsp: *mut ffi::MQTTAsync_failureData5) {
+    pub(crate) unsafe extern "C" fn on_failure5(
+        context: *mut c_void,
+        rsp: *mut ffi::MQTTAsync_failureData5,
+    ) {
         debug!("Token v5 failure! {:?}, {:?}", context, rsp);
-        if context.is_null() { return }
+        if context.is_null() {
+            return;
+        }
 
         let tok = Token::from_raw(context);
 
@@ -292,8 +324,13 @@ impl TokenInner {
     }
 
     // Callback function to update the token when the action completes.
-    pub(crate) fn on_complete(&self, msgid: u16, rc: i32, err_msg: Option<String>,
-                              rsp: *mut ffi::MQTTAsync_successData) {
+    pub(crate) fn on_complete(
+        &self,
+        msgid: u16,
+        rc: i32,
+        err_msg: Option<String>,
+        rsp: *mut ffi::MQTTAsync_successData,
+    ) {
         debug!("Token completed with code: {}", rc);
 
         // Fire off any user callbacks
@@ -335,8 +372,13 @@ impl TokenInner {
     }
 
     // Callback function to update the token when the action completes.
-    pub(crate) fn on_complete5(&self, msgid: u16, rc: i32, err_msg: Option<String>,
-                                rsp: *mut ffi::MQTTAsync_successData5) {
+    pub(crate) fn on_complete5(
+        &self,
+        msgid: u16,
+        rc: i32,
+        err_msg: Option<String>,
+        rsp: *mut ffi::MQTTAsync_successData5,
+    ) {
         debug!("Token completed with code: {}", rc);
 
         // Fire off any user callbacks
@@ -403,40 +445,55 @@ pub struct Token {
 impl Token {
     /// Creates a new, unsignaled Token.
     pub fn new() -> Token {
-        Token { inner: TokenInner::new() }
+        Token {
+            inner: TokenInner::new(),
+        }
     }
 
     /// Creates a token for a specific request type
     pub fn from_request(req: ServerRequest) -> Token {
-        Token { inner: TokenInner::from_request(req) }
+        Token {
+            inner: TokenInner::from_request(req),
+        }
     }
 
     /// Creates a new, un-signaled Token with callbacks.
-    pub fn from_client<FS,FF>(cli: &AsyncClient,
-                              req: ServerRequest,
-                              success_cb: FS,
-                              failure_cb: FF) -> Token
-        where FS: Fn(&AsyncClient,u16) + 'static,
-              FF: Fn(&AsyncClient,u16,i32) + 'static
+    pub fn from_client<FS, FF>(
+        cli: &AsyncClient,
+        req: ServerRequest,
+        success_cb: FS,
+        failure_cb: FF,
+    ) -> Token
+    where
+        FS: Fn(&AsyncClient, u16) + 'static,
+        FF: Fn(&AsyncClient, u16, i32) + 'static,
     {
-        Token { inner: TokenInner::from_client(cli, req, success_cb, failure_cb) }
+        Token {
+            inner: TokenInner::from_client(cli, req, success_cb, failure_cb),
+        }
     }
 
     /// Creates a new Token signaled with an error code.
     pub fn from_error(rc: i32) -> Token {
-        Token { inner: TokenInner::from_error(rc) }
+        Token {
+            inner: TokenInner::from_error(rc),
+        }
     }
 
     /// Creates a new Token signaled with a "success" return code.
     pub fn from_success() -> Token {
-        Token { inner: TokenInner::from_error(ffi::MQTTASYNC_SUCCESS as i32) }
+        Token {
+            inner: TokenInner::from_error(ffi::MQTTASYNC_SUCCESS as i32),
+        }
     }
 
     /// Constructs a Token from a raw pointer to the inner structure.
     /// This is how a token is normally reconstructed from a context
     /// pointer coming back from the C lib.
     pub(crate) unsafe fn from_raw(ptr: *mut c_void) -> Token {
-        Token { inner: Arc::from_raw(ptr as *mut TokenInner) }
+        Token {
+            inner: Arc::from_raw(ptr as *mut TokenInner),
+        }
     }
 
     /// Consumes the `Token`, returning the inner wrapped value.
@@ -553,10 +610,14 @@ impl DeliveryToken {
     }
 
     /// Gets the message associated with the publish token.
-    pub fn message(&self) -> &Message { &self.msg }
+    pub fn message(&self) -> &Message {
+        &self.msg
+    }
 
     /// Blocks the caller until the asynchronous operation completes.
-    pub fn wait(self) -> Result<()> { block_on(self) }
+    pub fn wait(self) -> Result<()> {
+        block_on(self)
+    }
 
     /// Blocks the caller a limited amount of time waiting for the
     /// asynchronous operation to complete.
@@ -578,7 +639,9 @@ impl DeliveryToken {
 unsafe impl Send for DeliveryToken {}
 
 impl From<DeliveryToken> for Message {
-    fn from(v: DeliveryToken) -> Message { v.msg }
+    fn from(v: DeliveryToken) -> Message {
+        v.msg
+    }
 }
 
 impl From<DeliveryToken> for Token {
@@ -679,9 +742,7 @@ mod tests {
         let tok = Token::new();
         let tok2 = tok.clone();
 
-        let thr = thread::spawn(move || {
-            tok.wait()
-        });
+        let thr = thread::spawn(move || tok.wait());
 
         tok2.inner.on_complete(0, 0, None, ptr::null_mut());
         let _ = thr.join().unwrap();
@@ -695,7 +756,7 @@ mod tests {
         match tok.try_wait() {
             // Some(Err(Error::Paho(ERR_CODE))) => {}
             Some(Err(Error::PahoDescr(ERR_CODE, _))) => {}
-            Some(Err(_)) | Some(Ok(_)) | None => unreachable!()
+            Some(Err(_)) | Some(Ok(_)) | None => unreachable!(),
         }
 
         // An unsignaled token
@@ -719,9 +780,7 @@ mod tests {
         match tok.try_wait() {
             Some(Err(Error::Paho(ERR_CODE))) => (),
             //Some(Err(Error::PahoDescr(ERR_CODE, _))) => (),
-            Some(Err(_)) | Some(Ok(_)) | None => unreachable!()
+            Some(Err(_)) | Some(Ok(_)) | None => unreachable!(),
         }
-
     }
 }
-

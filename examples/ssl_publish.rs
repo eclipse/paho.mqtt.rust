@@ -40,9 +40,9 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{env, process};
 use futures::executor::block_on;
 use paho_mqtt as mqtt;
+use std::{env, process};
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -75,9 +75,9 @@ fn main() -> mqtt::Result<()> {
     }
 
     // Let the user override the host, but note the "ssl://" protocol.
-    let host = env::args().nth(1).unwrap_or_else(||
-        "ssl://localhost:18884".to_string()
-    );
+    let host = env::args()
+        .nth(1)
+        .unwrap_or_else(|| "ssl://localhost:18884".to_string());
 
     println!("Connecting to host: '{}'", host);
 
@@ -86,10 +86,10 @@ fn main() -> mqtt::Result<()> {
     if let Err(err) = block_on(async {
         // Create a client & define connect options
         let cli = mqtt::CreateOptionsBuilder::new()
-                        .server_uri(&host)
-                        .client_id("ssl_publish_rs")
-                        .max_buffered_messages(100)
-                        .create_client()?;
+            .server_uri(&host)
+            .client_id("ssl_publish_rs")
+            .max_buffered_messages(100)
+            .create_client()?;
 
         let ssl_opts = mqtt::SslOptionsBuilder::new()
             .trust_store(trust_store)?

@@ -21,12 +21,7 @@
 //! Last Will and Testament (LWT) options for the Paho MQTT Rust client library.
 //!
 
-use std::{
-    ptr,
-    os::raw::c_void,
-    borrow::Cow,
-    pin::Pin,
-};
+use std::{borrow::Cow, os::raw::c_void, pin::Pin, ptr};
 
 use crate::{
     ffi,
@@ -69,9 +64,10 @@ impl WillOptions {
     /// * `topic` The topic on which the LWT message is to be published.
     /// * `payload` The binary payload of the LWT message
     /// * `qos` The quality of service for message delivery (0, 1, or 2)
-    pub fn new<S,V>(topic: S, payload: V, qos: i32) -> WillOptions
-        where S: Into<String>,
-              V: Into<Vec<u8>>
+    pub fn new<S, V>(topic: S, payload: V, qos: i32) -> WillOptions
+    where
+        S: Into<String>,
+        V: Into<Vec<u8>>,
     {
         let copts = ffi::MQTTAsync_willOptions {
             qos,
@@ -87,9 +83,10 @@ impl WillOptions {
     /// * `topic` The topic on which the LWT message is to be published.
     /// * `payload` The binary payload of the LWT message
     /// * `qos` The quality of service for message delivery (0, 1, or 2)
-    pub fn new_retained<S,V>(topic: S, payload: V, qos: i32) -> WillOptions
-        where S: Into<String>,
-              V: Into<Vec<u8>>
+    pub fn new_retained<S, V>(topic: S, payload: V, qos: i32) -> WillOptions
+    where
+        S: Into<String>,
+        V: Into<Vec<u8>>,
     {
         let mut opts = Self::new(topic, payload, qos);
         opts.copts.retained = 1;
@@ -104,7 +101,7 @@ impl WillOptions {
     // Updates the C struct from the cached topic and payload vars
     fn from_pinned_data(
         mut copts: ffi::MQTTAsync_willOptions,
-        data: Pin<Box<MessageData>>
+        data: Pin<Box<MessageData>>,
     ) -> Self {
         copts.topicName = if !data.topic.as_bytes().is_empty() {
             data.topic.as_ptr()
@@ -121,7 +118,11 @@ impl WillOptions {
         };
         // Note: For some reason, properties aren't in the will options
         //   They're in the connect options
-        Self { copts, data, props: Properties::default() }
+        Self {
+            copts,
+            data,
+            props: Properties::default(),
+        }
     }
 
     /// Gets the topic string for the LWT
@@ -161,7 +162,7 @@ impl Default for WillOptions {
     fn default() -> Self {
         Self::from_data(
             ffi::MQTTAsync_willOptions::default(),
-            MessageData::default()
+            MessageData::default(),
         )
     }
 }
@@ -171,10 +172,7 @@ impl Clone for WillOptions {
     /// This clones the cached values and updates the C struct to refer
     /// to them.
     fn clone(&self) -> Self {
-        Self::from_data(
-            self.copts,
-            (&*self.data).clone()
-        )
+        Self::from_data(self.copts, (&*self.data).clone())
     }
 }
 
@@ -193,7 +191,6 @@ impl From<Message> for WillOptions {
     }
 }
 
-
 /////////////////////////////////////////////////////////////////////////////
 //                                  Unit Tests
 /////////////////////////////////////////////////////////////////////////////
@@ -201,11 +198,16 @@ impl From<Message> for WillOptions {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::os::raw::{c_char};
     use crate::message::MessageBuilder;
+    use std::os::raw::c_char;
 
     // The C struct identifier for will options and the supported struct version.
-    const STRUCT_ID: [c_char; 4] = [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'W' as c_char];
+    const STRUCT_ID: [c_char; 4] = [
+        b'M' as c_char,
+        b'Q' as c_char,
+        b'T' as c_char,
+        b'W' as c_char,
+    ];
     const STRUCT_VERSION: i32 = 1;
 
     // These should differ from defaults.
@@ -249,7 +251,10 @@ mod tests {
         assert_eq!(PAYLOAD, msg.data.payload.as_slice());
 
         assert_eq!(msg.data.payload.len() as i32, msg.copts.payload.len);
-        assert_eq!(msg.data.payload.as_ptr() as *const c_void, msg.copts.payload.data);
+        assert_eq!(
+            msg.data.payload.as_ptr() as *const c_void,
+            msg.copts.payload.data
+        );
 
         assert_eq!(QOS, msg.copts.qos);
         assert!(msg.copts.retained == 0);
@@ -266,7 +271,10 @@ mod tests {
         assert_eq!(PAYLOAD, msg.data.payload.as_slice());
 
         assert_eq!(msg.data.payload.len() as i32, msg.copts.payload.len);
-        assert_eq!(msg.data.payload.as_ptr() as *const c_void, msg.copts.payload.data);
+        assert_eq!(
+            msg.data.payload.as_ptr() as *const c_void,
+            msg.copts.payload.data
+        );
 
         assert_eq!(QOS, msg.copts.qos);
         assert!(msg.copts.retained != 0);
@@ -276,11 +284,11 @@ mod tests {
     #[test]
     fn test_from_message() {
         let msg = MessageBuilder::new()
-                        .topic(TOPIC)
-                        .payload(PAYLOAD)
-                        .qos(QOS)
-                        .retained(RETAINED)
-                        .finalize();
+            .topic(TOPIC)
+            .payload(PAYLOAD)
+            .qos(QOS)
+            .retained(RETAINED)
+            .finalize();
 
         let opts = WillOptions::from(msg);
 
@@ -288,7 +296,10 @@ mod tests {
         assert_eq!(PAYLOAD, opts.data.payload.as_slice());
 
         assert_eq!(opts.data.payload.len() as i32, opts.copts.payload.len);
-        assert_eq!(opts.data.payload.as_ptr() as *const c_void, opts.copts.payload.data);
+        assert_eq!(
+            opts.data.payload.as_ptr() as *const c_void,
+            opts.copts.payload.data
+        );
 
         assert_eq!(QOS, opts.copts.qos);
         assert!(opts.copts.retained != 0);
@@ -300,11 +311,11 @@ mod tests {
     #[test]
     fn test_assign() {
         let msg = MessageBuilder::new()
-                        .topic(TOPIC)
-                        .payload(PAYLOAD)
-                        .qos(QOS)
-                        .retained(RETAINED)
-                        .finalize();
+            .topic(TOPIC)
+            .payload(PAYLOAD)
+            .qos(QOS)
+            .retained(RETAINED)
+            .finalize();
 
         let org_opts = WillOptions::from(msg);
         let opts = org_opts;
@@ -313,7 +324,10 @@ mod tests {
         assert_eq!(PAYLOAD, opts.data.payload.as_slice());
 
         assert_eq!(opts.data.payload.len() as i32, opts.copts.payload.len);
-        assert_eq!(opts.data.payload.as_ptr() as *const c_void, opts.copts.payload.data);
+        assert_eq!(
+            opts.data.payload.as_ptr() as *const c_void,
+            opts.copts.payload.data
+        );
 
         assert_eq!(QOS, opts.copts.qos);
         assert!(opts.copts.retained != 0);
@@ -326,11 +340,11 @@ mod tests {
     fn test_clone() {
         let opts = {
             let msg = MessageBuilder::new()
-                            .topic(TOPIC)
-                            .payload(PAYLOAD)
-                            .qos(QOS)
-                            .retained(RETAINED)
-                            .finalize();
+                .topic(TOPIC)
+                .payload(PAYLOAD)
+                .qos(QOS)
+                .retained(RETAINED)
+                .finalize();
 
             let org_opts = WillOptions::from(msg);
             org_opts.clone()
@@ -340,7 +354,10 @@ mod tests {
         assert_eq!(PAYLOAD, opts.data.payload.as_slice());
 
         assert_eq!(opts.data.payload.len() as i32, opts.copts.payload.len);
-        assert_eq!(opts.data.payload.as_ptr() as *const c_void, opts.copts.payload.data);
+        assert_eq!(
+            opts.data.payload.as_ptr() as *const c_void,
+            opts.copts.payload.data
+        );
 
         assert_eq!(QOS, opts.copts.qos);
         assert!(opts.copts.retained != 0);

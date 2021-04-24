@@ -21,16 +21,13 @@
 
 //! The Reason Code module for the Paho MQTT Rust client library.
 
-use std::{
-    fmt,
-    ffi::CStr,
-};
+use std::{ffi::CStr, fmt};
 
 /// MQTT v5 single-byte reason codes.
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum ReasonCode {
-    Success = 0,          // also: NormalDisconnection & GrantedQos0
+    Success = 0, // also: NormalDisconnection & GrantedQos0
     GrantedQos1 = 1,
     GrantedQos2 = 2,
     DisconnectWithWillMessage = 4,
@@ -74,7 +71,7 @@ pub enum ReasonCode {
     MaximumConnectTime = 160,
     SubscriptionIdentifiersNotSupported = 161,
     WildcardSubscriptionsNotSupported = 162,
-	MqttppV3Code = 255             // This is not a protocol code; used internally by the library
+    MqttppV3Code = 255, // This is not a protocol code; used internally by the library
 }
 
 // Some aliased ReasonCode values
@@ -95,16 +92,18 @@ impl ReasonCode {
 }
 
 impl Default for ReasonCode {
-    fn default() -> Self { ReasonCode::Success }
+    fn default() -> Self {
+        ReasonCode::Success
+    }
 }
 
 impl From<ffi::MQTTReasonCodes> for ReasonCode {
     fn from(code: ffi::MQTTReasonCodes) -> Self {
         match code {
-             0 => ReasonCode::Success,          // also: NormalDisconnection & GrantedQos0
-             1 => ReasonCode::GrantedQos1,
-             2 => ReasonCode::GrantedQos2,
-             4 => ReasonCode::DisconnectWithWillMessage,
+            0 => ReasonCode::Success, // also: NormalDisconnection & GrantedQos0
+            1 => ReasonCode::GrantedQos1,
+            2 => ReasonCode::GrantedQos2,
+            4 => ReasonCode::DisconnectWithWillMessage,
             16 => ReasonCode::NoMatchingSubscribers,
             17 => ReasonCode::NoSubscriptionFound,
             24 => ReasonCode::ContinueAuthentication,
@@ -145,7 +144,7 @@ impl From<ffi::MQTTReasonCodes> for ReasonCode {
             160 => ReasonCode::MaximumConnectTime,
             161 => ReasonCode::SubscriptionIdentifiersNotSupported,
             162 => ReasonCode::WildcardSubscriptionsNotSupported,
-            _ => ReasonCode::MqttppV3Code             // This is not a protocol code; used internally by the library
+            _ => ReasonCode::MqttppV3Code, // This is not a protocol code; used internally by the library
         }
     }
 }
@@ -166,7 +165,6 @@ impl fmt::Display for ReasonCode {
     }
 }
 
-
 /////////////////////////////////////////////////////////////////////////////
 //                              Unit Tests
 /////////////////////////////////////////////////////////////////////////////
@@ -177,32 +175,48 @@ mod tests {
 
     #[test]
     fn test_as() {
-        assert_eq!(ReasonCode::Success as ffi::MQTTReasonCodes,
-                   ffi::MQTTReasonCodes_MQTTREASONCODE_SUCCESS);
+        assert_eq!(
+            ReasonCode::Success as ffi::MQTTReasonCodes,
+            ffi::MQTTReasonCodes_MQTTREASONCODE_SUCCESS
+        );
 
-        assert_eq!(ReasonCode::DisconnectWithWillMessage as ffi::MQTTReasonCodes,
-                   ffi::MQTTReasonCodes_MQTTREASONCODE_DISCONNECT_WITH_WILL_MESSAGE);
+        assert_eq!(
+            ReasonCode::DisconnectWithWillMessage as ffi::MQTTReasonCodes,
+            ffi::MQTTReasonCodes_MQTTREASONCODE_DISCONNECT_WITH_WILL_MESSAGE
+        );
 
-        assert_eq!(ReasonCode::UnspecifiedError as ffi::MQTTReasonCodes,
-                   ffi::MQTTReasonCodes_MQTTREASONCODE_UNSPECIFIED_ERROR);
+        assert_eq!(
+            ReasonCode::UnspecifiedError as ffi::MQTTReasonCodes,
+            ffi::MQTTReasonCodes_MQTTREASONCODE_UNSPECIFIED_ERROR
+        );
 
-        assert_eq!(ReasonCode::MaximumConnectTime as ffi::MQTTReasonCodes,
-                   ffi::MQTTReasonCodes_MQTTREASONCODE_MAXIMUM_CONNECT_TIME);
+        assert_eq!(
+            ReasonCode::MaximumConnectTime as ffi::MQTTReasonCodes,
+            ffi::MQTTReasonCodes_MQTTREASONCODE_MAXIMUM_CONNECT_TIME
+        );
     }
 
     #[test]
     fn test_from() {
-        assert_eq!(ReasonCode::Success,
-                   ReasonCode::from(ffi::MQTTReasonCodes_MQTTREASONCODE_SUCCESS));
+        assert_eq!(
+            ReasonCode::Success,
+            ReasonCode::from(ffi::MQTTReasonCodes_MQTTREASONCODE_SUCCESS)
+        );
 
-        assert_eq!(ReasonCode::DisconnectWithWillMessage,
-                   ReasonCode::from(ffi::MQTTReasonCodes_MQTTREASONCODE_DISCONNECT_WITH_WILL_MESSAGE));
+        assert_eq!(
+            ReasonCode::DisconnectWithWillMessage,
+            ReasonCode::from(ffi::MQTTReasonCodes_MQTTREASONCODE_DISCONNECT_WITH_WILL_MESSAGE)
+        );
 
-        assert_eq!(ReasonCode::UnspecifiedError,
-                   ReasonCode::from(ffi::MQTTReasonCodes_MQTTREASONCODE_UNSPECIFIED_ERROR));
+        assert_eq!(
+            ReasonCode::UnspecifiedError,
+            ReasonCode::from(ffi::MQTTReasonCodes_MQTTREASONCODE_UNSPECIFIED_ERROR)
+        );
 
-        assert_eq!(ReasonCode::MaximumConnectTime,
-                   ReasonCode::from(ffi::MQTTReasonCodes_MQTTREASONCODE_MAXIMUM_CONNECT_TIME));
+        assert_eq!(
+            ReasonCode::MaximumConnectTime,
+            ReasonCode::from(ffi::MQTTReasonCodes_MQTTREASONCODE_MAXIMUM_CONNECT_TIME)
+        );
     }
 
     #[test]

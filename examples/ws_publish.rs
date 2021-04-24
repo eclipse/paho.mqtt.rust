@@ -24,12 +24,8 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{
-    env,
-    process,
-    time::Duration,
-};
 use paho_mqtt as mqtt;
+use std::{env, process, time::Duration};
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -40,7 +36,9 @@ fn main() {
     // Command-line option(s)
     let mut args = env::args().skip(1);
 
-    let host = args.next().unwrap_or_else(|| "ws://localhost:8080".to_string());
+    let host = args
+        .next()
+        .unwrap_or_else(|| "ws://localhost:8080".to_string());
     let proxy = args.next().unwrap_or_else(String::new);
 
     // Create the client
@@ -80,4 +78,3 @@ fn main() {
     let tok = cli.disconnect(None);
     tok.wait().unwrap();
 }
-

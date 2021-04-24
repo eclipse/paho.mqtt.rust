@@ -1,5 +1,5 @@
 // macros.rs
-// 
+//
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 //
 // This contains the macro definitions for the crate.
@@ -23,12 +23,12 @@
 
 #![macro_use]
 
-/// Return an error from a function. 
+/// Return an error from a function.
 
 macro_rules! bail {
-    ($expr:expr) => (
+    ($expr:expr) => {
         return Err(::std::convert::From::from($expr));
-    )
+    };
 }
 
 #[macro_export]
@@ -45,4 +45,3 @@ macro_rules! properties(
         properties![ $( $key => $value ),* ]
     };
 );
-
