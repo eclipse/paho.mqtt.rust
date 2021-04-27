@@ -220,13 +220,12 @@ impl AsyncClient {
 
         if !context.is_null() {
             let cli = AsyncClient::from_raw(context);
-            {
-                let mut cbctx = cli.inner.callback_context.lock().unwrap();
-                if let Some(ref mut cb) = cbctx.on_connected {
-                    trace!("Invoking connected callback");
-                    cb(&cli);
-                }
+
+            if let Some(ref mut cb) = cli.inner.callback_context.lock().unwrap().on_connected {
+                trace!("Invoking connected callback");
+                cb(&cli);
             }
+
             let _ = cli.into_raw();
         }
     }
@@ -272,13 +271,9 @@ impl AsyncClient {
             let cli = AsyncClient::from_raw(context);
             let reason_code = ReasonCode::from(reason);
             let props = Properties::from_c_struct(&*cprops);
-            {
-                let mut cbctx = cli.inner.callback_context.lock().unwrap();
-
-                if let Some(ref mut cb) = cbctx.on_disconnected {
-                    trace!("Invoking disconnected callback");
-                    cb(&cli, props, reason_code);
-                }
+            if let Some(ref mut cb) = cli.inner.callback_context.lock().unwrap().on_disconnected {
+                trace!("Invoking disconnected callback");
+                cb(&cli, props, reason_code);
             }
             let _ = cli.into_raw();
         }
@@ -299,28 +294,32 @@ impl AsyncClient {
 
         if !context.is_null() {
             let cli = AsyncClient::from_raw(context);
+
+            if let Some(ref mut cb) = cli
+                .inner
+                .callback_context
+                .lock()
+                .unwrap()
+                .on_message_arrived
             {
-                let mut cbctx = cli.inner.callback_context.lock().unwrap();
-
-                if let Some(ref mut cb) = cbctx.on_message_arrived {
-                    let len = topic_len as usize;
-                    let topic = if len == 0 {
-                        // Zero-len topic means it's a NUL-terminated C string
-                        CStr::from_ptr(topic_name).to_owned()
-                    }
-                    else {
-                        // If we get a len for the topic, then there's no NUL terminator.
-                        // TODO: Handle UTF-8 error(s)
-                        let tp = str::from_utf8(slice::from_raw_parts(topic_name as *mut u8, len))
-                            .unwrap();
-                        CString::new(tp).unwrap()
-                    };
-                    let msg = Message::from_c_parts(topic, &*cmsg);
-
-                    trace!("Invoking message callback");
-                    cb(&cli, Some(msg));
+                let len = topic_len as usize;
+                let topic = if len == 0 {
+                    // Zero-len topic means it's a NUL-terminated C string
+                    CStr::from_ptr(topic_name).to_owned()
                 }
+                else {
+                    // If we get a len for the topic, then there's no NUL terminator.
+                    // TODO: Handle UTF-8 error(s)
+                    let tp =
+                        str::from_utf8(slice::from_raw_parts(topic_name as *mut u8, len)).unwrap();
+                    CString::new(tp).unwrap()
+                };
+                let msg = Message::from_c_parts(topic, &*cmsg);
+
+                trace!("Invoking message callback");
+                cb(&cli, Some(msg));
             }
+
             let _ = cli.into_raw();
         }
 
@@ -332,8 +331,7 @@ impl AsyncClient {
     /// Gets the MQTT version for vhich the client was created.
     pub fn mqtt_version(&self) -> u32 {
         // TODO: It's getting this from the connect options, not the create options!
-        let lkopts = self.inner.opts.lock().unwrap();
-        lkopts.copts.MQTTVersion as u32
+        self.inner.opts.lock().unwrap().copts.MQTTVersion as u32
     }
 
     /// Get access to the user-defined data in the client.
@@ -407,10 +405,7 @@ impl AsyncClient {
         let tok = Token::from_client(self, ServerRequest::Connect, success_cb, failure_cb);
         opts.set_token(tok.clone());
 
-        {
-            let mut lkopts = self.inner.opts.lock().unwrap();
-            *lkopts = opts.clone();
-        }
+        *self.inner.opts.lock().unwrap() = opts.clone();
 
         let rc = unsafe { ffi::MQTTAsync_connect(self.inner.handle, &opts.copts) };
 
@@ -428,10 +423,7 @@ impl AsyncClient {
     /// attempted. It will retry with the same connect options.
     ///
     pub fn reconnect(&self) -> ConnectToken {
-        let connopts = {
-            let lkopts = self.inner.opts.lock().unwrap();
-            (*lkopts).clone()
-        };
+        let connopts = self.inner.opts.lock().unwrap().clone();
         self.connect(connopts)
     }
 
@@ -450,10 +442,7 @@ impl AsyncClient {
         FS: Fn(&AsyncClient, u16) + 'static,
         FF: Fn(&AsyncClient, u16, i32) + 'static,
     {
-        let connopts = {
-            let lkopts = self.inner.opts.lock().unwrap();
-            (*lkopts).clone()
-        };
+        let connopts = self.inner.opts.lock().unwrap().clone();
         self.connect_with_callbacks(connopts, success_cb, failure_cb)
     }
 
@@ -482,11 +471,15 @@ impl AsyncClient {
             Token::from_error(rc)
         }
         else {
-            let mut cbctx = self.inner.callback_context.lock().unwrap();
-
             // Push a None into the message stream to cleanly
             // shutdown any consumers.
-            if let Some(ref mut cb) = cbctx.on_message_arrived {
+            if let Some(ref mut cb) = self
+                .inner
+                .callback_context
+                .lock()
+                .unwrap()
+                .on_message_arrived
+            {
                 trace!("Invoking message callback with None");
                 cb(self, None);
             }
@@ -529,10 +522,7 @@ impl AsyncClient {
         let ctx: &InnerAsyncClient = &self.inner;
 
         // This should be protected by a mutex if we'll have a thread-safe client
-        {
-            let mut cbctx = self.inner.callback_context.lock().unwrap();
-            (*cbctx).on_connected = Some(Box::new(cb));
-        }
+        ctx.callback_context.lock().unwrap().on_connected = Some(Box::new(cb));
 
         unsafe {
             ffi::MQTTAsync_setConnected(
@@ -557,10 +547,7 @@ impl AsyncClient {
         let ctx: &InnerAsyncClient = &self.inner;
 
         // This should be protected by a mutex if we'll have a thread-safe client
-        {
-            let mut cbctx = self.inner.callback_context.lock().unwrap();
-            (*cbctx).on_connection_lost = Some(Box::new(cb));
-        }
+        ctx.callback_context.lock().unwrap().on_connection_lost = Some(Box::new(cb));
 
         unsafe {
             ffi::MQTTAsync_setConnectionLostCallback(
@@ -585,10 +572,7 @@ impl AsyncClient {
         let ctx: &InnerAsyncClient = &self.inner;
 
         // This should be protected by a mutex if we'll have a thread-safe client
-        {
-            let mut cbctx = self.inner.callback_context.lock().unwrap();
-            (*cbctx).on_disconnected = Some(Box::new(cb));
-        }
+        ctx.callback_context.lock().unwrap().on_disconnected = Some(Box::new(cb));
 
         unsafe {
             ffi::MQTTAsync_setDisconnected(
@@ -614,10 +598,7 @@ impl AsyncClient {
         let ctx: &InnerAsyncClient = &self.inner;
 
         // This should be protected by a mutex if we'll have a thread-safe client
-        {
-            let mut cbctx = self.inner.callback_context.lock().unwrap();
-            (*cbctx).on_message_arrived = Some(Box::new(cb));
-        }
+        ctx.callback_context.lock().unwrap().on_message_arrived = Some(Box::new(cb));
 
         unsafe {
             ffi::MQTTAsync_setMessageArrivedCallback(
