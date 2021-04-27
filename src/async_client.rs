@@ -186,16 +186,15 @@ impl AsyncClient {
             ) as i32
         };
 
-        if rc == 0 {
-            debug!("AsyncClient handle: {:?}", cli.handle);
-            Ok(AsyncClient {
-                inner: Arc::new(cli),
-            })
-        }
-        else {
+        if rc != 0 {
             warn!("Create result: {}", rc);
-            Err(rc.into())
+            return Err(rc.into());
         }
+
+        debug!("AsyncClient handle: {:?}", cli.handle);
+        Ok(AsyncClient {
+            inner: Arc::new(cli),
+        })
     }
 
     /// Constructs a client from a raw pointer to the inner structure.
@@ -370,11 +369,10 @@ impl AsyncClient {
 
         if rc != 0 {
             let _ = unsafe { Token::from_raw(lkopts.copts.context) };
-            ConnectToken::from_error(rc)
+            return ConnectToken::from_error(rc)
         }
-        else {
-            tok
-        }
+
+        tok
     }
 
     /// Connects to an MQTT broker using the specified connect options.
@@ -410,11 +408,10 @@ impl AsyncClient {
 
         if rc != 0 {
             let _ = unsafe { Token::from_raw(opts.copts.context) };
-            ConnectToken::from_error(rc)
+            return ConnectToken::from_error(rc);
         }
-        else {
-            tok
-        }
+
+        tok
     }
 
     /// Attempts to reconnect to the broker.
@@ -467,23 +464,22 @@ impl AsyncClient {
 
         if rc != 0 {
             let _ = unsafe { Token::from_raw(opts.copts.context) };
-            Token::from_error(rc)
+            return Token::from_error(rc);
         }
-        else {
-            // Push a None into the message stream to cleanly
-            // shutdown any consumers.
-            if let Some(ref mut cb) = self
-                .inner
-                .callback_context
-                .lock()
-                .unwrap()
-                .on_message_arrived
-            {
-                trace!("Invoking message callback with None");
-                cb(self, None);
-            }
-            tok
+
+        // Push a None into the message stream to cleanly 
+        // shutdown any consumers.
+        if let Some(ref mut cb) = self
+            .inner
+            .callback_context
+            .lock()
+            .unwrap()
+            .on_message_arrived
+        {
+            trace!("Invoking message callback with None");
+            cb(self, None);
         }
+        tok
     }
 
     /// Disconnect from the MQTT broker with a timeout.
@@ -634,12 +630,11 @@ impl AsyncClient {
         if rc != 0 {
             let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
             let msg: Message = tok.into();
-            Err(Error::Publish(rc, msg))
+            return Err(Error::Publish(rc, msg));
         }
-        else {
-            tok.set_msgid(rsp_opts.copts.token as i16);
-            Ok(tok)
-        }
+
+        tok.set_msgid(rsp_opts.copts.token as i16);
+        Ok(tok)
     }
 
     /// Publishes a message to the MQTT broker.
@@ -678,11 +673,10 @@ impl AsyncClient {
 
         if rc != 0 {
             let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
-            SubscribeToken::from_error(rc)
+            return SubscribeToken::from_error(rc);
         }
-        else {
-            tok
-        }
+
+        tok
     }
 
     /// Subscribes to a single topic with v5 options
@@ -725,11 +719,10 @@ impl AsyncClient {
 
         if rc != 0 {
             let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
-            SubscribeToken::from_error(rc)
+            return SubscribeToken::from_error(rc);
         }
-        else {
-            tok
-        }
+
+        tok
     }
 
     /// Subscribes to multiple topics simultaneously.
@@ -766,11 +759,10 @@ impl AsyncClient {
 
         if rc != 0 {
             let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
-            SubscribeManyToken::from_error(rc)
+            return SubscribeManyToken::from_error(rc);
         }
-        else {
-            tok
-        }
+
+        tok
     }
 
     /// Subscribes to multiple topics simultaneously with options.
@@ -821,11 +813,10 @@ impl AsyncClient {
 
         if rc != 0 {
             let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
-            SubscribeManyToken::from_error(rc)
+            return SubscribeManyToken::from_error(rc);
         }
-        else {
-            tok
-        }
+
+        tok
     }
 
     /// Unsubscribes from a single topic.
@@ -852,11 +843,10 @@ impl AsyncClient {
 
         if rc != 0 {
             let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
-            Token::from_error(rc)
+            return Token::from_error(rc);
         }
-        else {
-            tok
-        }
+
+        tok
     }
 
     /// Unsubscribes from a single topic.
@@ -889,11 +879,10 @@ impl AsyncClient {
 
         if rc != 0 {
             let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
-            Token::from_error(rc)
+            return Token::from_error(rc);
         }
-        else {
-            tok
-        }
+
+        tok
     }
 
     /// Unsubscribes from multiple topics simultaneously.
@@ -927,11 +916,10 @@ impl AsyncClient {
 
         if rc != 0 {
             let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
-            Token::from_error(rc)
+            return Token::from_error(rc);
         }
-        else {
-            tok
-        }
+
+        tok
     }
 
     /// Unsubscribes from multiple topics simultaneously.
@@ -970,11 +958,10 @@ impl AsyncClient {
 
         if rc != 0 {
             let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
-            Token::from_error(rc)
+            return Token::from_error(rc);
         }
-        else {
-            tok
-        }
+
+        tok
     }
 
     /// Starts the client consuming messages for a blocking (non-async) app.
