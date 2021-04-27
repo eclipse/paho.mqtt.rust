@@ -358,28 +358,24 @@ impl AsyncClient {
     where
         T: Into<Option<ConnectOptions>>,
     {
-        if let Some(opts) = opt_opts.into() {
-            debug!("Connecting handle: {:?}", self.inner.handle);
-            debug!("Connect options: {:?}", opts);
+        let opts = opt_opts.into().unwrap_or_default();
+        debug!("Connecting handle: {:?}", self.inner.handle);
+        debug!("Connect options: {:?}", opts);
 
-            let tok = Token::from_request(ServerRequest::Connect);
+        let tok = Token::from_request(ServerRequest::Connect);
 
-            let mut lkopts = self.inner.opts.lock().unwrap();
-            *lkopts = opts;
-            lkopts.set_token(tok.clone());
+        let mut lkopts = self.inner.opts.lock().unwrap();
+        *lkopts = opts;
+        lkopts.set_token(tok.clone());
 
-            let rc = unsafe { ffi::MQTTAsync_connect(self.inner.handle, &lkopts.copts) };
+        let rc = unsafe { ffi::MQTTAsync_connect(self.inner.handle, &lkopts.copts) };
 
-            if rc != 0 {
-                let _ = unsafe { Token::from_raw(lkopts.copts.context) };
-                ConnectToken::from_error(rc)
-            }
-            else {
-                tok
-            }
+        if rc != 0 {
+            let _ = unsafe { Token::from_raw(lkopts.copts.context) };
+            ConnectToken::from_error(rc)
         }
         else {
-            self.connect(Some(ConnectOptions::default()))
+            tok
         }
     }
 
@@ -472,34 +468,29 @@ impl AsyncClient {
     where
         T: Into<Option<DisconnectOptions>>,
     {
-        if let Some(mut opts) = opt_opts.into() {
-            debug!("Disconnecting");
-            trace!("Disconnect options: {:?}", opts);
+        let mut opts = opt_opts.into().unwrap_or_default();
+        debug!("Disconnecting");
+        trace!("Disconnect options: {:?}", opts);
 
-            let tok = Token::new();
-            opts.set_token(tok.clone());
+        let tok = Token::new();
+        opts.set_token(tok.clone());
 
-            let rc = unsafe { ffi::MQTTAsync_disconnect(self.inner.handle, &opts.copts) };
+        let rc = unsafe { ffi::MQTTAsync_disconnect(self.inner.handle, &opts.copts) };
 
-            if rc != 0 {
-                let _ = unsafe { Token::from_raw(opts.copts.context) };
-                Token::from_error(rc)
-            }
-            else {
-                let mut cbctx = self.inner.callback_context.lock().unwrap();
-
-                // Push a None into the message stream to cleanly
-                // shutdown any consumers.
-                if let Some(ref mut cb) = cbctx.on_message_arrived {
-                    trace!("Invoking message callback with None");
-                    cb(self, None);
-                }
-                tok
-            }
+        if rc != 0 {
+            let _ = unsafe { Token::from_raw(opts.copts.context) };
+            Token::from_error(rc)
         }
         else {
-            // Recursive call with default options
-            self.disconnect(Some(DisconnectOptions::default()))
+            let mut cbctx = self.inner.callback_context.lock().unwrap();
+
+            // Push a None into the message stream to cleanly
+            // shutdown any consumers.
+            if let Some(ref mut cb) = cbctx.on_message_arrived {
+                trace!("Invoking message callback with None");
+                cb(self, None);
+            }
+            tok
         }
     }
 
