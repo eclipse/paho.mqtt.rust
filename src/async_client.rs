@@ -328,7 +328,7 @@ impl AsyncClient {
         1
     }
 
-    /// Gets the MQTT version for vhich the client was created.
+    /// Gets the MQTT version for which the client was created.
     pub fn mqtt_version(&self) -> u32 {
         // TODO: It's getting this from the connect options, not the create options!
         self.inner.opts.lock().unwrap().copts.MQTTVersion as u32
@@ -336,7 +336,7 @@ impl AsyncClient {
 
     /// Get access to the user-defined data in the client.
     ///
-    /// This returns a reference to aread/write lock around the user data so
+    /// This returns a reference to a read/write lock around the user data so
     /// that the application can access the data, as needed from any outside
     /// thread or a callback.
     ///
@@ -401,7 +401,6 @@ impl AsyncClient {
             }
         }
 
-        //let tok = ConnectToken::from_client(self, success_cb, failure_cb);
         let tok = Token::from_client(self, ServerRequest::Connect, success_cb, failure_cb);
         opts.set_token(tok.clone());
 
