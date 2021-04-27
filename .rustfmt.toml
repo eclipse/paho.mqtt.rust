@@ -1,0 +1,5 @@
+# .rustfmt.toml
+
+# As of 2021-04-23, this is still unstable, requiring +nightly
+control_brace_style = "ClosingNextLine"
+
