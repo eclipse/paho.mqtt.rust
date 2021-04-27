@@ -145,8 +145,8 @@ impl AsyncClient {
 
         let mut cli = InnerAsyncClient {
             handle: ptr::null_mut(),
-            opts: Mutex::new(ConnectOptions::new()),
-            callback_context: Mutex::new(CallbackContext::default()),
+            opts: Default::default(),
+            callback_context: Default::default(),
             server_uri: CString::new(opts.server_uri)?,
             client_id: CString::new(opts.client_id)?,
             user_persistence: None,
