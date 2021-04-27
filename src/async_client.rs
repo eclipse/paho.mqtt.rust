@@ -226,7 +226,7 @@ impl AsyncClient {
                 cb(&cli);
             }
 
-            let _ = cli.into_raw();
+            cli.into_raw();
         }
     }
 
@@ -252,7 +252,7 @@ impl AsyncClient {
                     cb(&cli);
                 }
             }
-            let _ = cli.into_raw();
+            cli.into_raw();
         }
     }
 
@@ -275,7 +275,7 @@ impl AsyncClient {
                 trace!("Invoking disconnected callback");
                 cb(&cli, props, reason_code);
             }
-            let _ = cli.into_raw();
+            cli.into_raw();
         }
     }
 
@@ -320,7 +320,7 @@ impl AsyncClient {
                 cb(&cli, Some(msg));
             }
 
-            let _ = cli.into_raw();
+            cli.into_raw();
         }
 
         ffi::MQTTAsync_freeMessage(&mut cmsg);
@@ -369,7 +369,7 @@ impl AsyncClient {
         let rc = unsafe { ffi::MQTTAsync_connect(self.inner.handle, &lkopts.copts) };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(lkopts.copts.context) };
+            unsafe { Token::from_raw(lkopts.copts.context) };
             ConnectToken::from_error(rc)
         }
         else {
@@ -410,7 +410,7 @@ impl AsyncClient {
         let rc = unsafe { ffi::MQTTAsync_connect(self.inner.handle, &opts.copts) };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(opts.copts.context) };
+            unsafe { Token::from_raw(opts.copts.context) };
             ConnectToken::from_error(rc)
         }
         else {
@@ -467,7 +467,7 @@ impl AsyncClient {
         let rc = unsafe { ffi::MQTTAsync_disconnect(self.inner.handle, &opts.copts) };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(opts.copts.context) };
+            unsafe { Token::from_raw(opts.copts.context) };
             Token::from_error(rc)
         }
         else {
@@ -633,7 +633,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            unsafe { Token::from_raw(rsp_opts.copts.context) };
             let msg: Message = tok.into();
             Err(Error::Publish(rc, msg))
         }
@@ -678,7 +678,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            unsafe { Token::from_raw(rsp_opts.copts.context) };
             SubscribeToken::from_error(rc)
         }
         else {
@@ -725,7 +725,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            unsafe { Token::from_raw(rsp_opts.copts.context) };
             SubscribeToken::from_error(rc)
         }
         else {
@@ -766,7 +766,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            unsafe { Token::from_raw(rsp_opts.copts.context) };
             SubscribeManyToken::from_error(rc)
         }
         else {
@@ -821,7 +821,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            unsafe { Token::from_raw(rsp_opts.copts.context) };
             SubscribeManyToken::from_error(rc)
         }
         else {
@@ -852,7 +852,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            unsafe { Token::from_raw(rsp_opts.copts.context) };
             Token::from_error(rc)
         }
         else {
@@ -889,7 +889,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            unsafe { Token::from_raw(rsp_opts.copts.context) };
             Token::from_error(rc)
         }
         else {
@@ -927,7 +927,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            unsafe { Token::from_raw(rsp_opts.copts.context) };
             Token::from_error(rc)
         }
         else {
@@ -970,7 +970,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            unsafe { Token::from_raw(rsp_opts.copts.context) };
             Token::from_error(rc)
         }
         else {
@@ -1220,7 +1220,7 @@ mod tests {
         let thr = thread::spawn(move || {
             assert!(!cli.is_connected());
         });
-        let _ = thr.join().unwrap();
+        thr.join().unwrap();
     }
 
     // Determine that a client can be shared across threads using an Arc.
@@ -1239,6 +1239,6 @@ mod tests {
             assert!(!cli.is_connected());
         });
         assert!(!cli2.is_connected());
-        let _ = thr.join().unwrap();
+        thr.join().unwrap();
     }
 }
