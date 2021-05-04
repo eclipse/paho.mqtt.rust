@@ -1,6 +1,6 @@
 # Eclipse Paho MQTT Rust Client Library
 
-![Crates.io](https://img.shields.io/crates/d/paho-mqtt)
+[![docs.rs](https://docs.rs/paho-mqtt/badge.svg)](https://docs.rs/paho-mqtt) [![crates.io](https://img.shields.io/crates/d/paho-mqtt?label=crates.io%20downloads)](https://crates.io/crates/paho-mqtt) [![GitHub contributors](https://img.shields.io/github/contributors/eclipse/paho.mqtt.rust?label=GitHub%20contributors)](https://github.com/eclipse/paho.mqtt.rust)
 
 The [Eclipse Paho](http://eclipse.org/paho) MQTT Rust client library on memory-managed operating systems such as Linux/Posix, Mac, and Windows.
 
