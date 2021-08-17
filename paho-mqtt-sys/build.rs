@@ -66,6 +66,10 @@ fn is_windows() -> bool {
     std::env::var("CARGO_CFG_WINDOWS").is_ok()
 }
 
+fn is_msvc() -> bool {
+    std::env::var("CARGO_CFG_TARGET_ENV").unwrap() == "msvc"
+}
+
 // Determines the base name of which Paho C library we will link to.
 // This is the name of the libary for the linker.
 // Determine if we're usine SSL or not, by feature request.
@@ -92,7 +96,7 @@ fn find_link_lib<P>(install_path: P) -> Option<(PathBuf,&'static str)>
 
     let lib_base = link_lib_base();
 
-    let lib_file = if is_windows() {
+    let lib_file = if is_msvc() {
         format!("{}.lib", lib_base)
     }
     else {
@@ -243,7 +247,7 @@ mod build {
             .define("PAHO_HIGH_PERFORMANCE", "on")
             .define("PAHO_WITH_SSL", ssl);
 
-        if is_windows() {
+        if is_msvc() {
             cmk_cfg.cflag("/DWIN32");
         }
 
@@ -274,24 +278,28 @@ mod build {
         // Link in the SSL libraries if configured for it.
         if cfg!(feature = "ssl") {
             let openssl_root_dir = openssl_root_dir();
-            if is_windows() {
+            if is_msvc() {
                 println!("cargo:rustc-link-lib=libssl");
                 println!("cargo:rustc-link-lib=libcrypto");
-                let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
-                let openssl_root_dir = openssl_root_dir
-                    .as_deref()
-                    .or_else(|| (target_arch == "x86").then(||"C:\\OpenSSL-Win32"))
-                    .or_else(|| (target_arch == "x86_64").then(||"C:\\OpenSSL-Win64"));
-                if let Some(openssl_root_dir) = openssl_root_dir {
-                    println!("cargo:rustc-link-search={}\\lib", openssl_root_dir);
-                }
-            }
-            else {
+            } else {
                 println!("cargo:rustc-link-lib=ssl");
                 println!("cargo:rustc-link-lib=crypto");
-                if let Some(openssl_root_dir) = openssl_root_dir {
-                    println!("cargo:rustc-link-search={}/lib", openssl_root_dir);
+
+                if is_windows() {
+                    // required for mingw builds
+                    println!("cargo:rustc-link-lib=crypt32");
+                    println!("cargo:rustc-link-lib=rpcrt4");
                 }
+            }
+
+            let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+            let openssl_root_dir = openssl_root_dir
+                .as_deref()
+                .or_else(|| (is_windows() && target_arch == "x86").then(||"C:\\OpenSSL-Win32"))
+                .or_else(|| (is_windows() && target_arch == "x86_64").then(||"C:\\OpenSSL-Win64"));
+
+            if let Some(openssl_root_dir) = openssl_root_dir {
+                println!("cargo:rustc-link-search={}/lib", openssl_root_dir);
             }
         }
 
