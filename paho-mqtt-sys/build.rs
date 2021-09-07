@@ -67,12 +67,12 @@ fn main() {
 fn link_lib_base() -> &'static str {
     if cfg!(feature = "ssl") {
         println!("debug:link Using SSL library");
-        if cfg!(windows) { "paho-mqtt3as-static" } else { "paho-mqtt3as" }
     }
     else {
         println!("debug:link Using non-SSL library");
-        if cfg!(windows) { "paho-mqtt3a-static" } else { "paho-mqtt3a" }
     }
+
+    if cfg!(target_os = "unix") { "paho-mqtt3as" } else { "paho-mqtt3as-static" }
 }
 
 // Try to find the Paho C library in one of the typical library
