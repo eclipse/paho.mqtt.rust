@@ -23,12 +23,13 @@
 
 use crate::{
     async_client::AsyncClient,
-    errors::Result,
+    errors::{Error, Result},
     message::{Message, MessageBuilder},
     properties::{Properties, PropertyCode},
     subscribe_options::SubscribeOptions,
     token::{DeliveryToken, Token},
 };
+use std::fmt;
 
 /////////////////////////////////////////////////////////////////////////////
 //                              Topic
@@ -215,5 +216,129 @@ impl<'a> Topic<'a> {
     {
         self.alias = alias;
         self.try_publish(payload)
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+/// A topic filter.
+///
+/// An MQTT topic filter is a multi-field string, delimited by forward
+/// slashes, '/', in which fields can contain the wildcards:
+///     '+' - Matches a single field
+///     '#' - Matches all subsequent fields (must be last field in filter)
+///
+/// It can be used to match against topics.
+#[derive(Debug)]
+pub enum TopicFilter {
+    // If there are no wildcards, the filter is a straight topic string
+    Topic(String),
+    // If there are wildcards, the filter is split by fields.
+    Fields(Vec<String>),
+}
+
+impl TopicFilter {
+    /// Creates a new topic filter from the string.
+    /// This can fail if the filter is not correct, such as having a '#'
+    /// wildcard in anyplace other than the last field, or if
+    pub fn new<S>(filter: S) -> Result<Self>
+    where
+        S: Into<String>,
+    {
+        let filter = filter.into();
+        let n = filter.len();
+
+        if n == 0 {
+            Err(Error::BadTopicFilter)?;
+        }
+
+        // If the topic contains any wildcards.
+        let wild = match filter.find('#') {
+            Some(i) if i < n - 1 => Err(Error::BadTopicFilter)?,
+            Some(_) => true,
+            None => filter.contains('+'),
+        };
+
+        let v = if wild {
+            let fields = filter.split('/').map(|s| s.to_string()).collect();
+            Self::Fields(fields)
+        }
+        else {
+            Self::Topic(filter)
+        };
+
+        Ok(v)
+    }
+
+    /// Determines if the topic matches the filter.
+    pub fn is_match(&self, topic: &str) -> bool {
+        match self {
+            Self::Topic(filter) => topic == filter,
+            Self::Fields(fields) => {
+                let n = fields.len();
+                let top_fields: Vec<_> = topic.split('/').collect();
+
+                if n > top_fields.len() {
+                    false
+                }
+                else {
+                    for i in 0..n {
+                        if fields[i] == "#" {
+                            break;
+                        }
+                        if fields[i] != "+" && fields[i] != top_fields[i] {
+                            return false;
+                        }
+                    }
+                    true
+                }
+            }
+        }
+    }
+}
+
+impl fmt::Display for TopicFilter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Topic(filter) => write!(f, "{}", filter),
+            // OPTIIMIZE: Do the individual writes, not join
+            Self::Fields(fields) => write!(f, "{}", fields.join("/")),
+        }
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_nonwild_topic_filter() {
+        const FILTER: &str = "some/topic";
+
+        let filter = TopicFilter::new(FILTER).unwrap();
+        assert!(filter.is_match(FILTER));
+
+        let s = format!("{}", filter);
+        assert_eq!(s, FILTER);
+    }
+
+    #[test]
+    fn test_topic_filter() {
+        const FILTER1: &str = "some/topic/#";
+
+        let filter = TopicFilter::new(FILTER1).unwrap();
+        assert!(filter.is_match("some/topic/thing"));
+
+        let s = format!("{}", filter);
+        assert_eq!(s, FILTER1);
+
+        const FILTER2: &str = "some/+/thing";
+        let filter = TopicFilter::new(FILTER2).unwrap();
+        assert!(filter.is_match("some/topic/thing"));
+
+        let s = format!("{}", filter);
+        assert_eq!(s, FILTER2);
     }
 }

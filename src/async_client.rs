@@ -369,7 +369,7 @@ impl AsyncClient {
 
         if rc != 0 {
             let _ = unsafe { Token::from_raw(lkopts.copts.context) };
-            return ConnectToken::from_error(rc)
+            return ConnectToken::from_error(rc);
         }
 
         tok
@@ -467,7 +467,7 @@ impl AsyncClient {
             return Token::from_error(rc);
         }
 
-        // Push a None into the message stream to cleanly 
+        // Push a None into the message stream to cleanly
         // shutdown any consumers.
         if let Some(ref mut cb) = self
             .inner
