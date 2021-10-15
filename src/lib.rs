@@ -55,7 +55,8 @@ pub use crate::server_response::*; //{ServerResponse, CommandResponse};
 pub use crate::ssl_options::*; //{SslOptions, SslOptionsBuilder};
 pub use crate::subscribe_options::*; //{SubscribeOptions};
 pub use crate::token::*; //{Token}
-pub use crate::topic::*; //{Topic}
+pub use crate::topic::*;    //{Topic, TopicFilter, TopicMatcher};
+pub use crate::topic_matcher::TopicMatcher;
 pub use crate::types::*; //...
 pub use crate::will_options::*; //{WillOptions, WillOptionsBuilder}; //{Result, Error, ErrorKind};
 
@@ -105,6 +106,9 @@ pub mod token;
 /// Options for creating topic objects that are associated with a
 /// particular server.
 pub mod topic;
+
+// Topic matcher struct
+pub mod topic_matcher;
 
 /// MQTT v5 Reason Codes
 pub mod reason_code;
