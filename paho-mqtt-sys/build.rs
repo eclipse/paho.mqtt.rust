@@ -297,6 +297,16 @@ mod build {
                 .as_deref()
                 .or_else(|| (is_windows() && target_arch == "x86").then(||"C:\\OpenSSL-Win32"))
                 .or_else(|| (is_windows() && target_arch == "x86_64").then(||"C:\\OpenSSL-Win64"));
+          
+            let openssl_root_dir = if is_windows() && cfg!(target_arch = "x86") {
+                openssl_root_dir.as_deref().or_else(|| Some("C:\\OpenSSL-Win32"))
+            }
+            else if is_windows() && cfg!(target_arch = "x86_64") {
+                openssl_root_dir.as_deref().or_else(|| Some("C:\\OpenSSL-Win64"))
+            }
+            else {
+                openssl_root_dir.as_deref()
+            };
 
             if let Some(openssl_root_dir) = openssl_root_dir {
                 println!("cargo:rustc-link-search={}/lib", openssl_root_dir);
