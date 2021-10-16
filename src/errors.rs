@@ -40,6 +40,9 @@ pub enum Error {
     /// An MQTT v5 error from a reason code.
     #[error("{0}")]
     ReasonCode(ReasonCode),
+    /// A bad topic filter
+    #[error("Bad topic filter")]
+    BadTopicFilter,
     /// An low-level I/O error
     #[error("I/O failed: {0}")]
     Io(#[from] io::Error),
