@@ -50,15 +50,37 @@
 //      ^ else assume system install and use bundled bindings
 //
 
-use std::path::{Path, PathBuf};
+use std::{
+    env,
+    path::{Path, PathBuf},
+};
 
 // TODO: Assuming the proper installed version of the library is problematic.
 //      We should check that the version is correct, if possible.
 
-const PAHO_MQTT_C_VERSION: &str = "1.3.8";
+const PAHO_MQTT_C_VERSION: &str = "1.3.9";
 
 fn main() {
     build::main();
+}
+
+// Check if we are compiling for a windows target
+fn is_windows() -> bool {
+    env::var("CARGO_CFG_WINDOWS").is_ok()
+}
+
+// If the target build is using the MSVC compiler
+fn is_msvc() -> bool {
+    env::var("CARGO_CFG_TARGET_ENV").unwrap() == "msvc"
+}
+
+// If the target is an x86 (32-bit)
+fn is_x86() -> bool {
+    env::var("CARGO_CFG_TARGET_ARCH").unwrap() == "x86"
+}
+// If the target is an x86_64 (64-bit)
+fn is_x86_64() -> bool {
+    env::var("CARGO_CFG_TARGET_ARCH").unwrap() == "x86_64"
 }
 
 // Determines the base name of which Paho C library we will link to.
@@ -67,11 +89,11 @@ fn main() {
 fn link_lib_base() -> &'static str {
     if cfg!(feature = "ssl") {
         println!("debug:link Using SSL library");
-        if cfg!(windows) { "paho-mqtt3as-static" } else { "paho-mqtt3as" }
+        if is_windows() { "paho-mqtt3as-static" } else { "paho-mqtt3as" }
     }
     else {
         println!("debug:link Using non-SSL library");
-        if cfg!(windows) { "paho-mqtt3a-static" } else { "paho-mqtt3a" }
+        if is_windows() { "paho-mqtt3a-static" } else { "paho-mqtt3a" }
     }
 }
 
@@ -87,7 +109,7 @@ fn find_link_lib<P>(install_path: P) -> Option<(PathBuf,&'static str)>
 
     let lib_base = link_lib_base();
 
-    let lib_file = if cfg!(windows) {
+    let lib_file = if is_msvc() {
         format!("{}.lib", lib_base)
     }
     else {
@@ -107,7 +129,7 @@ fn find_link_lib<P>(install_path: P) -> Option<(PathBuf,&'static str)>
 
 // Here we're looking for some pre-generated bindings specific for the
 // version of the C lib and the build target.
-// If not found, it settles on the default bindings, giben the target
+// If not found, it settles on the default bindings, given the target
 // word size (32 or 64-bit).
 #[cfg(not(feature = "build_bindgen"))]
 mod bindings {
@@ -215,6 +237,12 @@ mod build {
 
     pub fn main() {
         println!("debug:Running the bundled build for Paho C");
+        if is_windows() {
+            println!("debug:Building for Windows");
+            if is_msvc() {
+                println!("debug:Building with MSVC");
+            }
+        }
 
         // we rerun the build if the `build.rs` file is changed.
         println!("cargo:rerun-if-changed=build.rs");
@@ -238,7 +266,7 @@ mod build {
             .define("PAHO_HIGH_PERFORMANCE", "on")
             .define("PAHO_WITH_SSL", ssl);
 
-        if cfg!(windows) {
+        if is_msvc() {
             cmk_cfg.cflag("/DWIN32");
         }
 
@@ -269,29 +297,35 @@ mod build {
         // Link in the SSL libraries if configured for it.
         if cfg!(feature = "ssl") {
             let openssl_root_dir = openssl_root_dir();
-            if cfg!(windows) {
-                println!("cargo:rustc-link-lib=libssl");
-                println!("cargo:rustc-link-lib=libcrypto");
-                let openssl_root_dir = if cfg!(target_arch = "x86") {
-                    openssl_root_dir.as_deref().or_else(|| Some("C:\\OpenSSL-Win32"))
-                }
-                else if cfg!(target_arch = "x86_64") {
-                    openssl_root_dir.as_deref().or_else(|| Some("C:\\OpenSSL-Win64"))
-                }
-                else {
-                    None    // TODO: Panic?
-                };
-                if let Some(openssl_root_dir) = openssl_root_dir {
-                    println!("cargo:rustc-link-search={}\\lib", openssl_root_dir);
-                }
+
+            let openssl_root_dir = if is_windows() && is_x86() {
+                openssl_root_dir.as_deref().or_else(|| Some("C:\\OpenSSL-Win32"))
+            }
+            else if is_windows() && is_x86_64() {
+                openssl_root_dir.as_deref().or_else(|| Some("C:\\OpenSSL-Win64"))
             }
             else {
+                openssl_root_dir.as_deref()
+            };
+
+            if let Some(openssl_root_dir) = openssl_root_dir {
+                println!("cargo:rustc-link-search={}/lib", openssl_root_dir);
+            }
+
+            if is_msvc() {
+                println!("cargo:rustc-link-lib=libssl");
+                println!("cargo:rustc-link-lib=libcrypto");
+            } else {
                 println!("cargo:rustc-link-lib=ssl");
                 println!("cargo:rustc-link-lib=crypto");
-                if let Some(openssl_root_dir) = openssl_root_dir {
-                    println!("cargo:rustc-link-search={}/lib", openssl_root_dir);
+
+                if is_windows() {
+                    // required for mingw builds
+                    println!("cargo:rustc-link-lib=crypt32");
+                    println!("cargo:rustc-link-lib=rpcrt4");
                 }
             }
+
         }
 
         // we add the folder where all the libraries are built to the path search
