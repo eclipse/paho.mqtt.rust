@@ -704,7 +704,7 @@ impl Property {
             if self.property_type() == PropertyType::Utf8EncodedString {
                 let s = CString::from_raw(self.cprop.value.__bindgen_anon_1.data.data);
                 let sc = s.clone();
-                s.into_raw();
+                let _ = s.into_raw();
                 sc.into_string().ok()
             }
             else {
@@ -719,12 +719,12 @@ impl Property {
             if self.property_type() == PropertyType::Utf8StringPair {
                 let s = CString::from_raw(self.cprop.value.__bindgen_anon_1.data.data);
                 let sc = s.clone();
-                s.into_raw();
+                let _ = s.into_raw();
                 let keyopt = sc.into_string().ok();
 
                 let s = CString::from_raw(self.cprop.value.__bindgen_anon_1.value.data);
                 let sc = s.clone();
-                s.into_raw();
+                let _ = s.into_raw();
                 let valopt = sc.into_string().ok();
                 keyopt.and_then(|key| valopt.map(|val| (key, val)))
             }
@@ -793,19 +793,19 @@ impl Clone for Property {
                 PropertyType::Utf8EncodedString => {
                     let s = CString::from_raw(cprop.value.__bindgen_anon_1.data.data);
                     let sc = s.clone();
-                    s.into_raw();
+                    let _ = s.into_raw();
                     cprop.value.__bindgen_anon_1.data.data = sc.into_raw();
                 }
                 PropertyType::Utf8StringPair => {
                     let s = CString::from_raw(cprop.value.__bindgen_anon_1.data.data);
                     let sc = s.clone();
                     cprop.value.__bindgen_anon_1.data.data = sc.into_raw();
-                    s.into_raw();
+                    let _ = s.into_raw();
 
                     let s = CString::from_raw(cprop.value.__bindgen_anon_1.value.data);
                     let sc = s.clone();
                     cprop.value.__bindgen_anon_1.value.data = sc.into_raw();
-                    s.into_raw();
+                    let _ = s.into_raw();
                 }
                 _ => (),
             }
