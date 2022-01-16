@@ -6,7 +6,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2021 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2021-2022 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -21,12 +21,38 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
+//! Code to match MQTT topics to filters that may contain wildcards.
+//!
+
 use std::collections::HashMap;
 
 /// A collection of topic filters to arbitrary objects.
 ///
-/// This can be used to match topics to get an iterator to the contained
-/// object, for all the filters that match the topic.
+/// This can be used to get an iterator to all items that have a filter that
+/// matches a topic. To test against a single filter, see
+/// [`TopicFilter`](crate::TopicFilter). This collection is more commonly used
+/// when there are a nuber of filters and each needs to be associated with a
+/// particular action or piece of data. Note, though, that a single incoming
+/// topic could match against several items in the collection. For example,
+/// the topic:
+///     data/temperature/engine
+///
+/// Could match against the filters:
+///     data/temperature/#
+///     data/+/engine
+///
+/// Thus, the collection gives an iterator for the items matching a topic.
+///
+/// A common use for this would be to store callbacks to proces incoming
+/// messages based on topics.
+///
+/// This code was adapted from the Eclipse Python `MQTTMatcher` class:
+/// <https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/matcher.py>
+///
+/// which use a prefix tree (trie) to store the values.
+///
+// TODO: Add an example to the doc comments for processing a set of callbacks.
+
 #[derive(Default)]
 pub struct TopicMatcher<T: Default> {
     /// The root node of the collection.
@@ -138,6 +164,8 @@ impl<'a, 'b, T: Default> Iterator for Iter<'a, 'b, T> {
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////
+//                              Unit Tests
 /////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]

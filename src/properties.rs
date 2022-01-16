@@ -184,7 +184,7 @@ impl PropertyCode {
 /// Interval, etc), and also the data type for the value. Each copde
 /// corresponds to a single, specific data type as described in the v5
 /// spec, here:
-/// https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901027
+/// <https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901027>
 ///
 /// There are only a limited number of data types that are possible for
 /// properties:

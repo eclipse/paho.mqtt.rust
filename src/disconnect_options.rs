@@ -126,7 +126,7 @@ impl DisconnectOptionsBuilder {
     /// Set the reason for the disconnect.
     ///
     /// The valid disconnect reasons are listed here in the spec:
-    /// https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901208
+    /// <https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901208>
     pub fn reason_code(&mut self, reason_code: ReasonCode) -> &mut Self {
         self.copts.reasonCode = reason_code as ffi::MQTTReasonCodes;
         self

@@ -282,7 +282,7 @@ impl SslOptionsBuilder {
     ///
     /// For a full explanation of the cipher list format, please see the
     /// OpenSSL on-line documentation:
-    /// http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
+    /// <http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT>
     ///
     /// If this setting is ommitted, its default value will be "ALL", that is,
     /// all the cipher suites -excluding those offering no encryption- will

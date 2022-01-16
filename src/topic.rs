@@ -207,7 +207,7 @@ impl<'a> Topic<'a> {
     /// alias, but returns an error immediately if there's a problem creating or
     /// queuing the message for transmission.
     ///
-    /// See `publish_with_alias()` for more information.
+    /// See [`publish_with_alias()`](Self::publish_with_alias) for more information.
     ///
     /// Returns a Publish Error containing the complete message on failure.
     pub fn try_publish_with_alias<V>(&mut self, alias: u16, payload: V) -> Result<DeliveryToken>
@@ -309,9 +309,8 @@ impl fmt::Display for TopicFilter {
     }
 }
 
-
 /////////////////////////////////////////////////////////////////////////////
-
+//                              Unit Tests
 /////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
