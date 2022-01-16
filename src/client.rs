@@ -1,4 +1,5 @@
 // paho-mqtt/src/client.rs
+//
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 //
 
@@ -43,9 +44,9 @@ use std::time::Duration;
 /// providing blocking calls with timeouts.
 pub struct Client {
     /// The underlying asynchronous client.
-    cli: AsyncClient,
+    pub(crate) cli: AsyncClient,
     /// The default timeout for synchronous calls.
-    timeout: Duration,
+    pub(crate) timeout: Duration,
 }
 
 impl Client {

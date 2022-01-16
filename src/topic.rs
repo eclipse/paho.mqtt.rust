@@ -1,6 +1,4 @@
-// topic.rs
-//
-// A set of message parameters to repeatedly publish to the same topic.
+// paho-mqtt/src/topic.rs
 //
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 //
@@ -21,12 +19,17 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
+//! Objects for manipulating and checking message topics.
+//!
+
 use crate::{
     async_client::AsyncClient,
+    client::Client,
     errors::{Error, Result},
     message::{Message, MessageBuilder},
     properties::{Properties, PropertyCode},
     subscribe_options::SubscribeOptions,
+    ServerResponse,
     token::{DeliveryToken, Token},
 };
 use std::fmt;
@@ -36,6 +39,7 @@ use std::fmt;
 /////////////////////////////////////////////////////////////////////////////
 
 /// A topic destination for messages.
+///
 /// This keeps message parameters for repeatedly publishing to the same
 /// topic on a server.
 pub struct Topic<'a> {
@@ -61,7 +65,7 @@ impl<'a> Topic<'a> {
     /// `topic` The topic on which to publish the messages
     /// `qos` The quality of service for messages
     ///
-    pub fn new<T>(cli: &'a AsyncClient, topic: T, qos: i32) -> Topic<'a>
+    pub fn new<T>(cli: &'a AsyncClient, topic: T, qos: i32) -> Self
     where
         T: Into<String>,
     {
@@ -82,7 +86,7 @@ impl<'a> Topic<'a> {
     /// `topic` The topic on which to publish the messages
     /// `qos` The quality of service for messages
     ///
-    pub fn new_retained<T>(cli: &'a AsyncClient, topic: T, qos: i32) -> Topic<'a>
+    pub fn new_retained<T>(cli: &'a AsyncClient, topic: T, qos: i32) -> Self
     where
         T: Into<String>,
     {
@@ -96,7 +100,7 @@ impl<'a> Topic<'a> {
     }
 
     /// Create a message for the topic using the supplied payload
-    fn create_message<V>(&self, payload: V) -> Message
+    pub fn create_message<V>(&self, payload: V) -> Message
     where
         V: Into<Vec<u8>>,
     {
@@ -216,6 +220,131 @@ impl<'a> Topic<'a> {
     {
         self.alias = alias;
         self.try_publish(payload)
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+//                              SyncTopic
+/////////////////////////////////////////////////////////////////////////////
+
+/// A topic destination for messages.
+///
+/// This keeps message parameters for repeatedly publishing to the same
+/// topic on a server.
+pub struct SyncTopic<'a> {
+    cli: &'a Client,
+    topic: Topic<'a>,
+}
+
+impl<'a> SyncTopic<'a> {
+    /// Creates a new topic object for publishing messages.
+    ///
+    /// # Arguments
+    ///
+    /// `cli` The client used to publish the messages.
+    /// `topic` The topic on which to publish the messages
+    /// `qos` The quality of service for messages
+    ///
+    pub fn new<T>(cli: &'a Client, topic: T, qos: i32) -> Self
+    where
+        T: Into<String>,
+    {
+        Self {
+            cli,
+            topic: Topic::new(&cli.cli, topic, qos),
+        }
+    }
+
+    /// Creates a new topic object for publishing messages.
+    ///
+    /// # Arguments
+    ///
+    /// `cli` The client used to publish the messages.
+    /// `topic` The topic on which to publish the messages
+    /// `qos` The quality of service for messages
+    ///
+    pub fn new_retained<T: Into<String>>(cli: &'a Client, topic: T, qos: i32) -> Self
+    where
+        T: Into<String>,
+    {
+        Self {
+            cli,
+            topic: Topic::new_retained(&cli.cli, topic, qos)
+        }
+    }
+
+    /// Create a message for the topic using the supplied payload
+    pub fn create_message<V>(&self, payload: V) -> Message
+    where
+        V: Into<Vec<u8>>,
+    {
+        self.topic.create_message(payload)
+    }
+
+    /// Subscribe to the topic.
+    pub fn subscribe(&self) -> Result<ServerResponse> {
+        self.cli.subscribe(&self.topic.topic, self.topic.qos)
+    }
+
+    /// Subscribe to the topic with subscription options.
+    pub fn subscribe_with_options<T, P>(&self, opts: T, props: P) -> Result<ServerResponse>
+    where
+        T: Into<SubscribeOptions>,
+        P: Into<Option<Properties>>,
+    {
+        self.cli
+            .subscribe_with_options(&self.topic.topic, self.topic.qos, opts, props)
+    }
+
+    /// Publish a message on the topic.
+    ///
+    /// If a topic alias was previously sent, this will use the integer alias
+    /// property instead of sending the topic string.
+    /// Topic aliases are only applicable for MQTT v5 connections.
+    ///
+    /// # Arguments
+    ///
+    /// `payload` The payload of the message
+    ///
+    pub fn publish<V>(&self, payload: V) -> Result<()>
+    where
+        V: Into<Vec<u8>>,
+    {
+        let msg = self.create_message(payload);
+        self.cli.publish(msg)
+    }
+
+    /// Publish a message with a topic alias.
+    ///
+    /// This publishes the message with a topic alias property to set the
+    /// alias at the broker. After calling this, the object keeps the
+    /// alias and uses it for subsequent publishes instead of sending the
+    /// full topic string.
+    ///
+    /// Note that using an alias is only valid with an MQTT v5 connection,
+    /// and the value must be in the range of 1 - TopicAliasMaximum as the
+    /// broker reported in the CONNACK packet. The alias is only valid
+    /// for a single connection. It should be reset on a reconnect.
+    ///
+    /// This can be called a second time to change the alias setting.
+    /// Using an alias of zero on a subsequent call instructs this object to
+    /// stop using the alias and publish with the topic name.
+    ///
+    /// # Arguments
+    ///
+    /// `alias` The integer alias to use for subsequent message publishing.
+    ///     This must be in the range 1 - `TopicAliasMaximum` as reported by
+    ///     the server in the CONNACK package. Using a value of zero
+    ///     instructs this object to stop using the alias and go back to
+    ///     publishing with the string topic name.
+    /// `payload` The payload of the message
+    ///
+    pub fn publish_with_alias<V>(&mut self, alias: u16, payload: V) -> Result<()>
+    where
+        V: Into<Vec<u8>>,
+    {
+        self.topic.alias = alias;
+        self.publish(payload)
     }
 }
 
