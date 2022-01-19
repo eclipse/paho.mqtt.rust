@@ -29,8 +29,8 @@ use crate::{
     message::{Message, MessageBuilder},
     properties::{Properties, PropertyCode},
     subscribe_options::SubscribeOptions,
-    ServerResponse,
     token::{DeliveryToken, Token},
+    ServerResponse,
 };
 use std::fmt;
 
@@ -269,7 +269,7 @@ impl<'a> SyncTopic<'a> {
     {
         Self {
             cli,
-            topic: Topic::new_retained(&cli.cli, topic, qos)
+            topic: Topic::new_retained(&cli.cli, topic, qos),
         }
     }
 
@@ -474,5 +474,4 @@ mod tests {
         let s = format!("{}", filter);
         assert_eq!(s, FILTER2);
     }
-
 }

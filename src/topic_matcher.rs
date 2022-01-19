@@ -70,7 +70,8 @@ impl<T: Default> TopicMatcher<T> {
         let mut node = &mut self.root;
 
         for sym in key.split("/") {
-            node = node.children
+            node = node
+                .children
                 .entry(sym.to_string())
                 .or_insert_with(Node::<T>::default);
         }
@@ -92,7 +93,11 @@ impl<T: Default> TopicMatcher<T> {
     /// Gets an iterator for all the matches to the specified
     pub fn matches<'a, 'b>(&'a self, topic: &'b str) -> Iter<'a, 'b, T> {
         let syms: Vec<_> = topic.split('/').collect();
-        Iter { node: Some(&self.root), syms, nodes: Vec::new() }
+        Iter {
+            node: Some(&self.root),
+            syms,
+            nodes: Vec::new(),
+        }
     }
 
     /// Determines if the topic matches any of the filters in the collection.

@@ -106,16 +106,22 @@ fn main() {
                 );
                 if !conn_rsp.session_present {
                     // Register subscriptions on the server
-                    println!("Subscribing to topics, with requested QoS: {:?}...", qos);
+                    println!("Subscribing to topics with requested QoS: {:?}...", qos);
 
-                    match cli.subscribe_many(&subscriptions, &qos) {
-                        Ok(qosv) => println!("QoS granted: {:?}", qosv),
-                        Err(e) => {
-                            println!("Error subscribing to topics: {:?}", e);
+                    cli.subscribe_many(&subscriptions, &qos)
+                        .and_then(|rsp| {
+                            rsp.subscribe_many_response()
+                                .ok_or(mqtt::Error::General("Bad response"))
+                        })
+                        .and_then(|vqos| {
+                            println!("QoS granted: {:?}", vqos);
+                            Ok(())
+                        })
+                        .unwrap_or_else(|err| {
+                            println!("Error subscribing to topics: {:?}", err);
                             cli.disconnect(None).unwrap();
                             process::exit(1);
-                        }
-                    }
+                        });
                 }
             }
         }
