@@ -21,6 +21,7 @@
  *******************************************************************************/
 
 use std::{
+    cmp,
     fmt,
     os::raw::c_int,
     path::{Path, PathBuf},
@@ -250,8 +251,9 @@ impl CreateOptionsBuilder {
     /// Sets the client identifier string that is sent to the server.
     /// The client ID is a unique name to identify the client to the server,
     /// which can be used if the client desires the server to hold state
-    /// about the session. If the client requests a clean sesstion, this can
-    /// be an empty string.
+    /// about the session. If the client requests a clean session, this can
+    /// be an empty string, in which case the server will assign a random
+    /// name for the client.
     ///
     /// The broker is required to honor a client ID of up to 23 bytes, but
     /// could honor longer ones, depending on the broker.
@@ -306,20 +308,43 @@ impl CreateOptionsBuilder {
         self
     }
 
-    /// Sets the maximum number of messages that can be buffered for delivery
-    /// when the client is off-line.
-    /// The client has limited support for bufferering messages when the
-    /// client is temporarily disconnected. This specifies the maximum number
-    /// of messages that can be buffered.
+    /// Sets the maximum number of messages that can be buffered for delivery.
+    ///
+    /// When the client is off-line, this specifies the maximum number of
+    /// messages that can be buffered. Even while connected, the library
+    /// needs a small buffer to queue outbound messages. Setting it to zero
+    /// disables off-line buffering but still keeps some slots open for
+    /// on-line operation.
     ///
     /// # Arguments
     ///
     /// `n` The maximum number of messages that can be buffered. Setting this
-    ///     to zero disables off-line buffering.
+    ///     to zero also disables any off-line buffering.
     ///
     pub fn max_buffered_messages(mut self, n: i32) -> Self {
-        self.copts.maxBufferedMessages = n;
-        self.copts.sendWhileDisconnected = if n == 0 { 0 } else { 1 };
+        // Note that the C lib seems to need at least a single slot
+        // to send messages, even when connected. For sanity we put
+        // a small lower limit.
+        self.copts.maxBufferedMessages = cmp::max(4, n);
+        if n == 0 {
+            self.copts.sendWhileDisconnected = 0;
+        }
+        self
+    }
+
+    /// Allow the application to send (publish) messages while disconnected.
+    ///
+    /// If this is disabled, then any time the app tries to publish while
+    /// disconnected results in a "disconnected" error from the client.
+    /// When enabled, the application can queue up to
+    /// [`max_buffered_messages()`](Self::max_buffered_messages) while off-line.
+    ///
+    /// # Arguments
+    ///
+    /// `on` Whether to allow off-line buffering in the client.
+    ///
+    pub fn send_while_disconnected(mut self, on: bool) -> Self {
+        self.copts.sendWhileDisconnected = to_c_bool(on);
         self
     }
 
@@ -510,7 +535,7 @@ mod tests {
     fn test_builder() {
         const HOST: &str = "localhost";
         const ID: &str = "bubba";
-        const MAX_BUF_MSGS: i32 = 100;
+        const MAX_BUF_MSGS: i32 = 250;
 
         let opts = CreateOptionsBuilder::new()
             .server_uri(HOST)

@@ -47,6 +47,7 @@ To keep up with the latest announcements for this project, follow:
 - Added a `TopicFilter` type to match topics against an individual filter (typically containing wildcards).
 - Added a `TopicMatcher` collection to iterate through a set of matching topic filters, such as to match callbacks to specific filters.
 - **Finally** ran `rustfmt` on source files.
+- [#118](https://github.com/eclipse/paho.mqtt.rust/issues/118) Added `CreateOptionsBuilder::send_while_disconnected(bool)` and detached the behavior somewhat from `max_buffered_messages()`. Now, setting the buffer size to a non-zero value will _not_ enable off-line buffering.
 - [#120](https://github.com/eclipse/paho.mqtt.rust/issues/120), [#121](https://github.com/eclipse/paho.mqtt.rust/pull/121) Fixed `subscribe_many_with_options()` outbound opts.
 - [#122](https://github.com/eclipse/paho.mqtt.rust/pull/122) Some _clippy_-recommended fixes
 
