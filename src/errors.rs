@@ -1,5 +1,9 @@
 // errors.rs
+//
+// Error and Result types for the Paho MQTT Rust library.
+//
 // This file is part of the Eclipse Paho MQTT Rust Client library.
+//
 
 /*******************************************************************************
  * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
@@ -52,6 +56,9 @@ pub enum Error {
     /// A string NUL error
     #[error("String NUL Error")]
     Nul(#[from] std::ffi::NulError),
+    /// Conversion error between types
+    #[error("Conversion Error")]
+    Conversion,
     /// A timeout, particularly from a synchronous operation.
     #[error("Timeout")]
     Timeout,

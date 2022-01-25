@@ -25,6 +25,7 @@
 
 use std::{
     any::{Any, TypeId},
+    convert::TryFrom,
     ffi::CString,
     mem,
     os::raw::{c_char, c_int},
@@ -45,8 +46,9 @@ pub type Value = ffi::MQTTProperty__bindgen_ty_1;
 /// The struct to encapsulate property string values.
 type LenString = ffi::MQTTLenString;
 
+/// The underlying data type for a specific property
 #[repr(u32)]
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PropertyType {
     Byte = 0,
     TwoByteInteger = 1,
@@ -63,16 +65,7 @@ type Type = ffi::MQTTPropertyTypes;
 impl PropertyType {
     /// Tries to create a property type from a C integer value
     pub fn new(typ: ffi::MQTTPropertyTypes) -> Option<Self> {
-        match typ {
-            0 => Some(Self::Byte),
-            1 => Some(Self::TwoByteInteger),
-            2 => Some(Self::FourByteInteger),
-            3 => Some(Self::VariableByteInteger),
-            4 => Some(Self::BinaryData),
-            5 => Some(Self::Utf8EncodedString),
-            6 => Some(Self::Utf8StringPair),
-            _ => None,
-        }
+        Self::try_from(typ).ok()
     }
 
     /// Gets the any::TypeId that corresponds to the property type.
@@ -89,13 +82,32 @@ impl PropertyType {
     }
 }
 
+impl TryFrom<ffi::MQTTPropertyTypes> for PropertyType {
+    type Error = crate::Error;
+
+    /// Try to convert from an integer property type to and enumeration
+    /// value.
+    fn try_from(typ: ffi::MQTTPropertyTypes) -> Result<Self> {
+        match typ {
+            0 => Ok(Self::Byte),
+            1 => Ok(Self::TwoByteInteger),
+            2 => Ok(Self::FourByteInteger),
+            3 => Ok(Self::VariableByteInteger),
+            4 => Ok(Self::BinaryData),
+            5 => Ok(Self::Utf8EncodedString),
+            6 => Ok(Self::Utf8StringPair),
+            _ => Err(crate::Error::Conversion),
+        }
+    }
+}
+
 /// The enumerated codes for the MQTT v5 properties.
 ///
 /// The property code defines both the meaning of the value in the property
 /// (Correlation Data, Server Keep Alive) and the data type held by the
 /// property.
 #[repr(u32)]
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PropertyCode {
     PayloadFormatIndicator = 1,
     MessageExpiryInterval = 2,
@@ -131,36 +143,7 @@ type Code = ffi::MQTTPropertyCodes;
 
 impl PropertyCode {
     pub fn new(code: ffi::MQTTPropertyCodes) -> Option<Self> {
-        match code {
-            1 => Some(Self::PayloadFormatIndicator),
-            2 => Some(Self::MessageExpiryInterval),
-            3 => Some(Self::ContentType),
-            8 => Some(Self::ResponseTopic),
-            9 => Some(Self::CorrelationData),
-            11 => Some(Self::SubscriptionIdentifier),
-            17 => Some(Self::SessionExpiryInterval),
-            18 => Some(Self::AssignedClientIdentifer),
-            19 => Some(Self::ServerKeepAlive),
-            21 => Some(Self::AuthenticationMethod),
-            22 => Some(Self::AuthenticationData),
-            23 => Some(Self::RequestProblemInformation),
-            24 => Some(Self::WillDelayInterval),
-            25 => Some(Self::RequestResponseInformation),
-            26 => Some(Self::ResponseInformation),
-            28 => Some(Self::ServerReference),
-            31 => Some(Self::ReasonString),
-            33 => Some(Self::ReceiveMaximum),
-            34 => Some(Self::TopicAliasMaximum),
-            35 => Some(Self::TopicAlias),
-            36 => Some(Self::MaximumQos),
-            37 => Some(Self::RetainAvailable),
-            38 => Some(Self::UserProperty),
-            39 => Some(Self::MaximumPacketSize),
-            40 => Some(Self::WildcardSubscriptionAvailable),
-            41 => Some(Self::SubscriptionIdentifiersAvailable),
-            42 => Some(Self::SharedSubscriptionAvailable),
-            _ => None,
-        }
+        Self::try_from(code).ok()
     }
 
     /// Get the property type from the code identifier.
@@ -172,6 +155,45 @@ impl PropertyCode {
     /// Gets the any::TypeId that corresponds to the property type.
     pub fn type_of(&self) -> TypeId {
         self.property_type().type_of()
+    }
+}
+
+impl TryFrom<ffi::MQTTPropertyCodes> for PropertyCode {
+    type Error = crate::Error;
+
+    /// Try to convert from an integer property type to and enumeration
+    /// value.
+    fn try_from(code: ffi::MQTTPropertyCodes) -> Result<Self> {
+        match code {
+            1 => Ok(Self::PayloadFormatIndicator),
+            2 => Ok(Self::MessageExpiryInterval),
+            3 => Ok(Self::ContentType),
+            8 => Ok(Self::ResponseTopic),
+            9 => Ok(Self::CorrelationData),
+            11 => Ok(Self::SubscriptionIdentifier),
+            17 => Ok(Self::SessionExpiryInterval),
+            18 => Ok(Self::AssignedClientIdentifer),
+            19 => Ok(Self::ServerKeepAlive),
+            21 => Ok(Self::AuthenticationMethod),
+            22 => Ok(Self::AuthenticationData),
+            23 => Ok(Self::RequestProblemInformation),
+            24 => Ok(Self::WillDelayInterval),
+            25 => Ok(Self::RequestResponseInformation),
+            26 => Ok(Self::ResponseInformation),
+            28 => Ok(Self::ServerReference),
+            31 => Ok(Self::ReasonString),
+            33 => Ok(Self::ReceiveMaximum),
+            34 => Ok(Self::TopicAliasMaximum),
+            35 => Ok(Self::TopicAlias),
+            36 => Ok(Self::MaximumQos),
+            37 => Ok(Self::RetainAvailable),
+            38 => Ok(Self::UserProperty),
+            39 => Ok(Self::MaximumPacketSize),
+            40 => Ok(Self::WildcardSubscriptionAvailable),
+            41 => Ok(Self::SubscriptionIdentifiersAvailable),
+            42 => Ok(Self::SharedSubscriptionAvailable),
+            _ => Err(crate::Error::Conversion),
+        }
     }
 }
 

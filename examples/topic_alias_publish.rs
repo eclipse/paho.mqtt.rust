@@ -14,7 +14,7 @@
 //!
 
 /*******************************************************************************
- * Copyright (c) 2020 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2020-2022 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -60,7 +60,6 @@ fn main() -> mqtt::Result<()> {
     });
 
     let conn_opts = mqtt::ConnectOptionsBuilder::new()
-        .mqtt_version(mqtt::MQTT_VERSION_5)
         .clean_start(true)
         .finalize();
 
