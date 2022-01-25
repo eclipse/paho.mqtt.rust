@@ -21,8 +21,7 @@
  *******************************************************************************/
 
 use std::{
-    cmp,
-    fmt,
+    cmp, fmt,
     os::raw::c_int,
     path::{Path, PathBuf},
 };
@@ -141,8 +140,19 @@ pub struct CreateOptions {
 }
 
 impl CreateOptions {
+    /// Create a new set of default client creation options.
     pub fn new() -> CreateOptions {
         CreateOptions::default()
+    }
+
+    /// Gets the MQTT protocol version used when creating the client.
+    ///
+    /// This version is used by the client as the default when connecting.
+    /// It can be overridden in the connect options to request a different
+    /// version, but typically this is the highest version that can be used
+    /// by the client.
+    pub fn mqtt_version(&self) -> u32 {
+        self.copts.MQTTVersion as u32
     }
 }
 
@@ -537,10 +547,11 @@ mod tests {
         const ID: &str = "bubba";
         const MAX_BUF_MSGS: i32 = 250;
 
+        // TODO: Test persistence
+
         let opts = CreateOptionsBuilder::new()
             .server_uri(HOST)
             .client_id(ID)
-            // TODO: Test persistence
             .max_buffered_messages(MAX_BUF_MSGS)
             .finalize();
 
@@ -549,7 +560,21 @@ mod tests {
 
         assert_eq!(HOST, &opts.server_uri);
         assert_eq!(ID, &opts.client_id);
-        //assert_eq!(PersistenceType::File, opts.persistence);
+        assert_eq!(0, opts.copts.sendWhileDisconnected);
+        assert_eq!(MAX_BUF_MSGS, opts.copts.maxBufferedMessages);
+
+        let opts = CreateOptionsBuilder::new()
+            .server_uri(HOST)
+            .client_id(ID)
+            .send_while_disconnected(true)
+            .max_buffered_messages(MAX_BUF_MSGS)
+            .finalize();
+
+        assert_eq!(STRUCT_ID, opts.copts.struct_id);
+        assert_eq!(STRUCT_VERSION, opts.copts.struct_version);
+
+        assert_eq!(HOST, &opts.server_uri);
+        assert_eq!(ID, &opts.client_id);
         assert!(0 != opts.copts.sendWhileDisconnected);
         assert_eq!(MAX_BUF_MSGS, opts.copts.maxBufferedMessages);
     }

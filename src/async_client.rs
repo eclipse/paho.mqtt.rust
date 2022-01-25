@@ -84,6 +84,9 @@ pub struct AsyncClient {
 pub(crate) struct InnerAsyncClient {
     // The handle to the Paho C client
     handle: ffi::MQTTAsync,
+    // The version with which the client was created
+    // This is the default for connecting
+    mqtt_version: u32,
     // The options for connecting to the broker
     opts: Mutex<ConnectOptions>,
     // The context to give to the C callbacks
@@ -145,6 +148,7 @@ impl AsyncClient {
 
         let mut cli = InnerAsyncClient {
             handle: ptr::null_mut(),
+            mqtt_version: opts.mqtt_version(),
             opts: Mutex::new(ConnectOptions::new()),
             callback_context: Mutex::new(CallbackContext::default()),
             server_uri: CString::new(opts.server_uri)?,
@@ -328,8 +332,21 @@ impl AsyncClient {
     }
 
     /// Gets the MQTT version for which the client was created.
+    ///
+    /// This is the default version used when connecting, unless a specific
+    /// value is set in the connect options. It is typically the highest
+    /// version that can be used by the client. Specifically, if the client
+    /// is created for v3, then it can not be used to connect with the v5
+    /// protocol.
     pub fn mqtt_version(&self) -> u32 {
-        // TODO: It's getting this from the connect options, not the create options!
+        self.inner.mqtt_version
+    }
+
+    /// The current version of the protol being used, if the client is
+    /// connected.
+    pub fn current_mqtt_version(&self) -> u32 {
+        // TODO: This is the requested version. The connect response
+        // contains the actual, negotiated protocol version
         self.inner.opts.lock().unwrap().copts.MQTTVersion as u32
     }
 
@@ -349,21 +366,27 @@ impl AsyncClient {
     ///
     /// # Arguments
     ///
-    /// * `opts` The connect options
+    /// * `opts` The connect options. This can be `None`, in which case the
+    ///          default options are used.
     ///
-    pub fn connect<T>(&self, opt_opts: T) -> ConnectToken
+    pub fn connect<T>(&self, opts: T) -> ConnectToken
     where
         T: Into<Option<ConnectOptions>>,
     {
-        let opts = opt_opts.into().unwrap_or_default();
         debug!("Connecting handle: {:?}", self.inner.handle);
-        debug!("Connect options: {:?}", opts);
+
+        let mut opts = opts.into().unwrap_or_default();
+
+        if opts.mqtt_version() == 0 && self.inner.mqtt_version >= 5 {
+            opts.set_mqtt_version(self.inner.mqtt_version);
+        }
 
         let tok = Token::from_request(ServerRequest::Connect);
+        opts.set_token(tok.clone());
 
+        debug!("Connect options: {:?}", opts);
         let mut lkopts = self.inner.opts.lock().unwrap();
         *lkopts = opts;
-        lkopts.set_token(tok.clone());
 
         let rc = unsafe { ffi::MQTTAsync_connect(self.inner.handle, &lkopts.copts) };
 
@@ -380,7 +403,8 @@ impl AsyncClient {
     /// # Arguments
     ///
     /// * `opts` The connect options
-    ///
+    /// * `success_cb` The callback for a successful connection.
+    /// * `failure_cb` The callback for a failed connection attempt.
     pub fn connect_with_callbacks<FS, FF>(
         &self,
         mut opts: ConnectOptions,
@@ -392,22 +416,27 @@ impl AsyncClient {
         FF: Fn(&AsyncClient, u16, i32) + 'static,
     {
         debug!("Connecting handle with callbacks: {:?}", self.inner.handle);
+
+        if opts.mqtt_version() == 0 && self.inner.mqtt_version >= 5 {
+            opts.set_mqtt_version(self.inner.mqtt_version);
+        }
+
+        let tok = Token::from_client(self, ServerRequest::Connect, success_cb, failure_cb);
+        opts.set_token(tok.clone());
+
         debug!("Connect opts: {:?}", opts);
         unsafe {
             if !opts.copts.will.is_null() {
                 debug!("Will: {:?}", *(opts.copts.will));
             }
         }
+        let mut lkopts = self.inner.opts.lock().unwrap();
+        *lkopts = opts;
 
-        let tok = Token::from_client(self, ServerRequest::Connect, success_cb, failure_cb);
-        opts.set_token(tok.clone());
-
-        *self.inner.opts.lock().unwrap() = opts.clone();
-
-        let rc = unsafe { ffi::MQTTAsync_connect(self.inner.handle, &opts.copts) };
+        let rc = unsafe { ffi::MQTTAsync_connect(self.inner.handle, &lkopts.copts) };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(opts.copts.context) };
+            let _ = unsafe { Token::from_raw(lkopts.copts.context) };
             return ConnectToken::from_error(rc);
         }
 

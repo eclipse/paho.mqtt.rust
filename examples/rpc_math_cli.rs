@@ -76,9 +76,8 @@ fn main() -> mqtt::Result<()> {
     // but it's still a good habit to start consuming first.
     let rx = cli.start_consuming();
 
-    // Connect with default options
+    // Connect with default options, and a clean start
     let conn_opts = mqtt::ConnectOptionsBuilder::new()
-        .mqtt_version(MQTTV5)
         .clean_start(true)
         .finalize();
 

@@ -5,7 +5,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2020 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2022 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -21,6 +21,7 @@
  *******************************************************************************/
 
 //! Connect options for the Paho MQTT Rust client library.
+//!
 //! This contains the structures to define the options for connecting to the
 //! MQTT broker/server.
 
@@ -42,8 +43,9 @@ use std::{ffi::CString, os::raw::c_int, pin::Pin, ptr, time::Duration};
 // Connections
 
 /// The collection of options for connecting to a broker.
-/// This can be constructed using a
-/// [ConnectOptionsBuilder](struct.ConnectOptionsBuilder.html).
+///
+/// This can be constructed using a [`ConnectOptionsBuilder`] to set all the
+/// options.
 #[derive(Debug)]
 pub struct ConnectOptions {
     /// The underlying C options structure.
@@ -75,8 +77,9 @@ impl ConnectOptions {
         ConnectOptions::default()
     }
 
-    // Fixes up the underlying C struct to point to our cached values.
-    // This should be called any time a cached object is modified.
+    // Creates a set of options from a C struct and cached values.
+    // Fixes up the underlying C struct to point to the cached values,
+    // then returns a new options object with them combined.
     fn from_data(mut copts: ffi::MQTTAsync_connectOptions, data: ConnectOptionsData) -> Self {
         let mut data = Box::pin(data);
 
@@ -148,36 +151,104 @@ impl ConnectOptions {
         Self { copts, data }
     }
 
+    // Sets the proper callbacks depending on the MQTT version and the
+    // presence of a context in the C opts.
+    fn fix_callbacks(&mut self) {
+        self.copts.onSuccess = None;
+        self.copts.onFailure = None;
+        self.copts.onSuccess5 = None;
+        self.copts.onFailure5 = None;
+
+        if !self.copts.context.is_null() {
+            if self.copts.MQTTVersion < ffi::MQTTVERSION_5 as i32 {
+                self.copts.onSuccess = Some(TokenInner::on_success);
+                self.copts.onFailure = Some(TokenInner::on_failure);
+            }
+            else {
+                self.copts.onSuccess5 = Some(TokenInner::on_success5);
+                self.copts.onFailure5 = Some(TokenInner::on_failure5);
+            }
+        }
+    }
+
+    /// Gets the MQTT protocol version that should be used for the
+    /// connection.
+    pub fn mqtt_version(&self) -> u32 {
+        self.copts.MQTTVersion as u32
+    }
+
+    /// Sets the MQTT protocol version that should be used for the
+    /// connection.
+    ///
+    /// This also insures that the other options are compatible with the
+    /// selected version. For example, when setting for v5, it will make
+    /// sure the `cleansession` flag is cleared, since v5 uses cleanstart,
+    /// not cleansession.
+    pub fn set_mqtt_version(&mut self, ver: u32) {
+        self.copts.MQTTVersion = ver as i32;
+
+        if ver < ffi::MQTTVERSION_5 {
+            self.copts.cleanstart = 0;
+        }
+        else {
+            self.copts.cleansession = 0;
+        }
+        self.fix_callbacks();
+    }
+
     /// Gets the "clean session" setting in the options.
+    ///
+    /// This is only used in MQTT v3 connections.
     pub fn clean_session(&self) -> bool {
         from_c_bool(self.copts.cleansession)
     }
 
     /// This sets the "clean session" behavior for connecting to the server.
+    ///
     /// When set to true, this directs the server to throw away any state
     /// related to the client, as determined by the client identifier.
     /// When set to false, the server keeps the state information and
     /// resumes the previous session.
+    ///
+    /// This is only used in MQTT v3 connections.
     pub fn set_clean_session(&mut self, clean: bool) {
         self.copts.cleansession = to_c_bool(clean);
+        if clean {
+            self.copts.cleanstart = 0;
+        }
+    }
+
+    /// Gets the "clean start" setting in the options.
+    ///
+    /// This is only used in MQTT v5 connections.
+    pub fn clean_start(&self) -> bool {
+        from_c_bool(self.copts.cleanstart)
+    }
+
+    /// This sets the "clean start" behavior for connecting to the server.
+    ///
+    /// When set to true, this directs the server to throw away any state
+    /// related to the client, as determined by the client identifier.
+    /// When set to false, the server keeps the state information and
+    /// resumes the previous session.
+    ///
+    /// This is only used in MQTT v5 connections.
+    pub fn set_clean_start(&mut self, clean: bool) {
+        self.copts.cleanstart = to_c_bool(clean);
+        if clean {
+            self.copts.cleansession = 0;
+        }
     }
 
     /// Sets the token to ber used for connect completion callbacks.
+    ///
     /// Note that we leak the token to give to the C lib. When we're
     /// done with it, we must recover and drop it (i.e. in the completion
     /// callback).
     pub fn set_token(&mut self, tok: ConnectToken) {
         let tok: Token = tok;
-
-        if self.copts.MQTTVersion < ffi::MQTTVERSION_5 as i32 {
-            self.copts.onSuccess = Some(TokenInner::on_success);
-            self.copts.onFailure = Some(TokenInner::on_failure);
-        }
-        else {
-            self.copts.onSuccess5 = Some(TokenInner::on_success5);
-            self.copts.onFailure5 = Some(TokenInner::on_failure5);
-        }
         self.copts.context = tok.into_raw();
+        self.fix_callbacks();
     }
 }
 
@@ -231,7 +302,8 @@ impl ConnectOptionsBuilder {
 
     /// Sets the 'clean session' flag to send to the broker.
     ///
-    /// This is for MQTT v3.x connections, only.
+    /// This is for MQTT v3.x connections only, and if set, will set the
+    /// other options to be compatible with v3.
     ///
     /// # Arguments
     ///
@@ -239,12 +311,21 @@ impl ConnectOptionsBuilder {
     ///         information for this client.
     pub fn clean_session(&mut self, clean: bool) -> &mut Self {
         self.copts.cleansession = to_c_bool(clean);
+
+        // Force the options to those compatible with v3 if set
+        if clean {
+            self.copts.cleanstart = 0;
+            if self.copts.MQTTVersion >= ffi::MQTTVERSION_5 as i32 {
+                self.copts.MQTTVersion = 0;
+            }
+        }
         self
     }
 
     /// Sets the 'clean start' flag to send to the broker.
     ///
-    /// This is for MQTT v5 connections only.
+    /// This is for MQTT v5 connections only, and if set, will set the
+    /// other options to be compatible with v5.
     ///
     /// # Arguments
     ///
@@ -252,6 +333,14 @@ impl ConnectOptionsBuilder {
     ///         information for this client.
     pub fn clean_start(&mut self, clean: bool) -> &mut Self {
         self.copts.cleanstart = to_c_bool(clean);
+
+        // Force the options to those compatible with v5 if set
+        if clean {
+            self.copts.cleansession = 0;
+            if self.copts.MQTTVersion < ffi::MQTTVERSION_5 as i32 {
+                self.copts.MQTTVersion = ffi::MQTTVERSION_5 as i32;
+            }
+        }
         self
     }
 
@@ -372,10 +461,14 @@ impl ConnectOptionsBuilder {
 
     /// Sets the version of MQTT to use on the connect.
     ///
+    /// Note that this value can not be greater than the version used to
+    /// create the client. Specifically, if the client was created for v3,
+    /// you can not try to connect with v5.
+    ///
     /// # Arguments
     ///
     /// `ver` The version of MQTT to use when connecting to the broker.
-    ///       * (0) try the latest version (3.1.1) and work backwards
+    ///       * (0) try the latest version and work backwards
     ///       * (3) only try v3.1
     ///       * (4) only try v3.1.1
     ///       * (5) only try v5

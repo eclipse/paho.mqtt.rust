@@ -77,7 +77,7 @@ impl ResponseOptions {
         Self::from_data(copts, ResponseOptionsData::default())
     }
 
-    // Creates a response options struct for the specified MQTT version
+    // Creates a C response options struct for the specified MQTT version
     fn c_options(mqtt_version: u32) -> ffi::MQTTAsync_responseOptions {
         if mqtt_version < 5 {
             ffi::MQTTAsync_responseOptions {
@@ -95,6 +95,9 @@ impl ResponseOptions {
         }
     }
 
+    // Creates a set of options from a C struct and cached values.
+    // Fixes up the underlying C struct to point to the cached values,
+    // then returns a new options object with them combined.
     fn from_data(mut copts: ffi::MQTTAsync_responseOptions, data: ResponseOptionsData) -> Self {
         let mut data = Box::pin(data);
 
@@ -109,6 +112,11 @@ impl ResponseOptions {
         copts.subscribeOptionsCount = n;
 
         Self { copts, data }
+    }
+
+    /// Gets the MQTT v5 properties in the response, if any.
+    pub fn properties(&self) -> &Properties {
+        &self.data.props
     }
 }
 
