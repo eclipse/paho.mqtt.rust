@@ -95,10 +95,13 @@ fn main() -> mqtt::Result<()> {
         topic.publish("Hello there").wait()?;
     }
 
-    // Publishing with alias zero removes it.
-    topic
-        .publish_with_alias(0, "Hello. Removed the alias.")
-        .wait()?;
+    // To remove an alias you could also publish with alias zero to get
+    // rid of it, like this:
+    //
+    //  topic.publish_with_alias(0, "Hello. Removed the alias.")
+    //
+    topic.remove_alias();
+    topic.publish("Hello. Removed the alias.").wait()?;
 
     // Subsequent publishes use the topic name string.
     topic.publish("No alias here").wait()?;

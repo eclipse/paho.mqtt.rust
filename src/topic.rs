@@ -99,25 +99,42 @@ impl<'a> Topic<'a> {
         }
     }
 
+    /// Create a message for the topic using the supplied payload.
+    ///
+    /// If `inc_topic` is true, this will create a message containing the
+    /// string topic whether or not the alias is set. This would be done
+    /// to set the topic alias on the server.
+    ///
+    /// If `inc_topic` is false, then the topic will be left blank if the
+    /// alias is set, and the topic alias property will be added to the
+    /// message.
+    pub fn create_message_with_topic<V>(&self, payload: V, inc_topic: bool) -> Message
+    where
+        V: Into<Vec<u8>>,
+    {
+        let mut bld = MessageBuilder::new()
+            .payload(payload)
+            .qos(self.qos)
+            .retained(self.retained);
+
+        if self.alias == 0 || inc_topic {
+            bld = bld.topic(&self.topic);
+        }
+
+        if self.alias != 0 {
+            bld = bld.properties(properties!{ PropertyCode::TopicAlias => self.alias });
+        }
+
+        bld.finalize()
+    }
+
     /// Create a message for the topic using the supplied payload
+    ///
     pub fn create_message<V>(&self, payload: V) -> Message
     where
         V: Into<Vec<u8>>,
     {
-        // OPTIMIZE: This could be more efficient.
-        if self.alias == 0 {
-            Message::new(&self.topic, payload, self.qos)
-        }
-        else {
-            let props = properties! { PropertyCode::TopicAlias => self.alias };
-            MessageBuilder::new()
-                .topic("")
-                .payload(payload)
-                .qos(self.qos)
-                .retained(self.retained)
-                .properties(props)
-                .finalize()
-        }
+        self.create_message_with_topic(payload, false)
     }
 
     /// Subscribe to the topic.
@@ -204,7 +221,9 @@ impl<'a> Topic<'a> {
         V: Into<Vec<u8>>,
     {
         self.alias = alias;
-        self.publish(payload)
+
+        let msg = self.create_message_with_topic(payload, true);
+        self.cli.publish(msg)
     }
 
     /// Attempts to publish a message on the topic using and setting a new topic
@@ -219,7 +238,27 @@ impl<'a> Topic<'a> {
         V: Into<Vec<u8>>,
     {
         self.alias = alias;
-        self.try_publish(payload)
+
+        let msg = self.create_message_with_topic(payload, true);
+        self.cli.try_publish(msg)
+    }
+
+    /// Gets the alias for the topic, if any.
+    pub fn alias(&self) -> Option<u16> {
+        match self.alias {
+            0 => None,
+            val => Some(val),
+        }
+    }
+
+    /// Removes the alias, if any, from the topic.
+    ///
+    /// After removing the alias, publshed messages contain the full string
+    /// topic. The alias mapping remains on the server though. The alias
+    /// number cann  be reused by assigning to a different topic, but the
+    /// only way to remove it is to disconnect the client.
+    pub fn remove_alias(&mut self) {
+        self.alias = 0;
     }
 }
 
@@ -344,7 +383,24 @@ impl<'a> SyncTopic<'a> {
         V: Into<Vec<u8>>,
     {
         self.topic.alias = alias;
-        self.publish(payload)
+
+        let msg = self.topic.create_message_with_topic(payload, true);
+        self.cli.publish(msg)
+    }
+
+    /// Gets the alias for the topic, if any.
+    pub fn alias(&self) -> Option<u16> {
+        self.topic.alias()
+    }
+
+    /// Removes the alias, if any, from the topic.
+    ///
+    /// After removing the alias, publshed messages contain the full string
+    /// topic. The alias mapping remains on the server though. The alias
+    /// number cann  be reused by assigning to a different topic, but the
+    /// only way to remove it is to disconnect the client.
+    pub fn remove_alias(&mut self) {
+        self.topic.remove_alias();
     }
 }
 
