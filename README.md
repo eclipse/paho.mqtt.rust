@@ -40,6 +40,11 @@ To keep up with the latest announcements for this project, follow:
 
 **Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
 
+### Unreleased Features in This Branch
+
+- [#145](https://github.com/eclipse/paho.mqtt.rust/issues/145) `impl From<Error> for io::Error` An MQTT error can be easily converted back to an I/O error.
+
+
 ### What's new in v0.10.0
 
 - Updated to support Paho C v1.3.9

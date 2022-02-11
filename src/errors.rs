@@ -91,6 +91,16 @@ impl From<String> for Error {
     }
 }
 
+impl From<Error> for io::Error {
+    fn from(err: Error) -> io::Error {
+        match err {
+            Error::Io(e) => e,
+            Error::Timeout => io::Error::new(io::ErrorKind::TimedOut, err),
+            _ => io::Error::new(io::ErrorKind::Other, err),
+        }
+    }
+}
+
 /// The result type for MQTT operations.
 pub type Result<T> = result::Result<T, Error>;
 
