@@ -80,9 +80,27 @@ The default behaviour can be altered by enabling or disabling the features:
 - _"ssl"_ - Whether to enable the use of secure sockets and secure websocket connections.
 - _"vendored-ssl"_ - Whether to build OpenSSL. This passes the "vendored" option to the _openssl-sys_ crate.
 
-Version 0.9 has started using the [openssl-sys](https://crates.io/crates/openssl-sys) crate which allows for further modification of the behavior through environment variables, such as specifying the location of the OpenSSL library or linking it statically. See below for details, or get more information from that crate.
+The _bundled_ feature requires `CMake` and a C compiler for the target.
 
-In particular, if you are using a pre-built OpenSSL library, you may now need to set the specific location of the library with an environment variable. For example, on Windows, you may need to do something like this:
+The _vendored-ssl_ feature requires the target C compiler as well, but also requires `Perl` and `make`.
+
+The default build attempts to speed up the build by using pre-generated C bindings for the recommended Paho C library. There are a number of bindings for common build targets, and when the specific target is not found, it resorts to a default for the target word size (32-bit or 64-bit).
+
+If your using a non-standard target and/or get a SEGFAULT, the first thing to try is using the _build_bindgen_ feature. That will generate a new binding file during the build for the specific target, which should fix the segfault in most cases.
+
+### Using SSL/TLS
+
+Starting with Version 0.9.0 we are using the [openssl-sys](https://crates.io/crates/openssl-sys) crate which allows for further modification of the behavior through environment variables, such as specifying the location of the OpenSSL library or linking it statically.
+
+For more information read the [Rust OpenSSL Docs](https://docs.rs/openssl/latest/openssl), _carefully_.
+
+In particular:
+
+- If you use _vendored-ssl_, you need a C compiler for the target, `Perl`, and `make`.
+
+- If you don't use _vendored-ssl_, it will attempt to use a package manager on the build host to find the library: `pkg-config` on Unix-like systems, `Homebrew` on macOS, and `vcpkg` on Windows. This is not recommended when cross-compiling.
+
+- If all else fails, you may need to set the specific location of the library with an environment variable. For example, on Windows, you may need to do something like this:
 
     set OPENSSL_DIR=C:\OpenSSL-Win64
 

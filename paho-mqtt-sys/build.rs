@@ -4,7 +4,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2020 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2022 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -74,13 +74,11 @@ fn is_msvc() -> bool {
     env::var("CARGO_CFG_TARGET_ENV").unwrap() == "msvc"
 }
 
-// If the target is an x86 (32-bit)
-fn is_x86() -> bool {
-    env::var("CARGO_CFG_TARGET_ARCH").unwrap() == "x86"
-}
-// If the target is an x86_64 (64-bit)
-fn is_x86_64() -> bool {
-    env::var("CARGO_CFG_TARGET_ARCH").unwrap() == "x86_64"
+// Get the target pointer width, typically 32 or 64
+fn pointer_width() -> u32 {
+    env::var("CARGO_CFG_TARGET_POINTER_WIDTH")
+        .map(|s| s.parse::<u32>().unwrap())
+        .unwrap()
 }
 
 // Determines the base name of which Paho C library we will link to.
@@ -143,17 +141,17 @@ mod bindings {
         let out_dir = env::var("OUT_DIR").unwrap();
         let out_path = Path::new(&out_dir).join("bindings.rs");
 
-        let target_ptr_wd = env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap();
-        println!("debug:Target Pointer Width: {}", target_ptr_wd);
+        let ptr_wd = pointer_width();
+        println!("debug:Target Pointer Width: {}", ptr_wd);
 
         let mut bindings = format!("bindings/bindings_paho_mqtt_c_{}-{}.rs",
                                    PAHO_MQTT_C_VERSION, target);
 
         if !Path::new(&bindings).exists() {
             println!("No bindings exist for: {}. Using {}-bit default.",
-                     bindings, target_ptr_wd);
+                     bindings, ptr_wd);
             bindings = format!("bindings/bindings_paho_mqtt_c_{}-default-{}.rs",
-                    PAHO_MQTT_C_VERSION, target_ptr_wd)
+                    PAHO_MQTT_C_VERSION, ptr_wd)
         }
 
         println!("debug:Using bindings from: {}", bindings);
@@ -168,8 +166,10 @@ mod bindings {
     extern crate bindgen;
 
     use super::*;
-    use std::{fs, env};
-    use std::path::{Path, PathBuf};
+    use std::{
+        fs, env,
+        path::{Path, PathBuf},
+    };
 
     pub fn place_bindings(inc_dir: &Path) {
         println!("debug:Using bindgen for Paho C");
@@ -230,10 +230,23 @@ mod build {
     extern crate cmake;
 
     use super::*;
-    use std::process;
-    use std::path::Path;
-    use std::process::Command;
-    use std::env;
+    use std::{
+        path::Path,
+        process,
+        process::Command,
+        env,
+    };
+
+    // The openssl-sys crate does the hard part of finding the library,
+    // but it only seems to set a variable for the path to the include files.
+    // We assume the directory above that one is the SSL root.
+    fn openssl_root_dir() -> Option<String> {
+        env::var("DEP_OPENSSL_INCLUDE").ok().and_then(|path| {
+            Path::new(&path)
+                .parent()
+                .map(|path| path.display().to_string())
+        })
+    }
 
     pub fn main() {
         println!("debug:Running the bundled build for Paho C");
@@ -244,18 +257,17 @@ mod build {
             }
         }
 
-        // we rerun the build if the `build.rs` file is changed.
+        // We rerun the build if this `build.rs` file is changed.
         println!("cargo:rerun-if-changed=build.rs");
 
         // Mske sure that the Git submodule is checked out
-
         if !Path::new("paho.mqtt.c/.git").exists() {
             let _ = Command::new("git")
                         .args(&["submodule", "update", "--init"])
                         .status();
         }
 
-        // Use and configure cmake to build the Paho C lib
+        // Configure cmake to build the Paho C lib
         let ssl = if cfg!(feature = "ssl") { "on" } else { "off" };
 
         let mut cmk_cfg = cmake::Config::new("paho.mqtt.c/");
@@ -270,8 +282,8 @@ mod build {
             cmk_cfg.cflag("/DWIN32");
         }
 
-        if let Some(openssl_root_dir) = openssl_root_dir() {
-            cmk_cfg.define("OPENSSL_ROOT_DIR", openssl_root_dir);
+        if let Some(ssl_dir) = openssl_root_dir() {
+            cmk_cfg.define("OPENSSL_ROOT_DIR", ssl_dir);
         }
 
         // 'cmk_install_dir' is a PathBuf to the cmake install directory
@@ -294,36 +306,35 @@ mod build {
 
         bindings::place_bindings(&inc_dir);
 
+        //for (key, value) in env::vars() {
+        //    println!("debug: Env {}: {}", key, value);
+        //}
+
         // Link in the SSL libraries if configured for it.
         if cfg!(feature = "ssl") {
-            let openssl_root_dir = openssl_root_dir();
-
-            let openssl_root_dir = if is_windows() && is_x86() {
-                openssl_root_dir.as_deref().or_else(|| Some("C:\\OpenSSL-Win32"))
-            }
-            else if is_windows() && is_x86_64() {
-                openssl_root_dir.as_deref().or_else(|| Some("C:\\OpenSSL-Win64"))
-            }
-            else {
-                openssl_root_dir.as_deref()
-            };
-
-            if let Some(openssl_root_dir) = openssl_root_dir {
+            if let Some(openssl_root_dir) = openssl_root_dir() {
                 println!("cargo:rustc-link-search={}/lib", openssl_root_dir);
             }
 
-            if is_msvc() {
-                println!("cargo:rustc-link-lib=libssl");
-                println!("cargo:rustc-link-lib=libcrypto");
-            } else {
-                println!("cargo:rustc-link-lib=ssl");
-                println!("cargo:rustc-link-lib=crypto");
+            // See if static SSL linkage was requested
+            let linkage = match env::var("OPENSSL_STATIC")
+                .as_ref()
+                .map(|s| s.as_str())
+            {
+                Ok("0") => "",
+                Ok(_) => "=static",
+                Err(_) => ""
+            };
 
-                if is_windows() {
-                    // required for mingw builds
-                    println!("cargo:rustc-link-lib=crypt32");
-                    println!("cargo:rustc-link-lib=rpcrt4");
-                }
+            let prefix = if is_msvc() { "lib" } else { "" };
+
+            println!("cargo:rustc-link-lib{}={}ssl", linkage, prefix);
+            println!("cargo:rustc-link-lib{}={}crypto", linkage, prefix);
+
+            if is_windows() && !is_msvc() {
+                // required for mingw builds
+                println!("cargo:rustc-link-lib{}=crypt32", linkage);
+                println!("cargo:rustc-link-lib{}=rpcrt4", linkage);
             }
 
         }
@@ -331,14 +342,6 @@ mod build {
         // we add the folder where all the libraries are built to the path search
         println!("cargo:rustc-link-search=native={}", lib_path.display());
         println!("cargo:rustc-link-lib=static={}", link_lib);
-    }
-
-    fn openssl_root_dir() -> Option<String> {
-        env::var("DEP_OPENSSL_INCLUDE").ok().and_then(|path| {
-            Path::new(&path)
-                .parent()
-                .map(|path| path.display().to_string())
-        })
     }
 }
 
@@ -349,8 +352,10 @@ mod build {
 #[cfg(not(feature = "bundled"))]
 mod build {
     use super::*;
-    use std::env;
-    use std::path::Path;
+    use std::{
+        env,
+        path::Path,
+    };
 
     // Set the library path, and return the location of the header,
     // if found.
