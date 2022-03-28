@@ -39,7 +39,7 @@ pub const MQTT_VERSION_5: u32 = ffi::MQTTVERSION_5;
 /// Quality of Service Zero: At most once
 pub const QOS_0: i32 = 0;
 
-/// Quality of Service Zero: At least once
+/// Quality of Service One: At least once
 pub const QOS_1: i32 = 1;
 
 /// Quality of Service Two: Exactly Once
