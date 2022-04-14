@@ -28,7 +28,7 @@ The initial version of this crate is a wrapper for the Paho C library, and inclu
     - Traditional asynchronous (token/wait) API
     - Synchronous/blocking  API
 
-Requires Paho C v1.3.9, or possibly later.
+Requires Paho C v1.3.10, or possibly later.
 
 ## Latest News
 
@@ -42,6 +42,7 @@ To keep up with the latest announcements for this project, follow:
 
 ### Unreleased Features in This Branch
 
+- Updated to support Paho C v1.3.10
 - [#113](https://github.com/eclipse/paho.mqtt.rust/issues/113) Build now respects the OPENSSL_STATIC flag (if OPENSSL_DIR or other path flags set).
 - [#145](https://github.com/eclipse/paho.mqtt.rust/issues/145) `impl From<Error> for io::Error` An MQTT error can be easily converted back to an I/O error.
 
@@ -127,7 +128,7 @@ Generates reference documentation.
 
 ###  The Paho C Library and _paho-mqtt-sys_
 
-The Paho Rust crate is a wrapper around the Paho C library. This version is **specifically matched to Paho C v 1.3.x**, and is currently using version 1.3.9. It will generally not build against newer versions of the C library, as the C lib expands functionality by extending structures, thus breaking the Rust build.
+The Paho Rust crate is a wrapper around the Paho C library. This version is **specifically matched to Paho C v 1.3.x**, and is currently using version 1.3.10. It will generally not build against newer versions of the C library, as the C lib expands functionality by extending structures, thus breaking the Rust build.
 
 The project includes a Rust _-sys_ crate, called _paho-mqtt-sys_, which provides unsafe bindings to the C library.  The repository contains a Git submodule pointing to the specific version of the C library that the Rust crate requires, and by default, it will automatically build and link to that library, using pre-generated C bindings that are also included in the repo.
 
@@ -231,25 +232,25 @@ The crate comes with a number of pre-built bindings for several popular targets 
 
 Some of these include:
 
-    bindings_paho_mqtt_c_1.3.9-x86_64-unknown-linux-gnu.rs
-    bindings_paho_mqtt_c_1.3.9-x86_64-pc-windows-msvc.rs
-    bindings_paho_mqtt_c_1.3.9-aarch64-unknown-linux-gnu.rs
-    bindings_paho_mqtt_c_1.3.9-armv7-unknown-linux-gnueabihf.rs
-    bindings_paho_mqtt_c_1.3.9-x86_64-apple-darwin.rs
-    bindings_paho_mqtt_c_1.3.9-default-32.rs
-    bindings_paho_mqtt_c_1.3.9-default-64.rs
+    bindings_paho_mqtt_c_1.3.10-x86_64-unknown-linux-gnu.rs
+    bindings_paho_mqtt_c_1.3.10-x86_64-pc-windows-msvc.rs
+    bindings_paho_mqtt_c_1.3.10-aarch64-unknown-linux-gnu.rs
+    bindings_paho_mqtt_c_1.3.10-armv7-unknown-linux-gnueabihf.rs
+    bindings_paho_mqtt_c_1.3.10-x86_64-apple-darwin.rs
+    bindings_paho_mqtt_c_1.3.10-default-32.rs
+    bindings_paho_mqtt_c_1.3.10-default-64.rs
 
 Bindings can be created for new versions of the Paho C library or for different target platforms using the command-line _bindgen_ tool. For example on an x86 version of Windows using MSVC, you can re-generate the bindings like this:
 
 ```
 $ cd paho-mqtt-sys
-$ bindgen wrapper.h -o bindings/bindings_paho_mqtt_c_1.3.9-x86_64-pc-windows-msvc.rs -- -Ipaho.mqtt.c/src
+$ bindgen wrapper.h -o bindings/bindings_paho_mqtt_c_1.3.10-x86_64-pc-windows-msvc.rs -- -Ipaho.mqtt.c/src
 ```
 
 To create bindings for a different target, use the _TARGET_ environment variable. For example, to build the 32-bit MSVC bindings for Windows on a 64-bit host, use the _i686-pc-windows-msvc_ target:
 
 ```
-$ TARGET=i686-pc-windows-msvc bindgen wrapper.h -o bindings/bindings_paho_mqtt_c_1.3.9-i686-pc-windows-msvc.rs -- -Ipaho.mqtt.c/src
+$ TARGET=i686-pc-windows-msvc bindgen wrapper.h -o bindings/bindings_paho_mqtt_c_1.3.10-i686-pc-windows-msvc.rs -- -Ipaho.mqtt.c/src
 ```
 
 ##### Bindgen linker issue
