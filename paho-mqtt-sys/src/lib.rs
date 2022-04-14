@@ -24,6 +24,9 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
+// Weirdness in the bindgen bindings
+#![allow(deref_nullptr)]
+
 // Temporary
 #![allow(dead_code)]
 
