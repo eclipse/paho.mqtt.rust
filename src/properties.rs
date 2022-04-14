@@ -885,13 +885,9 @@ impl Properties {
 
     /// Adds a property to the colletion.
     pub fn push(&mut self, prop: Property) -> Result<()> {
-        let rc = unsafe { ffi::MQTTProperties_add(&mut self.cprops, &prop.cprop) };
-        if rc == 0 {
-            mem::forget(prop);
-            Ok(())
-        }
-        else {
-            Err(rc.into())
+        match unsafe { ffi::MQTTProperties_add(&mut self.cprops, &prop.cprop) } {
+            rc if rc == 0 => Ok(()),
+            rc => Err(rc.into()),
         }
     }
 
