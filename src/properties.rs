@@ -50,12 +50,19 @@ type LenString = ffi::MQTTLenString;
 #[repr(u32)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PropertyType {
+    /// A property containing a single byte
     Byte = 0,
+    /// A property containing a 16-bit integer, i16 or u16.
     TwoByteInteger = 1,
+    /// A property containing a 32-bit integer, i32 or u32.
     FourByteInteger = 2,
+    /// A property containing a variable-byte value.
     VariableByteInteger = 3,
+    /// A property containing a binary blob, like Vec<u8>
     BinaryData = 4,
+    /// A property containing a String
     Utf8EncodedString = 5,
+    /// A property containing a pair of strings (two)
     Utf8StringPair = 6,
 }
 
@@ -108,6 +115,7 @@ impl TryFrom<ffi::MQTTPropertyTypes> for PropertyType {
 /// property.
 #[repr(u32)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[allow(missing_docs)]
 pub enum PropertyCode {
     PayloadFormatIndicator = 1,
     MessageExpiryInterval = 2,
@@ -142,6 +150,7 @@ pub enum PropertyCode {
 type Code = ffi::MQTTPropertyCodes;
 
 impl PropertyCode {
+    /// Tries to create a `PropertyCode` from the integer value.
     pub fn new(code: ffi::MQTTPropertyCodes) -> Option<Self> {
         Self::try_from(code).ok()
     }
@@ -843,7 +852,7 @@ impl Clone for Property {
 ///
 /// This is a collection of properties that can be added to outgoing packets
 /// or retrieved from incoming packets.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Properties {
     pub(crate) cprops: ffi::MQTTProperties,
 }
@@ -854,8 +863,11 @@ impl Properties {
         Properties::default()
     }
 
+    /// Creates a set of properties from an underlying C struct.
+    ///
+    /// This does a deep copy of the properties in the C lib and then keeps
+    /// the copy.
     pub fn from_c_struct(cprops: &ffi::MQTTProperties) -> Self {
-        // This does a deep copy in the C lib
         let cprops = unsafe { ffi::MQTTProperties_copy(cprops) };
         Properties { cprops }
     }
@@ -1044,14 +1056,6 @@ impl Properties {
             }
         }
         None
-    }
-}
-
-impl Default for Properties {
-    fn default() -> Self {
-        Properties {
-            cprops: ffi::MQTTProperties::default(),
-        }
     }
 }
 

@@ -10,7 +10,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2020 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2020-2022 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -108,6 +108,11 @@ impl NameValueCollection {
         let data = Box::pin(data);
         let c_coll = Self::to_c_vec(&data.coll);
         Self { c_coll, data }
+    }
+
+    /// Returns true if the collection contains elements.
+    pub fn is_empty(&self) -> bool {
+        self.data.coll.is_empty()
     }
 
     /// Gets the number of strings in the collection.

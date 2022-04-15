@@ -104,7 +104,7 @@ impl From<Error> for io::Error {
 /// The result type for MQTT operations.
 pub type Result<T> = result::Result<T, Error>;
 
-// Gets the string associated with the error code from the C lib.
+/// Gets the string associated with the error code from the C lib.
 pub fn error_message(rc: i32) -> &'static str {
     match rc {
         ffi::MQTTASYNC_FAILURE => "General failure",

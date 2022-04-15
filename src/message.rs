@@ -41,6 +41,7 @@ pub(crate) struct MessageData {
 }
 
 impl MessageData {
+    /// Creates new message data from the topic and payload.
     pub(crate) fn new<S, V>(topic: S, payload: V) -> Self
     where
         S: Into<String>,
@@ -158,7 +159,7 @@ impl Message {
         self.cmsg.qos
     }
 
-    /// Gets the 'retained' flag for the message.
+    /// Gets the 'retain' flag for the message.
     pub fn retained(&self) -> bool {
         self.cmsg.retained != 0
     }
@@ -170,12 +171,14 @@ impl Message {
 }
 
 impl Default for Message {
+    /// Creates a default, empty message
     fn default() -> Message {
         Self::from_data(ffi::MQTTAsync_message::default(), MessageData::default())
     }
 }
 
 impl Clone for Message {
+    /// Create a clone of the message
     fn clone(&self) -> Self {
         Self::from_data(self.cmsg, (&*self.data).clone())
     }
@@ -205,6 +208,7 @@ impl<'a, 'b> From<(&'a str, &'b [u8], i32, bool)> for Message {
 }
 
 impl fmt::Display for Message {
+    /// Formats the message for display
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let topic = match self.data.topic.as_c_str().to_str() {
             Ok(s) => s,

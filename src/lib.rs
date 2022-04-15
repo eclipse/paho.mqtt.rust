@@ -23,9 +23,7 @@
 //! This is the Eclipse Paho MQTT client library for the Rust language.
 //!
 
-// TODO: Uncomment this and build to check the documentation coverage
-//#![deny(missing_docs)]
-
+#![deny(missing_docs)]
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
@@ -33,8 +31,6 @@
 #[macro_use]
 extern crate log;
 extern crate paho_mqtt_sys as ffi;
-
-//use crossbeam_channel as channel;
 
 pub use async_channel::Receiver as AsyncReceiver;
 pub use crossbeam_channel::Receiver;

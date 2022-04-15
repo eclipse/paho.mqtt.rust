@@ -122,7 +122,7 @@ impl<'a> Topic<'a> {
         }
 
         if self.alias != 0 {
-            bld = bld.properties(properties!{ PropertyCode::TopicAlias => self.alias });
+            bld = bld.properties(properties! { PropertyCode::TopicAlias => self.alias });
         }
 
         bld.finalize()
@@ -418,9 +418,9 @@ impl<'a> SyncTopic<'a> {
 /// It can be used to match against topics.
 #[derive(Debug)]
 pub enum TopicFilter {
-    // If there are no wildcards, the filter is a straight topic string
+    /// If there are no wildcards, the filter is a straight topic string
     Topic(String),
-    // If there are wildcards, the filter is split by fields.
+    /// If there are wildcards, the filter is split by fields.
     Fields(Vec<String>),
 }
 
@@ -436,12 +436,12 @@ impl TopicFilter {
         let n = filter.len();
 
         if n == 0 {
-            Err(Error::BadTopicFilter)?;
+            return Err(Error::BadTopicFilter);
         }
 
         // If the topic contains any wildcards.
         let wild = match filter.find('#') {
-            Some(i) if i < n - 1 => Err(Error::BadTopicFilter)?,
+            Some(i) if i < n - 1 => return Err(Error::BadTopicFilter),
             Some(_) => true,
             None => filter.contains('+'),
         };

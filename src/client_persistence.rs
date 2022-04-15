@@ -26,11 +26,14 @@ use std::{
     ptr, slice,
 };
 
-use crate::{errors::Result, ffi};
+use crate::{errors::Result, ffi, to_c_bool};
 
 // TODO: Should we have a specific PersistenceResult/Error?
 
+/// Return value for a successful persistence operation
 pub const PERSISTENCE_SUCCESS: c_int = ffi::MQTTASYNC_SUCCESS as c_int;
+
+/// Return value for a failed persistence operation
 pub const PERSISTENCE_ERROR: c_int = ffi::MQTTCLIENT_PERSISTENCE_ERROR;
 
 /// Trait to implement custom persistence in the client.
@@ -111,10 +114,16 @@ impl UserPersistence {
         }
     }
 
-    // Callback from the C library to open the persistence store.
-    // On entry, the 'context' has the address of the user's persistence
-    // object which is reassigned to the 'handle'.
-    // Subsequent calls have the object address as the handle.
+    /// Callback from the C library to open the persistence store.
+    /// On entry, the 'context' has the address of the user's persistence
+    /// object which is reassigned to the 'handle'.
+    /// Subsequent calls have the object address as the handle.
+    ///
+    /// # Safety
+    ///
+    /// This is a callback directly from the C library. All parameters
+    /// parameters must be checked for validity (NULL pointers, etc)
+    ///
     pub unsafe extern "C" fn on_open(
         handle: *mut *mut c_void,
         client_id: *const c_char,
@@ -138,6 +147,12 @@ impl UserPersistence {
     }
 
     /// Callback from the C library to close the persistence store.
+    ///
+    /// # Safety
+    ///
+    /// This is a callback directly from the C library. All parameters
+    /// parameters must be checked for validity (NULL pointers, etc)
+    ///
     pub unsafe extern "C" fn on_close(handle: *mut c_void) -> c_int {
         trace!("UserPersistence::on_close");
         if handle.is_null() {
@@ -152,7 +167,13 @@ impl UserPersistence {
         }
     }
 
-    /// Callback from the C library to add data to the persistence store
+    /// Callback from the C library to add data to the persistence store.
+    ///
+    /// # Safety
+    ///
+    /// This is a callback directly from the C library. All parameters
+    /// parameters must be checked for validity (NULL pointers, etc)
+    ///
     pub unsafe extern "C" fn on_put(
         handle: *mut c_void,
         key: *mut c_char,
@@ -187,6 +208,12 @@ impl UserPersistence {
 
     /// Callback from the C library to retrieve data from the
     /// persistence store.
+    ///
+    /// # Safety
+    ///
+    /// This is a callback directly from the C library. All parameters
+    /// parameters must be checked for validity (NULL pointers, etc)
+    ///
     pub unsafe extern "C" fn on_get(
         handle: *mut c_void,
         key: *mut c_char,
@@ -216,6 +243,12 @@ impl UserPersistence {
 
     /// Callback from the C library to delete specific data from the
     /// persistence store.
+    ///
+    /// # Safety
+    ///
+    /// This is a callback directly from the C library. All parameters
+    /// parameters must be checked for validity (NULL pointers, etc)
+    ///
     pub unsafe extern "C" fn on_remove(handle: *mut c_void, key: *mut c_char) -> c_int {
         trace!("UserPersistence::on_remove");
         if handle.is_null() || key.is_null() {
@@ -232,6 +265,12 @@ impl UserPersistence {
 
     /// Callback from the C library to retrieve the set of keys from the
     /// persistence store.
+    ///
+    /// # Safety
+    ///
+    /// This is a callback directly from the C library. All parameters
+    /// parameters must be checked for validity (NULL pointers, etc)
+    ///
     pub unsafe extern "C" fn on_keys(
         handle: *mut c_void,
         keys: *mut *mut *mut c_char,
@@ -274,6 +313,12 @@ impl UserPersistence {
 
     /// Callback from the C library to remove all the data from the
     /// persistence store.
+    ///
+    /// # Safety
+    ///
+    /// This is a callback directly from the C library. All parameters
+    /// parameters must be checked for validity (NULL pointers, etc)
+    ///
     pub unsafe extern "C" fn on_clear(handle: *mut c_void) -> c_int {
         trace!("UserPersistence::on_clear");
         if handle.is_null() {
@@ -289,6 +334,12 @@ impl UserPersistence {
 
     /// Callback from the C library to determine if the store contains
     /// the specified key.
+    ///
+    /// # Safety
+    ///
+    /// This is a callback directly from the C library. All parameters
+    /// parameters must be checked for validity (NULL pointers, etc)
+    ///
     pub unsafe extern "C" fn on_contains_key(handle: *mut c_void, key: *mut c_char) -> c_int {
         trace!("UserPersistence::on_contains_key");
         if handle.is_null() || key.is_null() {
@@ -297,12 +348,7 @@ impl UserPersistence {
         let persist = &mut *(handle as *mut Box<dyn ClientPersistence>);
         let key = CStr::from_ptr(key).to_str().unwrap();
 
-        if persist.contains_key(key) {
-            1
-        }
-        else {
-            0
-        }
+        to_c_bool(persist.contains_key(key))
     }
 }
 

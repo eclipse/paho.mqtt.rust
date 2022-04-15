@@ -26,6 +26,7 @@ use std::{ffi::CStr, fmt};
 /// MQTT v5 single-byte reason codes.
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Debug)]
+#[allow(missing_docs)]
 pub enum ReasonCode {
     Success = 0, // also: NormalDisconnection & GrantedQos0
     GrantedQos1 = 1,
@@ -76,7 +77,10 @@ pub enum ReasonCode {
 
 // Some aliased ReasonCode values
 
+/// Reason code for a normal disconnect
 pub const NormalDisconnection: ReasonCode = ReasonCode::Success;
+
+/// Reason code for QoS 0 granted
 pub const GrantedQos0: ReasonCode = ReasonCode::Success;
 
 impl ReasonCode {

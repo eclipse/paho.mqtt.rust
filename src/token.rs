@@ -568,10 +568,19 @@ impl Future for Token {
     }
 }
 
+/// A token for a Connect request.
 pub type ConnectToken = Token;
+
+/// A token for a Subscribe request.
 pub type SubscribeToken = Token;
+
+/// A token for a Subscribe Many request.
 pub type SubscribeManyToken = Token;
+
+/// A token for an Unsubscribe request.
 pub type UnsubscribeToken = Token;
+
+/// A token for an Unsubscribe Many request.
 pub type UnsubscribeManyToken = Token;
 
 /////////////////////////////////////////////////////////////////////////////

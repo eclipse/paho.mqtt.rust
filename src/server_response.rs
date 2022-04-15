@@ -123,6 +123,13 @@ impl ServerResponse {
 
     /// Creates the response object from the v3 "success" data structure
     /// sent by the C lib on completion of the operation.
+    ///
+    /// # Safety
+    ///
+    /// This function runs in the context of a C callback indicating a
+    /// successful action. It directly accesses the pointers and unions
+    /// in the C `MQTTAsync_successData` struct.
+    ///
     pub unsafe fn from_success(req: ServerRequest, rsp: &ffi::MQTTAsync_successData) -> Self {
         let rsp = match req {
             ServerRequest::Connect => {
@@ -160,6 +167,13 @@ impl ServerResponse {
 
     /// Creates the response object from the v5 "success" data structure
     /// sent by the C lib on completion of the operation.
+    ///
+    /// # Safety
+    ///
+    /// This function runs in the context of a C callback indicating a
+    /// successful v5 action. It directly accesses the pointers and unions
+    /// in the C `MQTTAsync_successData5` struct.
+    ///
     pub unsafe fn from_success5(req: ServerRequest, rsp: &ffi::MQTTAsync_successData5) -> Self {
         let props = Properties::from_c_struct(&rsp.properties);
         //debug!("Properties: {:?}", props);
@@ -224,6 +238,13 @@ impl ServerResponse {
 
     /// Creates the response object from the v5 "failure" data structure
     /// sent by the C lib on completion of the operation.
+    ///
+    /// # Safety
+    ///
+    /// This function runs in the context of a C callback indicating a
+    /// failed v5 action. It directly accesses the pointers and unions
+    /// in the C `MQTTAsync_failureData5` struct.
+    ///
     pub unsafe fn from_failure5(rsp: &ffi::MQTTAsync_failureData5) -> Self {
         ServerResponse {
             rsp: RequestResponse::default(),

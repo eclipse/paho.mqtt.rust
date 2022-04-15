@@ -103,6 +103,11 @@ impl StringCollection {
         }
     }
 
+    /// Returns true if the collection contains elements.
+    pub fn is_empty(&self) -> bool {
+        self.data.coll.is_empty()
+    }
+
     /// Gets the number of strings in the collection.
     pub fn len(&self) -> usize {
         self.data.coll.len()

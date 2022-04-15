@@ -71,9 +71,13 @@ struct SslOptionsData {
 #[repr(u32)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum SslVersion {
+    /// The default library SSL/TLS version
     Default = ffi::MQTT_SSL_VERSION_DEFAULT,
+    /// TLS version 1.0
     Tls_1_0 = ffi::MQTT_SSL_VERSION_TLS_1_0,
+    /// TLS version 1.1
     Tls_1_1 = ffi::MQTT_SSL_VERSION_TLS_1_1,
+    /// TLS version 1.2
     Tls_1_2 = ffi::MQTT_SSL_VERSION_TLS_1_2,
 }
 
@@ -103,12 +107,11 @@ impl SslOptions {
     fn proto_vec(protos: &[&str]) -> Vec<c_uchar> {
         let protos: Vec<c_uchar> = protos
             .iter()
-            .map(|p| {
+            .flat_map(|p| {
                 let mut p: Vec<c_uchar> = p.bytes().map(|c| c as c_uchar).collect();
                 p.insert(0, p.len() as c_uchar);
                 p
             })
-            .flatten()
             .collect();
         protos
     }

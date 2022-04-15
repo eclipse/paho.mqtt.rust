@@ -69,7 +69,7 @@ impl<T: Default> TopicMatcher<T> {
     pub fn insert(&mut self, key: &str, val: T) {
         let mut node = &mut self.root;
 
-        for sym in key.split("/") {
+        for sym in key.split('/') {
             node = node
                 .children
                 .entry(sym.to_string())
@@ -81,7 +81,7 @@ impl<T: Default> TopicMatcher<T> {
     /// Gets a value from the collection using an exact filter match.
     pub fn get(&self, key: &str) -> Option<&T> {
         let mut node = &self.root;
-        for sym in key.split("/") {
+        for sym in key.split('/') {
             node = match node.children.get(sym) {
                 Some(node) => node,
                 None => return None,
