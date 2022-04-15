@@ -338,7 +338,7 @@ impl UserPersistence {
     /// # Safety
     ///
     /// This is a callback directly from the C library. All parameters
-    /// parameters must be checked for validity (NULL pointers, etc)
+    /// must be checked for validity (NULL pointers, etc)
     ///
     pub unsafe extern "C" fn on_contains_key(handle: *mut c_void, key: *mut c_char) -> c_int {
         trace!("UserPersistence::on_contains_key");

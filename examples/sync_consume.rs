@@ -14,10 +14,11 @@
 //!   - Manual reconnects
 //!   - Using a persistent (non-clean) session
 //!   - Last will and testament
+//!   - Using ^C handler for a clean exit
 //!
 
 /*******************************************************************************
- * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2022 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -72,7 +73,7 @@ fn main() {
         .client_id("rust_sync_consumer")
         .finalize();
 
-    let mut cli = mqtt::Client::new(create_opts).unwrap_or_else(|e| {
+    let cli = mqtt::Client::new(create_opts).unwrap_or_else(|e| {
         println!("Error creating the client: {:?}", e);
         process::exit(1);
     });
@@ -104,7 +105,10 @@ fn main() {
                     "Connected to: '{}' with MQTT version {}",
                     conn_rsp.server_uri, conn_rsp.mqtt_version
                 );
-                if !conn_rsp.session_present {
+                if conn_rsp.session_present {
+                    println!("  w/ client session already present on broker.");
+                }
+                else {
                     // Register subscriptions on the server
                     println!("Subscribing to topics with requested QoS: {:?}...", qos);
 
@@ -131,10 +135,16 @@ fn main() {
         }
     }
 
+    // ^C handler will stop the consumer, breaking us out of the loop, below
+    let ctrlc_cli = cli.clone();
+    ctrlc::set_handler(move || {
+        ctrlc_cli.stop_consuming();
+    }).expect("Error setting Ctrl-C handler");
+
     // Just loop on incoming messages.
     // If we get a None message, check if we got disconnected,
     // and then try a reconnect.
-    println!("Waiting for messages...");
+    println!("\nWaiting for messages on topics {:?}...", subscriptions);
     for msg in rx.iter() {
         if let Some(msg) = msg {
             println!("{}", msg);
@@ -147,7 +157,7 @@ fn main() {
     // If we're still connected, then disconnect now,
     // otherwise we're already disconnected.
     if cli.is_connected() {
-        println!("Disconnecting");
+        println!("\nDisconnecting...");
         cli.unsubscribe_many(&subscriptions).unwrap();
         cli.disconnect(None).unwrap();
     }

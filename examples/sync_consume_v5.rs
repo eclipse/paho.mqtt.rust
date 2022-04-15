@@ -18,10 +18,11 @@
 //!   - Manual reconnects
 //!   - Using a persistent (non-clean) session
 //!   - Last will and testament
+//!   - Using ^C handler for a clean exit
 //!
 
 /*******************************************************************************
- * Copyright (c) 2020 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2020-2022 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -54,11 +55,13 @@ fn data_handler(msg: mqtt::Message) -> bool {
 // Return false to exit the application
 // Subscription ID: 2
 fn command_handler(msg: mqtt::Message) -> bool {
-    if msg.payload_str() == "exit" {
+    let cmd = msg.payload_str();
+    if cmd == "exit" {
         println!("Exit command received");
         false
     }
     else {
+        println!("Received command: '{}'", cmd);
         true
     }
 }
@@ -108,7 +111,7 @@ fn main() -> mqtt::Result<()> {
         .client_id("paho_rust_sync_cons_v5")
         .finalize();
 
-    let mut cli = mqtt::Client::new(create_opts)?;
+    let cli = mqtt::Client::new(create_opts)?;
 
     // Initialize the consumer before connecting
     let rx = cli.start_consuming();
@@ -121,7 +124,7 @@ fn main() -> mqtt::Result<()> {
 
     let conn_opts = mqtt::ConnectOptionsBuilder::new()
         .mqtt_version(mqtt::MQTT_VERSION_5)
-        .clean_session(false)
+        .clean_start(false)
         .will_message(lwt)
         .finalize();
 
@@ -143,7 +146,10 @@ fn main() -> mqtt::Result<()> {
             conn_rsp.server_uri, conn_rsp.mqtt_version
         );
 
-        if !conn_rsp.session_present {
+        if conn_rsp.session_present {
+            println!("  w/ client session already present on broker.");
+        }
+        else {
             // Register subscriptions on the server, using Subscription ID's.
             println!("Subscribing to topics...");
             cli.subscribe_with_options("data/#", 0, None, sub_id(1))?;
@@ -151,10 +157,16 @@ fn main() -> mqtt::Result<()> {
         }
     }
 
+    // ^C handler will stop the consumer, breaking us out of the loop, below
+    let ctrlc_cli = cli.clone();
+    ctrlc::set_handler(move || {
+        ctrlc_cli.stop_consuming();
+    }).expect("Error setting Ctrl-C handler");
+
     // Just loop on incoming messages.
     // If we get a None message, check if we got disconnected,
     // and then try a reconnect.
-    println!("Waiting for messages...");
+    println!("\nWaiting for messages...");
     for msg in rx.iter() {
         if let Some(msg) = msg {
             // In a real app you'd want to do a lot more error checking and
@@ -177,7 +189,7 @@ fn main() -> mqtt::Result<()> {
     // If we're still connected, then disconnect now,
     // otherwise we're already disconnected.
     if cli.is_connected() {
-        println!("Disconnecting");
+        println!("\nDisconnecting");
         cli.disconnect(None).unwrap();
     }
     println!("Exiting");

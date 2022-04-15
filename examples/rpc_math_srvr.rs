@@ -186,7 +186,7 @@ fn main() -> mqtt::Result<()> {
         .persistence(None)
         .finalize();
 
-    let mut cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|err| {
+    let cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|err| {
         eprintln!("Error creating the client: {}", err);
         process::exit(1);
     });
@@ -209,7 +209,7 @@ fn main() -> mqtt::Result<()> {
     });
 
     // We're connecting with a persistent session. So we check if
-    // the server already knows about us and rembers about out
+    // the server already knows about us and rembers about our
     // subscription(s). If not, we subscribe for incoming requests.
 
     if let Some(mqtt::ConnectResponse {

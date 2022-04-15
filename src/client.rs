@@ -42,6 +42,7 @@ use std::time::Duration;
 /// MQTT Client with a synchronous (blocking) API.
 /// This is simply a convenience wrapper around the asynchronous API,
 /// providing blocking calls with timeouts.
+#[derive(Clone)]
 pub struct Client {
     /// The underlying asynchronous client.
     pub(crate) cli: AsyncClient,
@@ -61,7 +62,6 @@ impl Client {
             cli: async_cli,
             timeout: Duration::from_secs(5 * 60),
         };
-        //cli.start_consuming();
         Ok(cli)
     }
 
@@ -277,6 +277,7 @@ impl Client {
     }
 
     /// Starts the client consuming messages.
+    ///
     /// This starts the client receiving messages and placing them into an
     /// mpsc queue. It returns the receiving-end of the queue for the
     /// application to get the messages.
@@ -284,8 +285,13 @@ impl Client {
     /// should be called before subscribing to any topics, otherwise messages
     /// can be lost.
     //
-    pub fn start_consuming(&mut self) -> Receiver<Option<Message>> {
+    pub fn start_consuming(&self) -> Receiver<Option<Message>> {
         self.cli.start_consuming()
+    }
+
+    /// Stops the client consumer.
+    pub fn stop_consuming(&self) {
+        self.cli.stop_consuming();
     }
 }
 

@@ -40,3 +40,5 @@ lazy_static = "1.4"
 futures-util = "0.3"
 async-std = "1"
 clap = "2.33"
+ctrlc = "3.2"
+

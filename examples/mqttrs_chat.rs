@@ -84,7 +84,7 @@ fn main() -> mqtt::Result<()> {
         .persistence(None)
         .finalize();
 
-    let mut cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|err| {
+    let cli = mqtt::AsyncClient::new(create_opts).unwrap_or_else(|err| {
         eprintln!("Error creating the client: {}", err);
         process::exit(1);
     });
