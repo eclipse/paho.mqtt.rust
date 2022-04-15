@@ -89,13 +89,13 @@ fn main() -> mqtt::Result<()> {
         process::exit(1);
     });
 
+    // Session will exist for a day (86,400 sec) between connections.
     let props = mqtt::properties! {
-        mqtt::PropertyCode::SessionExpiryInterval => 60,
+        mqtt::PropertyCode::SessionExpiryInterval => 86400,
     };
 
     // Connect with default options
     let conn_opts = mqtt::ConnectOptionsBuilder::new()
-        .mqtt_version(MQTTV5)
         .keep_alive_interval(Duration::from_secs(20))
         .clean_start(false)
         .properties(props)

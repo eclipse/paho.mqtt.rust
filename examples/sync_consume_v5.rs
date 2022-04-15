@@ -108,7 +108,7 @@ fn main() -> mqtt::Result<()> {
     let create_opts = mqtt::CreateOptionsBuilder::new()
         .mqtt_version(mqtt::MQTT_VERSION_5)
         .server_uri(host)
-        .client_id("paho_rust_sync_cons_v5")
+        .client_id("rust_sync_consumer_v5")
         .finalize();
 
     let cli = mqtt::Client::new(create_opts)?;
@@ -122,9 +122,10 @@ fn main() -> mqtt::Result<()> {
         .payload("Sync consumer v5 lost connection")
         .finalize();
 
+    // Request a session that persists for an hour (3600sec) between connections
     let conn_opts = mqtt::ConnectOptionsBuilder::new()
-        .mqtt_version(mqtt::MQTT_VERSION_5)
         .clean_start(false)
+        .properties(mqtt::properties![mqtt::PropertyCode::SessionExpiryInterval => 3600])
         .will_message(lwt)
         .finalize();
 
@@ -161,7 +162,8 @@ fn main() -> mqtt::Result<()> {
     let ctrlc_cli = cli.clone();
     ctrlc::set_handler(move || {
         ctrlc_cli.stop_consuming();
-    }).expect("Error setting Ctrl-C handler");
+    })
+    .expect("Error setting Ctrl-C handler");
 
     // Just loop on incoming messages.
     // If we get a None message, check if we got disconnected,

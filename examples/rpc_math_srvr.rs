@@ -196,9 +196,11 @@ fn main() -> mqtt::Result<()> {
     // but it's still a good habit to start consuming first.
     let rx = cli.start_consuming();
 
-    // Connect with default options, and no clean start
+    // Connect with default options, and no clean start.
+    // Requests will persist for 60sec if the service disconnects or restarts.
     let conn_opts = mqtt::ConnectOptionsBuilder::new()
         .clean_start(false)
+        .properties(mqtt::properties![mqtt::PropertyCode::SessionExpiryInterval => 60])
         .finalize();
 
     // Connect and wait for it to complete or fail

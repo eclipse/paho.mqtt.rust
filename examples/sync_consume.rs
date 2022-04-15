@@ -139,7 +139,8 @@ fn main() {
     let ctrlc_cli = cli.clone();
     ctrlc::set_handler(move || {
         ctrlc_cli.stop_consuming();
-    }).expect("Error setting Ctrl-C handler");
+    })
+    .expect("Error setting Ctrl-C handler");
 
     // Just loop on incoming messages.
     // If we get a None message, check if we got disconnected,

@@ -418,6 +418,7 @@ impl AsyncClient {
         debug!("Connecting handle with callbacks: {:?}", self.inner.handle);
 
         if opts.mqtt_version() == 0 && self.inner.mqtt_version >= 5 {
+            debug!("Forcing connect version to: {}", self.inner.mqtt_version);
             opts.set_mqtt_version(self.inner.mqtt_version);
         }
 
@@ -593,7 +594,11 @@ impl AsyncClient {
 
     /// Removes the callback for when the connection is lost
     pub fn remove_connection_lost_callback(&self) {
-        self.inner.callback_context.lock().unwrap().on_connection_lost = None;
+        self.inner
+            .callback_context
+            .lock()
+            .unwrap()
+            .on_connection_lost = None;
 
         // TODO: We should only remove the C handler if we know that
         // we're not consuming or streaming. For now, keeping it is a
@@ -639,11 +644,7 @@ impl AsyncClient {
         self.inner.callback_context.lock().unwrap().on_disconnected = None;
 
         unsafe {
-            ffi::MQTTAsync_setDisconnected(
-                self.inner.handle,
-                ptr::null_mut(),
-                None
-            );
+            ffi::MQTTAsync_setDisconnected(self.inner.handle, ptr::null_mut(), None);
         }
     }
 
@@ -675,14 +676,14 @@ impl AsyncClient {
 
     /// Removes the callback for when a message arrives from the broker.
     pub fn remove_message_callback(&self) {
-        self.inner.callback_context.lock().unwrap().on_message_arrived = None;
+        self.inner
+            .callback_context
+            .lock()
+            .unwrap()
+            .on_message_arrived = None;
 
         unsafe {
-            ffi::MQTTAsync_setMessageArrivedCallback(
-                self.inner.handle,
-                ptr::null_mut(),
-                None
-            );
+            ffi::MQTTAsync_setMessageArrivedCallback(self.inner.handle, ptr::null_mut(), None);
         }
     }
 
@@ -1073,7 +1074,7 @@ impl AsyncClient {
 
         // Message callback just queues incoming messages.
         self.set_message_callback(move |_, msg| {
-            if let Err(_) = tx.send(msg) {
+            if tx.send(msg).is_err() {
                 error!("Consumer channel is closed.");
             }
         });

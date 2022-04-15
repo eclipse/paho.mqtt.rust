@@ -337,9 +337,10 @@ impl ConnectOptionsBuilder {
         // Force the options to those compatible with v5 if set
         if clean {
             self.copts.cleansession = 0;
-            if self.copts.MQTTVersion < ffi::MQTTVERSION_5 as i32 {
-                self.copts.MQTTVersion = ffi::MQTTVERSION_5 as i32;
-            }
+        }
+
+        if self.copts.MQTTVersion < 5 {
+            self.copts.MQTTVersion = 5;
         }
         self
     }
@@ -476,7 +477,9 @@ impl ConnectOptionsBuilder {
     pub fn mqtt_version(&mut self, ver: u32) -> &mut Self {
         self.copts.MQTTVersion = ver as i32;
 
-        if ver < ffi::MQTTVERSION_5 {
+        // The C lib is picky about clean sessions/start fields by
+        // version.
+        if ver < 5 {
             self.copts.cleanstart = 0;
         }
         else {
@@ -516,6 +519,10 @@ impl ConnectOptionsBuilder {
     /// `props` The collection of properties to include with the connect message.
     pub fn properties(&mut self, props: Properties) -> &mut Self {
         self.data.props = Some(props);
+
+        if self.copts.MQTTVersion < 5 {
+            self.copts.MQTTVersion = 5;
+        }
         self
     }
 

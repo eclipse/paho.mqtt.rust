@@ -117,12 +117,19 @@ impl Message {
     ///
     /// * `topic` The topic on which the message is published.
     /// * `msg` The message struct from the C library
-    pub unsafe fn from_c_parts(topic: CString, cmsg: &ffi::MQTTAsync_message) -> Self {
+    pub fn from_c_parts(topic: CString, cmsg: &ffi::MQTTAsync_message) -> Self {
         let len = cmsg.payloadlen as usize;
+
+        let payload = if cmsg.payload.is_null() {
+            Vec::new()
+        }
+        else {
+            unsafe { slice::from_raw_parts(cmsg.payload as *mut u8, len) }.to_vec()
+        };
 
         let data = MessageData {
             topic,
-            payload: slice::from_raw_parts(cmsg.payload as *mut u8, len).to_vec(),
+            payload,
             props: Properties::from_c_struct(&cmsg.properties),
         };
 
