@@ -1,8 +1,19 @@
 # Change Log
-# for Eclipse Paho Rust Library
+# Eclipse Paho Rust
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [v0.11.0](https://github.com/eclipse/paho.mqtt.rust/compare/v0.10.0..v0.11.0) - 2021-04-16
+
+- Updated to support Paho C v1.3.10
+- New client functions to stop consuming/streaming and to remove callbacks.
+- Started a README for the -sys crate.
+- Fixed a bunch of lints. Clippy report is clean.
+- [#152](https://github.com/eclipse/paho.mqtt.rust/issues/152) Consumer won't panic when the receiver drops.
+- [#113](https://github.com/eclipse/paho.mqtt.rust/issues/113) Build now respects the OPENSSL_STATIC flag (if OPENSSL_DIR or other path flags set).
+- [#145](https://github.com/eclipse/paho.mqtt.rust/issues/145) `impl From<Error> for io::Error` An MQTT error can be easily converted back to an I/O error.
 
 ## [v0.10.0](https://github.com/eclipse/paho.mqtt.rust/compare/v0.9.1..v0.10.0) - 2021-01-25
 
