@@ -293,6 +293,14 @@ impl Client {
     pub fn stop_consuming(&self) {
         self.cli.stop_consuming();
     }
+
+    /// Returns client ID used for client instance
+    ///
+    /// Client ID is returned as a rust String as set in a
+    /// CreateOptionsBuilder for symmetry
+    pub fn client_id(&self) -> String {
+        self.cli.client_id()
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -304,6 +312,7 @@ mod tests {
     use super::*;
     use std::sync::Arc;
     use std::thread;
+    use crate::create_options::CreateOptionsBuilder;
 
     // Determine that a client can be sent across threads and signaled.
     // As long as it compiles, this indicates that Client implements the
@@ -334,5 +343,19 @@ mod tests {
         });
         assert!(!cli2.is_connected());
         let _ = thr.join().unwrap();
+    }
+
+    #[test]
+    fn test_get_client_id() {
+        println!("get client id");
+        let c_id = "test_client_id_can_be_retrieved";
+        let options = CreateOptionsBuilder::new().client_id(c_id).finalize();
+        let client = Client::new(options);
+        assert!(
+            client.is_ok(),
+            "Error in creating sync client with client_id"
+        );
+        let retrieved = client.unwrap().client_id();
+        assert_eq!(retrieved, c_id.to_string());
     }
 }
