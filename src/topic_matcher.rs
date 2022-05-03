@@ -51,22 +51,42 @@ use std::collections::HashMap;
 ///
 /// which use a prefix tree (trie) to store the values.
 ///
-// TODO: Add an example to the doc comments for processing a set of callbacks.
 
-#[derive(Default)]
-pub struct TopicMatcher<T: Default> {
+/// A collection of topic filters that can compare against a topic and
+/// produce an iterator of all matched items.
+///
+/// This is particularly useful at creating a lookup table of callbacks
+/// for subscriptions, especially when the subscriptions contain wildcards.
+/// Note, however that there might be an issue with overlapped subscription
+/// where callbacks are invoked multiple times for a messgag that matches
+/// more than one subscription.
+///
+/// When using MQTT v5, subscription identifiers would be more efficient,
+/// and solve the problem of multiple overlapped callbacks. See:
+/// <https://github.com/eclipse/paho.mqtt.rust/blob/master/examples/sync_consume_v5.rs>
+///
+pub struct TopicMatcher<T> {
     /// The root node of the collection.
     root: Node<T>,
 }
 
-impl<T: Default> TopicMatcher<T> {
-    /// Creates a new topic matcher collection.
+impl<T> TopicMatcher<T> {
+    /// Creates a new, empty, topic matcher collection.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Determines if the collection contains no values.
+    pub fn is_empty(&self) -> bool {
+        self.root.is_empty()
+    }
+
     /// Inserts a new topic filter into the collection.
-    pub fn insert(&mut self, key: &str, val: T) {
+    pub fn insert<S>(&mut self, key: S, val: T)
+    where
+        S: Into<String>,
+    {
+        let key = key.into();
         let mut node = &mut self.root;
 
         for sym in key.split('/') {
@@ -75,7 +95,8 @@ impl<T: Default> TopicMatcher<T> {
                 .entry(sym.to_string())
                 .or_insert_with(Node::<T>::default);
         }
-        node.content = Some(val);
+        // We've either found or created nodes down to here.
+        node.content = Some((key, val));
     }
 
     /// Gets a value from the collection using an exact filter match.
@@ -87,13 +108,13 @@ impl<T: Default> TopicMatcher<T> {
                 None => return None,
             }
         }
-        node.content.as_ref()
+        node.content.as_ref().map(|(_,v)| v)
     }
 
     /// Gets an iterator for all the matches to the specified
-    pub fn matches<'a, 'b>(&'a self, topic: &'b str) -> Iter<'a, 'b, T> {
+    pub fn matches<'a, 'b>(&'a self, topic: &'b str) -> MatchIter<'a, 'b, T> {
         let syms: Vec<_> = topic.split('/').collect();
-        Iter {
+        MatchIter {
             node: Some(&self.root),
             syms,
             nodes: Vec::new(),
@@ -106,13 +127,49 @@ impl<T: Default> TopicMatcher<T> {
     }
 }
 
+// We manually implement Default, otherwise the derived one would
+// require T: Default.
+
+impl<T> Default for TopicMatcher<T> {
+    /// Create an empty TopicMatcher collection.
+    fn default() -> Self {
+        TopicMatcher {
+            root: Node::default(),
+        }
+    }
+}
+
 /// A single node in the topic matcher collection.
-#[derive(Default)]
-struct Node<T: Default> {
+struct Node<T> {
     /// The value that matches the topic at this node, if any.
-    content: Option<T>,
+    content: Option<(String, T)>,
     /// The child nodes mapped by the next field of the topic.
     children: HashMap<String, Node<T>>,
+}
+
+impl<T> Node<T> {
+    /// Determines if the node does not contain a value.
+    ///
+    /// This is a relatively simplistic implementation indicating that the
+    /// node's content and children are empty. Technically, the node could
+    /// contain a collection of children that are empty, which might be
+    /// considered an "empty" state. But not here.
+    fn is_empty(&self) -> bool {
+        self.content.is_none() && self.children.is_empty()
+    }
+}
+
+// We manually implement Default, otherwise the derived one would
+// require T: Default.
+
+impl<T> Default for Node<T> {
+    /// Creates a default, empty node.
+    fn default() -> Self {
+        Node {
+            content: None,
+            children: HashMap::new(),
+        }
+    }
 }
 
 /// Iterator for the topic matcher collection.
@@ -121,7 +178,7 @@ struct Node<T: Default> {
 /// Lifetimes:
 ///      'a - The matcher collection
 ///      'b - The original topic string
-pub struct Iter<'a, 'b, T: Default> {
+pub struct MatchIter<'a, 'b, T> {
     /// The current node to search
     node: Option<&'a Node<T>>,
     // The topic we're searching on, split into fields
@@ -130,8 +187,8 @@ pub struct Iter<'a, 'b, T: Default> {
     nodes: Vec<(&'a Node<T>, Vec<&'b str>)>,
 }
 
-impl<'a, 'b, T: Default> Iterator for Iter<'a, 'b, T> {
-    type Item = &'a T;
+impl<'a, 'b, T> Iterator for MatchIter<'a, 'b, T> {
+    type Item = &'a (String, T);
 
     /// Gets the next value from a key filter that matches the iterator's topic.
     fn next(&mut self) -> Option<Self::Item> {
@@ -201,24 +258,24 @@ mod tests {
         set.insert(99);
 
         let mut match_set = HashSet::new();
-        for v in matcher.matches("some/test/topic") {
+        for (_k, v) in matcher.matches("some/test/topic") {
             match_set.insert(*v);
         }
 
         assert_eq!(set, match_set);
     }
 
-    /*
     #[test]
     fn test_topic_matcher_callback() {
         let mut matcher = TopicMatcher::new();
-        matcher.insert("some/+/topic", |n: u32| {
+
+        matcher.insert("some/+/topic", Box::new(|n: u32| {
             n * 2
-        });
-        for f in matcher("some/random/topic") {
+        }));
+
+        for (t, f) in matcher.matches("some/random/topic") {
             let n = f(2);
             assert_eq!(n, 4);
         }
     }
-    */
 }
