@@ -40,6 +40,13 @@ To keep up with the latest announcements for this project, follow:
 
 **Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
 
+### What's new in v0.11.1
+
+- [#156](https://github.com/eclipse/paho.mqtt.rust/issues/156) Improvements to `TopicMatcher`:
+    - Doesn't require item type to implement `Default` trait
+    - Match iterator returns key/value tuple (not just value).
+- [#154](https://github.com/eclipse/paho.mqtt.rust/pull/154) Add public interface to retrieve `client_id`.
+    
 ### What's new in v0.11.0
 
 - Updated to support Paho C v1.3.10

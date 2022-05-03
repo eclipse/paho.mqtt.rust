@@ -273,7 +273,7 @@ mod tests {
             n * 2
         }));
 
-        for (t, f) in matcher.matches("some/random/topic") {
+        for (_t, f) in matcher.matches("some/random/topic") {
             let n = f(2);
             assert_eq!(n, 4);
         }
