@@ -27,22 +27,27 @@
 use crate::{ffi, to_c_bool};
 use std::fmt;
 
+
+/// Receive our own publications when subscribed to the same topics.
+/// This is the default and the same behavior as MQTT v3.x
+pub const SUBSCRIBE_LOCAL: bool = false;
 /// Don't receive our own publications when subscribed to the same topics.
 pub const SUBSCRIBE_NO_LOCAL: bool = true;
-/// Receive our own publications when subscribed to the same topics.
-pub const SUBSCRIBE_LOCAL: bool = false;
+
 
 /// Retain flag is only set on publications sent by a broker if in
-/// response to a subscribe request
+/// response to a subscribe request.
+/// This is the default and the same behavior as MQTT v3.x
 pub const NO_RETAIN_AS_PUBLISHED: bool = false;
 /// Keep the retain flag as on the original publish message
 pub const RETAIN_AS_PUBLISHED: bool = true;
 
 /// The options for subscription retain handling.
 #[repr(u8)]
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RetainHandling {
     /// Send retained messages at the time of the subscribe
+    /// This is the default and the same behavior as MQTT v3.x
     SendRetainedOnSubscribe = 0,
     /// Send retained messages on subscribe only if subscription is new
     SendRetainedOnNew = 1,
@@ -51,6 +56,8 @@ pub enum RetainHandling {
 }
 
 impl Default for RetainHandling {
+    /// The default is to send retained messages at the time of the
+    /// subscribe. This is the same behavior as MQTT v3.x
     fn default() -> Self {
         RetainHandling::SendRetainedOnSubscribe
     }
@@ -58,10 +65,11 @@ impl Default for RetainHandling {
 
 impl fmt::Display for RetainHandling {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use RetainHandling::*;
         match *self {
-            RetainHandling::SendRetainedOnSubscribe => write!(f, "Send Retain on Subscribe"),
-            RetainHandling::SendRetainedOnNew => write!(f, "Send Retain on New"),
-            RetainHandling::DontSendRetained => write!(f, "Don't Send Retain"),
+            SendRetainedOnSubscribe => write!(f, "Send Retain on Subscribe"),
+            SendRetainedOnNew => write!(f, "Send Retain on New"),
+            DontSendRetained => write!(f, "Don't Send Retain"),
         }
     }
 }
@@ -74,10 +82,51 @@ pub struct SubscribeOptions {
 
 impl SubscribeOptions {
     /// Creates set of subscribe options.
-    pub fn new(no_local: bool) -> Self {
+    pub fn new<H>(
+        no_local: bool,
+        retain_as_published: bool,
+        retain_handling: H,
+    ) -> Self
+    where
+        H: Into<Option<RetainHandling>>,
+    {
+        let retain_handling = retain_handling.into().unwrap_or_default();
+
         SubscribeOptions {
             copts: ffi::MQTTSubscribe_options {
                 noLocal: to_c_bool(no_local) as u8,
+                retainAsPublished: to_c_bool(retain_as_published) as u8,
+                retainHandling: retain_handling as u8,
+                ..ffi::MQTTSubscribe_options::default()
+            },
+        }
+    }
+
+    /// Creates set of subscribe options with NO_LOCAL set.
+    pub fn with_no_local() -> Self {
+        SubscribeOptions {
+            copts: ffi::MQTTSubscribe_options {
+                noLocal: to_c_bool(true) as u8,
+                ..ffi::MQTTSubscribe_options::default()
+            },
+        }
+    }
+
+    /// Creates set of subscribe options with RETAIN_AS_PUBLISHED set.
+    pub fn with_retain_as_published() -> Self {
+        SubscribeOptions {
+            copts: ffi::MQTTSubscribe_options {
+                retainAsPublished: to_c_bool(true) as u8,
+                ..ffi::MQTTSubscribe_options::default()
+            },
+        }
+    }
+
+    /// Creates set of subscribe options with retain handling set.
+    pub fn with_retain_handling(retain_handling: RetainHandling) -> Self {
+        SubscribeOptions {
+            copts: ffi::MQTTSubscribe_options {
+                retainHandling: retain_handling as u8,
                 ..ffi::MQTTSubscribe_options::default()
             },
         }
@@ -86,24 +135,20 @@ impl SubscribeOptions {
 
 impl From<bool> for SubscribeOptions {
     fn from(no_local: bool) -> Self {
-        SubscribeOptions::new(no_local)
+        SubscribeOptions::new(no_local, false, None)
     }
 }
 
 impl From<Option<bool>> for SubscribeOptions {
     fn from(no_local: Option<bool>) -> Self {
-        match no_local {
-            Some(no_local) => SubscribeOptions::new(no_local),
-            None => SubscribeOptions::default(),
-        }
+        let no_local = no_local.unwrap_or(false);
+        SubscribeOptions::new(no_local, false, None)
     }
 }
 
 impl From<(bool, bool)> for SubscribeOptions {
     fn from((no_local, retain_as_published): (bool, bool)) -> Self {
-        let mut opts = SubscribeOptions::new(no_local);
-        opts.copts.retainAsPublished = to_c_bool(retain_as_published) as u8;
-        opts
+        SubscribeOptions::new(no_local, retain_as_published, None)
     }
 }
 
@@ -111,9 +156,7 @@ impl From<(bool, bool, RetainHandling)> for SubscribeOptions {
     fn from(
         (no_local, retain_as_published, retain_handling): (bool, bool, RetainHandling),
     ) -> Self {
-        let mut opts = SubscribeOptions::from((no_local, retain_as_published));
-        opts.copts.retainHandling = retain_handling as u8;
-        opts
+        SubscribeOptions::new(no_local, retain_as_published, retain_handling)
     }
 }
 
@@ -122,7 +165,7 @@ impl From<(bool, bool, RetainHandling)> for SubscribeOptions {
 /////////////////////////////////////////////////////////////////////////////
 
 /// Builder for creating subscription options.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct SubscribeOptionsBuilder {
     copts: ffi::MQTTSubscribe_options,
 }
@@ -179,15 +222,44 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let opts = SubscribeOptions::new(false);
+        let opts = SubscribeOptions::new(false, false, None);
         assert!(opts.copts.noLocal == 0);
         assert!(opts.copts.retainAsPublished == 0);
         assert!(opts.copts.retainHandling == 0);
 
-        let opts = SubscribeOptions::new(true);
+        let opts = SubscribeOptions::new(true, false, None);
         assert!(opts.copts.noLocal != 0);
         assert!(opts.copts.retainAsPublished == 0);
         assert!(opts.copts.retainHandling == 0);
+
+        let opts = SubscribeOptions::new(true, true, None);
+        assert!(opts.copts.noLocal != 0);
+        assert!(opts.copts.retainAsPublished != 0);
+        assert!(opts.copts.retainHandling == 0);
+
+        let opts = SubscribeOptions::new(true, true, RetainHandling::SendRetainedOnNew);
+        assert!(opts.copts.noLocal != 0);
+        assert!(opts.copts.retainAsPublished != 0);
+        assert!(opts.copts.retainHandling == RetainHandling::SendRetainedOnNew as u8);
+    }
+
+
+    #[test]
+    fn test_with() {
+        let opts = SubscribeOptions::with_no_local();
+        assert!(opts.copts.noLocal != 0);
+        assert!(opts.copts.retainAsPublished == 0);
+        assert!(opts.copts.retainHandling == 0);
+
+        let opts = SubscribeOptions::with_retain_as_published();
+        assert!(opts.copts.noLocal == 0);
+        assert!(opts.copts.retainAsPublished != 0);
+        assert!(opts.copts.retainHandling == 0);
+
+        let opts = SubscribeOptions::with_retain_handling(RetainHandling::SendRetainedOnNew);
+        assert!(opts.copts.noLocal == 0);
+        assert!(opts.copts.retainAsPublished == 0);
+        assert!(opts.copts.retainHandling == RetainHandling::SendRetainedOnNew as u8);
     }
 
     #[test]

@@ -236,7 +236,7 @@ mod tests {
     #[test]
     fn test_sub_opts() {
         let tok = Token::new();
-        let sub_opts = SubscribeOptions::new(true);
+        let sub_opts = SubscribeOptions::with_no_local();
         let opts = ResponseOptionsBuilder::new()
             .token(tok.clone())
             .subscribe_options(sub_opts)
@@ -259,7 +259,7 @@ mod tests {
     #[test]
     fn test_sub_many_opts() {
         let tok = Token::new();
-        let sub_opts = vec![SubscribeOptions::new(true); 4];
+        let sub_opts = vec![SubscribeOptions::with_no_local(); 4];
         let opts = ResponseOptionsBuilder::new()
             .token(tok.clone())
             .subscribe_many_options(&sub_opts)
@@ -278,6 +278,17 @@ mod tests {
 
         assert_eq!(4, opts.copts.subscribeOptionsCount);
         assert!(!opts.copts.subscribeOptionsList.is_null());
+
+        unsafe {
+            let sub_opts_list = std::slice::from_raw_parts(
+                opts.copts.subscribeOptionsList,
+                4
+            );
+            assert!(sub_opts_list[0].noLocal != 0);
+            assert!(sub_opts_list[1].noLocal != 0);
+            assert!(sub_opts_list[2].noLocal != 0);
+            assert!(sub_opts_list[3].noLocal != 0);
+        }
 
         let _ = unsafe { Token::from_raw(inner) };
     }

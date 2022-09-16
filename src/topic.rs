@@ -78,7 +78,7 @@ impl<'a> Topic<'a> {
         }
     }
 
-    /// Creates a new topic object for publishing messages.
+    /// Creates a new topic object for publishing retain messages.
     ///
     /// # Arguments
     ///

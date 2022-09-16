@@ -881,7 +881,8 @@ impl AsyncClient {
 
         let topics = StringCollection::new(topics);
 
-        debug!("Subscribe to '{:?}' @ QOS {:?}", topics, qos);
+        debug!("Subscribe to '{:?}' @ QOS {:?} w/ opts: {:?}", topics, qos, opts);
+        trace!("Subscribe call/response opts: {:?}", rsp_opts);
 
         let rc = unsafe {
             ffi::MQTTAsync_subscribeMany(
