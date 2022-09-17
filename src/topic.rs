@@ -469,15 +469,17 @@ impl TopicFilter {
                     false
                 }
                 else {
+                    let mut saw_wc = false;
                     for i in 0..n {
                         if fields[i] == "#" {
+                            saw_wc = true;
                             break;
                         }
                         if fields[i] != "+" && fields[i] != top_fields[i] {
                             return false;
                         }
                     }
-                    true
+                    saw_wc || n == top_fields.len()
                 }
             }
         }
@@ -526,8 +528,14 @@ mod tests {
         const FILTER2: &str = "some/+/thing";
         let filter = TopicFilter::new(FILTER2).unwrap();
         assert!(filter.is_match("some/topic/thing"));
+        assert!(!filter.is_match("some/topic/plus/thing"));
 
         let s = format!("{}", filter);
         assert_eq!(s, FILTER2);
+
+        const FILTER3: &str = "some/+";
+        let filter = TopicFilter::new(FILTER3).unwrap();
+        assert!(filter.is_match("some/thing"));
+        assert!(!filter.is_match("some/thing/plus"));
     }
 }
