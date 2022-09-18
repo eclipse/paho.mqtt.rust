@@ -24,8 +24,8 @@
 //! These are defined in section 3.8.3.1 of the MQTT v5 spec.
 //! The defaults use the behavior that was present in MQTT v3.1.1.
 
-use crate::{ffi, to_c_bool};
-use std::fmt;
+use crate::{ffi, from_c_bool, to_c_bool, Error, Result};
+use std::{convert::TryFrom, fmt};
 
 
 /// Receive our own publications when subscribed to the same topics.
@@ -70,6 +70,20 @@ impl fmt::Display for RetainHandling {
             SendRetainedOnSubscribe => write!(f, "Send Retain on Subscribe"),
             SendRetainedOnNew => write!(f, "Send Retain on New"),
             DontSendRetained => write!(f, "Don't Send Retain"),
+        }
+    }
+}
+
+impl TryFrom<i32> for RetainHandling {
+    type Error = Error;
+
+    fn try_from(val: i32) -> Result<Self> {
+        use RetainHandling::*;
+        match val {
+            0 => Ok(SendRetainedOnSubscribe),
+            1 => Ok(SendRetainedOnNew),
+            2 => Ok(DontSendRetained),
+            _ => Err(Error::from("Invalid value for RetainedHandling")),
         }
     }
 }
@@ -130,6 +144,22 @@ impl SubscribeOptions {
                 ..ffi::MQTTSubscribe_options::default()
             },
         }
+    }
+
+    /// Get the value of the 'no local' option.
+    pub fn no_local(&self) -> bool {
+        from_c_bool(self.copts.noLocal as i32)
+    }
+
+    /// Get the value of the 'retain as published' option.
+    pub fn retain_as_published(&self) -> bool {
+        from_c_bool(self.copts.retainAsPublished as i32)
+    }
+
+    /// Get the value of the 'retain handling' option.
+    pub fn retain_handling(&self) -> RetainHandling {
+        RetainHandling::try_from(self.copts.retainHandling as i32)
+            .unwrap_or_default()
     }
 }
 
@@ -215,6 +245,11 @@ mod tests {
     #[test]
     fn test_default() {
         let opts = SubscribeOptions::default();
+
+        assert!(!opts.no_local());
+        assert!(!opts.retain_as_published());
+        assert_eq!(opts.retain_handling(), RetainHandling::default());
+
         assert!(opts.copts.noLocal == 0);
         assert!(opts.copts.retainAsPublished == 0);
         assert!(opts.copts.retainHandling == 0);
@@ -223,21 +258,41 @@ mod tests {
     #[test]
     fn test_new() {
         let opts = SubscribeOptions::new(false, false, None);
+
+        assert!(!opts.no_local());
+        assert!(!opts.retain_as_published());
+        assert_eq!(opts.retain_handling(), RetainHandling::default());
+
         assert!(opts.copts.noLocal == 0);
         assert!(opts.copts.retainAsPublished == 0);
         assert!(opts.copts.retainHandling == 0);
 
         let opts = SubscribeOptions::new(true, false, None);
+
+        assert!(opts.no_local());
+        assert!(!opts.retain_as_published());
+        assert_eq!(opts.retain_handling(), RetainHandling::default());
+
         assert!(opts.copts.noLocal != 0);
         assert!(opts.copts.retainAsPublished == 0);
         assert!(opts.copts.retainHandling == 0);
 
         let opts = SubscribeOptions::new(true, true, None);
+
+        assert!(opts.no_local());
+        assert!(opts.retain_as_published());
+        assert_eq!(opts.retain_handling(), RetainHandling::default());
+
         assert!(opts.copts.noLocal != 0);
         assert!(opts.copts.retainAsPublished != 0);
         assert!(opts.copts.retainHandling == 0);
 
         let opts = SubscribeOptions::new(true, true, RetainHandling::SendRetainedOnNew);
+
+        assert!(opts.no_local());
+        assert!(opts.retain_as_published());
+        assert_eq!(opts.retain_handling(), RetainHandling::SendRetainedOnNew);
+
         assert!(opts.copts.noLocal != 0);
         assert!(opts.copts.retainAsPublished != 0);
         assert!(opts.copts.retainHandling == RetainHandling::SendRetainedOnNew as u8);
@@ -247,60 +302,67 @@ mod tests {
     #[test]
     fn test_with() {
         let opts = SubscribeOptions::with_no_local();
-        assert!(opts.copts.noLocal != 0);
-        assert!(opts.copts.retainAsPublished == 0);
-        assert!(opts.copts.retainHandling == 0);
+
+        assert!(opts.no_local());
+        assert!(!opts.retain_as_published());
+        assert_eq!(opts.retain_handling(), RetainHandling::default());
 
         let opts = SubscribeOptions::with_retain_as_published();
-        assert!(opts.copts.noLocal == 0);
-        assert!(opts.copts.retainAsPublished != 0);
-        assert!(opts.copts.retainHandling == 0);
+
+        assert!(!opts.no_local());
+        assert!(opts.retain_as_published());
+        assert_eq!(opts.retain_handling(), RetainHandling::default());
 
         let opts = SubscribeOptions::with_retain_handling(RetainHandling::SendRetainedOnNew);
-        assert!(opts.copts.noLocal == 0);
-        assert!(opts.copts.retainAsPublished == 0);
-        assert!(opts.copts.retainHandling == RetainHandling::SendRetainedOnNew as u8);
+
+        assert!(!opts.no_local());
+        assert!(!opts.retain_as_published());
+        assert_eq!(opts.retain_handling(), RetainHandling::SendRetainedOnNew);
     }
 
     #[test]
     fn test_from_tuple_one() {
         let opts = SubscribeOptions::from(true);
-        assert!(opts.copts.noLocal != 0);
-        assert!(opts.copts.retainAsPublished == 0);
-        assert!(opts.copts.retainHandling == 0);
+
+        assert!(opts.no_local());
+        assert!(!opts.retain_as_published());
+        assert_eq!(opts.retain_handling(), RetainHandling::default());
     }
 
     #[test]
     fn test_from_tuple_two() {
         let opts = SubscribeOptions::from((true, true));
-        assert!(opts.copts.noLocal != 0);
-        assert!(opts.copts.retainAsPublished != 0);
-        assert!(opts.copts.retainHandling == 0);
+
+        assert!(opts.no_local());
+        assert!(opts.retain_as_published());
+        assert_eq!(opts.retain_handling(), RetainHandling::default());
     }
 
     #[test]
     fn test_from_tuple_three() {
         let opts = SubscribeOptions::from((true, true, RetainHandling::SendRetainedOnNew));
-        assert!(opts.copts.noLocal != 0);
-        assert!(opts.copts.retainAsPublished != 0);
-        assert!(opts.copts.retainHandling == 1);
+
+        assert!(opts.no_local());
+        assert!(opts.retain_as_published());
+        assert_eq!(opts.retain_handling(), RetainHandling::SendRetainedOnNew);
     }
 
     #[test]
     fn test_builder_default() {
         let opts = SubscribeOptionsBuilder::new().finalize();
-        assert!(opts.copts.noLocal == 0);
-        assert!(opts.copts.retainAsPublished == 0);
-        assert!(opts.copts.retainHandling == 0);
+
+        assert!(!opts.no_local());
+        assert!(!opts.retain_as_published());
+        assert_eq!(opts.retain_handling(), RetainHandling::default());
     }
 
     #[test]
     fn test_builder_no_local() {
         let opts = SubscribeOptionsBuilder::new().no_local(true).finalize();
 
-        assert!(opts.copts.noLocal != 0);
-        assert!(opts.copts.retainAsPublished == 0);
-        assert!(opts.copts.retainHandling == 0);
+        assert!(opts.no_local());
+        assert!(!opts.retain_as_published());
+        assert_eq!(opts.retain_handling(), RetainHandling::default());
     }
 
     #[test]
@@ -309,9 +371,9 @@ mod tests {
             .retain_as_published(true)
             .finalize();
 
-        assert!(opts.copts.noLocal == 0);
-        assert!(opts.copts.retainAsPublished != 0);
-        assert!(opts.copts.retainHandling == 0);
+        assert!(!opts.no_local());
+        assert!(opts.retain_as_published());
+        assert_eq!(opts.retain_handling(), RetainHandling::default());
     }
 
     #[test]
@@ -320,8 +382,8 @@ mod tests {
             .retain_handling(RetainHandling::DontSendRetained)
             .finalize();
 
-        assert!(opts.copts.noLocal == 0);
-        assert!(opts.copts.retainAsPublished == 0);
-        assert!(opts.copts.retainHandling == 2);
+        assert!(!opts.no_local());
+        assert!(!opts.retain_as_published());
+        assert_eq!(opts.retain_handling(), RetainHandling::DontSendRetained);
     }
 }
