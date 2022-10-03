@@ -58,7 +58,7 @@ use std::{
 // TODO: Assuming the proper installed version of the library is problematic.
 //      We should check that the version is correct, if possible.
 
-const PAHO_MQTT_C_VERSION: &str = "1.3.10";
+const PAHO_MQTT_C_VERSION: &str = "1.3.11";
 
 fn main() {
     build::main();

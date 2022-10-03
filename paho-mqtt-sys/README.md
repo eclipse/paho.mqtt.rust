@@ -9,7 +9,7 @@ This package can build the recommended version of Paho C automatically. This is 
 
 When not using the _bundled_ build, it will attept to link to a pre-installed version of the library. It is fairly sensitive to the C version.
 
-The current recommended Paho C version is: v1.3.10
+The current recommended Paho C version is: v1.3.11
 
 ## Configurable Features
 

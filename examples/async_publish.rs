@@ -37,7 +37,7 @@ fn main() {
     // Command-line option(s)
     let host = env::args()
         .nth(1)
-        .unwrap_or_else(|| "tcp://localhost:1883".to_string());
+        .unwrap_or_else(|| "mqtt://localhost:1883".to_string());
 
     // Create the client
     let cli = mqtt::AsyncClient::new(host).unwrap_or_else(|err| {

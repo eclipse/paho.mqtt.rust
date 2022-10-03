@@ -77,7 +77,7 @@ fn main() -> mqtt::Result<()> {
     // Let the user override the host, but note the "ssl://" protocol.
     let host = env::args()
         .nth(1)
-        .unwrap_or_else(|| "ssl://localhost:18884".to_string());
+        .unwrap_or_else(|| "mqtts://localhost:18884".to_string());
 
     println!("Connecting to host: '{}'", host);
 

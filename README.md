@@ -28,7 +28,7 @@ The initial version of this crate is a wrapper for the Paho C library, and inclu
     - Traditional asynchronous (token/wait) API
     - Synchronous/blocking  API
 
-Requires Paho C v1.3.10, or possibly later.
+Requires Paho C v1.3.11, or possibly later.
 
 ## Latest News
 
@@ -40,13 +40,22 @@ To keep up with the latest announcements for this project, follow:
 
 **Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
 
+### Unreleased Features in This Branch
+
+- Upgrade to Paho C v1.3.11
+    - Fixes a performance issue, particularily for receiving messages.
+    - New URI protocol schemes: "mqtt://" for TCP and "mqtts://" for encrypted SSL/TLS.
+- Updated `SubscribeOptions` to be more usable.
+- Created a new [example](https://github.com/eclipse/paho.mqtt.rust/blob/develop/examples/async_subscribe_v5.rs) for MQTT v5 subscriptions with subscribe options.
+[#156](https://github.com/eclipse/paho.mqtt.rust/issues/156) Added a mutable iterator to TopicMatcher, with functions `remove()`, `get_mut()`, and `matches_mut()`
+
 ### What's new in v0.11.1
 
 - [#156](https://github.com/eclipse/paho.mqtt.rust/issues/156) Improvements to `TopicMatcher`:
     - Doesn't require item type to implement `Default` trait
     - Match iterator returns key/value tuple (not just value).
 - [#154](https://github.com/eclipse/paho.mqtt.rust/pull/154) Add public interface to retrieve `client_id`.
-    
+
 ### What's new in v0.11.0
 
 - Updated to support Paho C v1.3.10
@@ -69,10 +78,11 @@ Note that this default behavior requires a C compiler for the target and _CMake_
 
 Also note that the build will use pre-generated bindings by default to speed up compile times. _If you experience segfaults or other hard crashes, the first thing to do is try using the "build_bindgen" feature in your crate to regenerate the bindings for your target._ If that doesn't fix it, then please submit an issue on [GitHub](https://github.com/eclipse/paho.mqtt.rust/issues).
 
-### Configurable Features
+### Build Features
 
 The default behaviour can be altered by enabling or disabling the features:
 
+- _"default"_ - bundled, ssl
 - _"bundled"_ - Whether to build the Paho C library contained in the Git submodule under the contained _paho-mqtt-sys_ crate. This is similar to the "vendored" feature in other Rust projects.
 - _"build_bindgen"_ - Whether to build the bindings for the target using _bindgen_. If not set, the build will attempt to find and use pre-built bindings for the target.
 - _"ssl"_ - Whether to enable the use of secure sockets and secure websocket connections.
@@ -101,6 +111,12 @@ In particular:
 - If all else fails, you may need to set the specific location of the library with an environment variable. For example, on Windows, you may need to do something like this:
 
     set OPENSSL_DIR=C:\OpenSSL-Win64
+
+### Minimum Supported Rust Version (MSRV)
+
+**v1.54.0**
+
+This package uses async/await and thus requires an Edition 2018 compiler or newer. Although it may build and work with slightly older versions of the compiler than v1.54, this is the oldest version being tested and maintained by the developers.
 
 ## Developing the Crate
 
