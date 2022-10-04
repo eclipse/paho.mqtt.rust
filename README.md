@@ -72,9 +72,11 @@ To use the library, simply add this to your application's `Cargo.toml` dependenc
 
     paho-mqtt = "0.11"
 
-By default it enables the features "bundled" and "ssl" meaning it will attempt to compile the Paho C library for the target, using the pre-built bindings, and will enable secure sockets capabilities.
+By default it enables the features "bundled" and "ssl" meaning it will attempt to compile the Paho C library for the target, using the pre-built bindings, and will enable secure sockets capabilities using the system OpenSSL library.
 
-Note that this default behavior requires a C compiler for the target and _CMake_ to be installed.
+Note that this default behavior requires a C compiler for the target and _CMake_ to be installed. On an Ubuntu/Debian-based system you might need something like:
+
+    $ sudo apt install libssl-dev build-essential cmake
 
 Also note that the build will use pre-generated bindings by default to speed up compile times. _If you experience segfaults or other hard crashes, the first thing to do is try using the "build_bindgen" feature in your crate to regenerate the bindings for your target._ If that doesn't fix it, then please submit an issue on [GitHub](https://github.com/eclipse/paho.mqtt.rust/issues).
 
@@ -82,7 +84,7 @@ Also note that the build will use pre-generated bindings by default to speed up 
 
 The default behaviour can be altered by enabling or disabling the features:
 
-- _"default"_ - bundled, ssl
+- _"default"_ - `[bundled, ssl]`
 - _"bundled"_ - Whether to build the Paho C library contained in the Git submodule under the contained _paho-mqtt-sys_ crate. This is similar to the "vendored" feature in other Rust projects.
 - _"build_bindgen"_ - Whether to build the bindings for the target using _bindgen_. If not set, the build will attempt to find and use pre-built bindings for the target.
 - _"ssl"_ - Whether to enable the use of secure sockets and secure websocket connections.
@@ -108,9 +110,67 @@ In particular:
 
 - If you don't use _vendored-ssl_, it will attempt to use a package manager on the build host to find the library: `pkg-config` on Unix-like systems, `Homebrew` on macOS, and `vcpkg` on Windows. This is not recommended when cross-compiling.
 
-- If all else fails, you may need to set the specific location of the library with an environment variable. For example, on Windows, you may need to do something like this:
+- If all else fails, you may need to set the specific location of the library with an environment variable. For example, on Windows, perhaps do something like this:
 
     set OPENSSL_DIR=C:\OpenSSL-Win64
+
+So, by default, your application will build for SSL/TLS, assuming an existing install of the OpenSSL library. In your _Cargo.toml_, just:
+
+    # Use the system OpenSSL library
+    paho-mqtt = "0.11"
+
+If you don't have OpenSSL installed for your target and want to build it with your app:
+
+    # Build OpenSSL with the project
+    paho-mqtt = { version = "0.11", features=["vendored-ssl"] }
+
+If you want to build your app _without_ SSL/TLS, disable the default features, then add "bundled" back in (if desired):
+
+    # Don't use SSL at all
+    paho-mqtt = { version = "0.11", default-features=false, features=["bundled"] }
+
+### Windows
+
+On Windows, to use SSL/TLS/WSS secure connections, you must either install a copy of OpenSSL or build it with the application using the _vendored-ssl_ feature. Installing the library takes more time up front, but results in significantly faster build times.
+
+If you install OpenSSL, you usually need tell the Rust build tools where to find it. The easiest way is setting the `OPENSSL_DIR` environment variable, like:
+
+    set OPENSSL_DIR=C:\OpenSSL-Win64
+
+Point it to wherever you installed the library. Alternately, you can tell Cargo to build it with the app, using the _vendored-ssl_ feature:
+
+    # Build OpenSSL with the project
+    paho-mqtt = { version = "0.11", features=["vendored-ssl"] }
+
+### Fully Static Builds with MUSL
+
+Using _musl_ would allow you to create fully-static applications that do not rely on any shared libraries... at all. You would need a _musl_ target for your Rust compiler, and the _musl_ build tools for your target ar well. 
+
+Then you can use Casro to build your application, like:
+
+    $ cargo build --target=x86_64-unknown-linux-musl
+
+When using SSL/TLS with _musl_, you need a static version of the OpenSSL library built for _musl_. If you don't have one built and installed, you can use _vendored-ssl_. So, in your _Cargo.toml:_
+
+    paho-mqtt = { version = "0.11", features=["vendored-ssl"] }
+
+When using _musl_ with OpenSSL, it appears that you also need to manually link with the C library. There are two ways to do this. First, you can create a simple `build.rs` for your application, specifying the link:
+
+    fn is_musl() -> bool {
+        std::env::var("CARGO_CFG_TARGET_ENV").unwrap() == "musl"
+    }
+
+    fn main() {
+        if is_musl() {
+            // Required for OpenSSL with musl
+            println!("cargo:rustc-link-arg=-lc");
+        }
+    }
+
+The second option is to tell Cargo to always link the C library when compiling for the _musl_ target. Add the following lines to the `$HOME/.cargo/config` file:
+
+    [target.x86_64-unknown-linux-musl]
+    rustflags = ["-C", "link-arg=-lc"]
 
 ### Minimum Supported Rust Version (MSRV)
 
@@ -122,19 +182,19 @@ This package uses async/await and thus requires an Edition 2018 compiler or newe
 
 The library is a standard Rust "crate" using the _Cargo_ build tool. It uses the standard cargo commands for building:
 
-`$ cargo build`
+    $ cargo build
 
 Builds the library, and also builds the *-sys* subcrate and the bundled Paho C library. It includes SSL, as it is defined as a default feature.
 
-`$ cargo build --examples`
+    $ cargo build --examples
 
 Builds the library and sample applications in the _examples_ subdirectory.
 
-`$ cargo test`
+    $ cargo test
 
 Builds and runs the unit tests.
 
-`$ cargo doc`
+    $ cargo doc
 
 Generates reference documentation.
 

@@ -306,10 +306,6 @@ mod build {
 
         bindings::place_bindings(&inc_dir);
 
-        //for (key, value) in env::vars() {
-        //    println!("debug: Env {}: {}", key, value);
-        //}
-
         // Link in the SSL libraries if configured for it.
         if cfg!(feature = "ssl") {
             if let Some(openssl_root_dir) = openssl_root_dir() {
@@ -336,7 +332,6 @@ mod build {
                 println!("cargo:rustc-link-lib{}=crypt32", linkage);
                 println!("cargo:rustc-link-lib{}=rpcrt4", linkage);
             }
-
         }
 
         // we add the folder where all the libraries are built to the path search
