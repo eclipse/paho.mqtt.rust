@@ -40,6 +40,11 @@ To keep up with the latest announcements for this project, follow:
 
 **Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
 
+### What's new in v0.9.2
+
+- [#148](https://github.com/eclipse/paho.mqtt.rust/issues/148)  Properly freeing property memory.
+
+
 ### What's new in v0.9.1
 
 - [#101](https://github.com/eclipse/paho.mqtt.rust/issues/101) `Token::try_wait()` to check for the result of a `Token` without blocking.

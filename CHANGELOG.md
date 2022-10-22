@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.9.2](https://github.com/eclipse/paho.mqtt.rust/compare/v0.9.1..v0.9.2) - 2022-10-22
+
+- [#148](https://github.com/eclipse/paho.mqtt.rust/issues/148)  Properly freeing property memory.
+
+
 ## [v0.9.1](https://github.com/eclipse/paho.mqtt.rust/compare/v0.9.0..v0.9.1) - 2021-01-01
 
 - [#101](https://github.com/eclipse/paho.mqtt.rust/issues/101) `Token::try_wait()` to check for the result of a `Token` without blocking.
