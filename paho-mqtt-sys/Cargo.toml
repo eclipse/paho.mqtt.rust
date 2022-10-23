@@ -36,4 +36,4 @@ openssl-sys = { version = "0.9", optional = true }
 
 [build-dependencies]
 bindgen = { version = "0.52", optional = true }
-cmake = { version = "=0.1.45", optional = true }
+cmake = { version = "=0.1.48", optional = true }
