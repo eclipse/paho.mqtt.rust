@@ -263,7 +263,7 @@ impl Default for ConnectOptions {
 
 impl Clone for ConnectOptions {
     fn clone(&self) -> Self {
-        Self::from_data(self.copts, (&*self.data).clone())
+        Self::from_data(self.copts, (*self.data).clone())
     }
 }
 

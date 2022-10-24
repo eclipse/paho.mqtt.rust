@@ -64,7 +64,6 @@ use crate::{
 use crossbeam_channel as channel;
 use std::{
     ffi::{CStr, CString},
-    mem,
     os::raw::{c_char, c_int, c_void},
     ptr, slice, str,
     sync::{Arc, Mutex},
@@ -834,8 +833,7 @@ impl AsyncClient {
                 self.inner.handle,
                 n as c_int,
                 topics.as_c_arr_mut_ptr(),
-                // C lib takes mutable QoS ptr, but doesn't mutate
-                mem::transmute(qos.as_ptr()),
+                qos.as_ptr(),
                 &mut rsp_opts.copts,
             )
         };
@@ -881,7 +879,10 @@ impl AsyncClient {
 
         let topics = StringCollection::new(topics);
 
-        debug!("Subscribe to '{:?}' @ QOS {:?} w/ opts: {:?}", topics, qos, opts);
+        debug!(
+            "Subscribe to '{:?}' @ QOS {:?} w/ opts: {:?}",
+            topics, qos, opts
+        );
         trace!("Subscribe call/response opts: {:?}", rsp_opts);
 
         let rc = unsafe {
@@ -889,8 +890,7 @@ impl AsyncClient {
                 self.inner.handle,
                 n as c_int,
                 topics.as_c_arr_mut_ptr(),
-                // C lib takes mutable QoS ptr, but doesn't mutate
-                mem::transmute(qos.as_ptr()),
+                qos.as_ptr(),
                 &mut rsp_opts.copts,
             )
         };

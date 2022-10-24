@@ -85,7 +85,8 @@ fn main() {
 
         println!("Subscribing to topics: {:?}", TOPICS);
         let sub_opts = vec![mqtt::SubscribeOptions::with_retain_as_published(); TOPICS.len()];
-        cli.subscribe_many_with_options(TOPICS, QOS, &sub_opts, None).await?;
+        cli.subscribe_many_with_options(TOPICS, QOS, &sub_opts, None)
+            .await?;
 
         // Just loop on incoming messages.
         println!("Waiting for messages...");

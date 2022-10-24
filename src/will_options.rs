@@ -1,9 +1,10 @@
 // will_options.rs
+//
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2019 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2022 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -172,7 +173,7 @@ impl Clone for WillOptions {
     /// This clones the cached values and updates the C struct to refer
     /// to them.
     fn clone(&self) -> Self {
-        Self::from_data(self.copts, (&*self.data).clone())
+        Self::from_data(self.copts, (*self.data).clone())
     }
 }
 

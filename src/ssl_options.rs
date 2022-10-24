@@ -4,7 +4,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2020 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2022 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -69,7 +69,7 @@ struct SslOptionsData {
 
 /// The SSL/TLS versions that can be requested.
 #[repr(u32)]
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SslVersion {
     /// The default library SSL/TLS version
     Default = ffi::MQTT_SSL_VERSION_DEFAULT,
@@ -200,7 +200,7 @@ impl Default for SslOptions {
 
 impl Clone for SslOptions {
     fn clone(&self) -> Self {
-        Self::from_data(self.copts, (&*self.data).clone())
+        Self::from_data(self.copts, (*self.data).clone())
     }
 }
 

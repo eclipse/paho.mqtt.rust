@@ -4,7 +4,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2018-2020 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2018-2022 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -31,9 +31,8 @@
 //! combined with any other Rust futures.
 //!
 
-use std::ffi::CStr;
-
 use crate::{ffi, from_c_bool, properties::Properties, reason_code::ReasonCode};
+use std::ffi::CStr;
 
 /////////////////////////////////////////////////////////////////////////////
 // ServerRequest
@@ -41,7 +40,7 @@ use crate::{ffi, from_c_bool, properties::Properties, reason_code::ReasonCode};
 /// The server requests that expect a response.
 /// This is required because the `alt` union of the MQTTAsync_successData
 /// struct from C library doesn't indicate which field is valid.
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ServerRequest {
     /// No response expected from the server
     None,

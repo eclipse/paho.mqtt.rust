@@ -379,7 +379,7 @@ impl Property {
             Self::new_binary(code, v.to_vec())
         }
         else if let Some(v) = rval.downcast_ref::<String>() {
-            Self::new_string(code, &*v)
+            Self::new_string(code, v)
         }
         else if let Some(v) = rval.downcast_ref::<&str>() {
             Self::new_string(code, v)

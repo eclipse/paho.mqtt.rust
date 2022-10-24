@@ -4,7 +4,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2019-2020 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2019-2022 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -25,7 +25,7 @@ use std::{ffi::CStr, fmt};
 
 /// MQTT v5 single-byte reason codes.
 #[repr(u8)]
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(missing_docs)]
 pub enum ReasonCode {
     Success = 0, // also: NormalDisconnection & GrantedQos0

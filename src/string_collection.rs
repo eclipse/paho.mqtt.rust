@@ -148,7 +148,7 @@ impl Default for StringCollection {
 
 impl Clone for StringCollection {
     fn clone(&self) -> Self {
-        Self::from_data((&*self.data).clone())
+        Self::from_data((*self.data).clone())
     }
 }
 

@@ -97,7 +97,9 @@ impl<T> TopicMatcher<T> {
         for sym in key.split('/') {
             node = match sym {
                 "+" => node.plus_wild.get_or_insert(Box::new(Node::<T>::default())),
-                "#" => node.pound_wild.get_or_insert(Box::new(Node::<T>::default())),
+                "#" => node
+                    .pound_wild
+                    .get_or_insert(Box::new(Node::<T>::default())),
                 sym => node
                     .children
                     .entry(sym.to_string())
@@ -124,7 +126,7 @@ impl<T> TopicMatcher<T> {
                 None => return None,
             };
         }
-        node.content.take().map(|(_,v)| v)
+        node.content.take().map(|(_, v)| v)
     }
 
     /// Gets a reference to a value from the collection using an exact
@@ -142,7 +144,7 @@ impl<T> TopicMatcher<T> {
                 None => return None,
             };
         }
-        node.content.as_ref().map(|(_,v)| v)
+        node.content.as_ref().map(|(_, v)| v)
     }
 
     /// Gets a mutable mutable reference to a value from the collection
@@ -160,7 +162,7 @@ impl<T> TopicMatcher<T> {
                 None => return None,
             };
         }
-        node.content.as_mut().map(|(_,v)| v)
+        node.content.as_mut().map(|(_, v)| v)
     }
 
     /// Gets an iterator for all the matches to the specified topic
@@ -224,8 +226,10 @@ impl<T> Node<T> {
     /// contain a collection of children that are empty, which might be
     /// considered an "empty" state. But not here.
     fn is_empty(&self) -> bool {
-        self.content.is_none() && self.children.is_empty()
-            && self.plus_wild.is_none() && self.pound_wild.is_none()
+        self.content.is_none()
+            && self.children.is_empty()
+            && self.plus_wild.is_none()
+            && self.pound_wild.is_none()
     }
 }
 
@@ -263,7 +267,9 @@ pub struct MatchIter<'a, 'b, T> {
 impl<'a, 'b, T> MatchIter<'a, 'b, T> {
     fn new(node: &'a Node<T>, topic: &'b str) -> Self {
         let syms: Vec<_> = topic.rsplit('/').collect();
-        Self { nodes: vec![(node, syms)] }
+        Self {
+            nodes: vec![(node, syms)],
+        }
     }
 }
 
@@ -313,7 +319,9 @@ pub struct MatchIterMut<'a, 'b, T> {
 impl<'a, 'b, T> MatchIterMut<'a, 'b, T> {
     fn new(node: &'a mut Node<T>, topic: &'b str) -> Self {
         let syms: Vec<_> = topic.rsplit('/').collect();
-        Self { nodes: vec![(node, syms)] }
+        Self {
+            nodes: vec![(node, syms)],
+        }
     }
 }
 
@@ -329,7 +337,7 @@ impl<'a, 'b, T> Iterator for MatchIterMut<'a, 'b, T> {
 
         let sym = match syms.pop() {
             Some(sym) => sym,
-            None => return node.content.as_mut().map(|(k,v)| (&*k, v)),
+            None => return node.content.as_mut().map(|(k, v)| (&*k, v)),
         };
 
         if let Some(child) = node.children.get_mut(sym) {
@@ -342,7 +350,7 @@ impl<'a, 'b, T> Iterator for MatchIterMut<'a, 'b, T> {
 
         if let Some(child) = node.pound_wild.as_mut() {
             // By protocol definition, a '#' must be a terminating leaf.
-            return child.content.as_mut().map(|(k,v)| (&*k, v));
+            return child.content.as_mut().map(|(k, v)| (&*k, v));
         }
 
         self.next()
@@ -392,9 +400,7 @@ mod tests {
     fn test_topic_matcher_callback() {
         let mut matcher = TopicMatcher::new();
 
-        matcher.insert("some/+/topic", Box::new(|n: u32| {
-            n * 2
-        }));
+        matcher.insert("some/+/topic", Box::new(|n: u32| n * 2));
 
         for (_t, f) in matcher.matches("some/random/topic") {
             let n = f(2);

@@ -27,13 +27,11 @@
 use crate::{ffi, from_c_bool, to_c_bool, Error, Result};
 use std::{convert::TryFrom, fmt};
 
-
 /// Receive our own publications when subscribed to the same topics.
 /// This is the default and the same behavior as MQTT v3.x
 pub const SUBSCRIBE_LOCAL: bool = false;
 /// Don't receive our own publications when subscribed to the same topics.
 pub const SUBSCRIBE_NO_LOCAL: bool = true;
-
 
 /// Retain flag is only set on publications sent by a broker if in
 /// response to a subscribe request.
@@ -96,11 +94,7 @@ pub struct SubscribeOptions {
 
 impl SubscribeOptions {
     /// Creates set of subscribe options.
-    pub fn new<H>(
-        no_local: bool,
-        retain_as_published: bool,
-        retain_handling: H,
-    ) -> Self
+    pub fn new<H>(no_local: bool, retain_as_published: bool, retain_handling: H) -> Self
     where
         H: Into<Option<RetainHandling>>,
     {
@@ -158,8 +152,7 @@ impl SubscribeOptions {
 
     /// Get the value of the 'retain handling' option.
     pub fn retain_handling(&self) -> RetainHandling {
-        RetainHandling::try_from(self.copts.retainHandling as i32)
-            .unwrap_or_default()
+        RetainHandling::try_from(self.copts.retainHandling as i32).unwrap_or_default()
     }
 }
 
@@ -297,7 +290,6 @@ mod tests {
         assert!(opts.copts.retainAsPublished != 0);
         assert!(opts.copts.retainHandling == RetainHandling::SendRetainedOnNew as u8);
     }
-
 
     #[test]
     fn test_with() {

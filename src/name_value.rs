@@ -142,7 +142,7 @@ impl Default for NameValueCollection {
 
 impl Clone for NameValueCollection {
     fn clone(&self) -> Self {
-        Self::from_data((&*self.data).clone())
+        Self::from_data((*self.data).clone())
     }
 }
 

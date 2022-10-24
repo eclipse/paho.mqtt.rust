@@ -47,8 +47,9 @@ To keep up with the latest announcements for this project, follow:
     - New URI protocol schemes: "mqtt://" for TCP and "mqtts://" for encrypted SSL/TLS.
 - Updated `SubscribeOptions` to be more usable.
 - Created a new [example](https://github.com/eclipse/paho.mqtt.rust/blob/develop/examples/async_subscribe_v5.rs) for MQTT v5 subscriptions with subscribe options.
-[#156](https://github.com/eclipse/paho.mqtt.rust/issues/156) Added a mutable iterator to TopicMatcher, with functions `remove()`, `get_mut()`, and `matches_mut()`
-[#170](https://github.com/eclipse/paho.mqtt.rust/issues/170) Upgraded cmake crate to v0.1.48 to support building with Visual Studio 2022.
+- [#156](https://github.com/eclipse/paho.mqtt.rust/issues/156) Added a mutable iterator to TopicMatcher, with functions `remove()`, `get_mut()`, and `matches_mut()`
+- [#170](https://github.com/eclipse/paho.mqtt.rust/issues/170) Upgraded cmake crate to v0.1.48 to support building with Visual Studio 2022.
+- Fixed clippy warnings
 
 ### What's new in v0.11.1
 

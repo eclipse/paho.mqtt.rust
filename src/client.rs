@@ -310,9 +310,9 @@ impl Client {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::create_options::CreateOptionsBuilder;
     use std::sync::Arc;
     use std::thread;
-    use crate::create_options::CreateOptionsBuilder;
 
     // Determine that a client can be sent across threads and signaled.
     // As long as it compiles, this indicates that Client implements the
