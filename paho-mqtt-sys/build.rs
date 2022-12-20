@@ -276,6 +276,8 @@ mod build {
             .define("PAHO_BUILD_STATIC", "on")
             .define("PAHO_ENABLE_TESTING", "off")
             .define("PAHO_HIGH_PERFORMANCE", "on")
+            // (TEMPORARY) Fixes a performance regression in new poll() code
+            .define("PAHO_USE_SELECT", "on")
             .define("PAHO_WITH_SSL", ssl);
 
         if is_msvc() {
