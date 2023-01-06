@@ -5,9 +5,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [sys-v0.7.1](https://github.com/eclipse/paho.mqtt.rust/compare/v0.11.1..v0.11.1-sys0.7.1) - 2022-12-19
+## [sys-v0.7.2](https://github.com/eclipse/paho.mqtt.rust/compare/v0.11.1-sys-v0.7.1..v0.11.1-sys-v0.7.2) - 2023-01-06
 
-- Reverted the '-sys' to using the Paho C library v1.3.10 built with `select()` instead of the newer `poll()` code. Fixes a performance regression.
+- Updated the -sys crate to use cmake crate v0.1.49 or above. This allows for building on both newer and older systems.
+
+## [sys-v0.7.1](https://github.com/eclipse/paho.mqtt.rust/compare/v0.11.1..v0.11.1-sys-v0.7.1) - 2022-12-19
+
+- Reverted '-sys' to use the Paho C library v1.3.10 built with `select()` instead of the newer `poll()` code. Fixes a performance regression.
 
 
 ## [v0.11.1](https://github.com/eclipse/paho.mqtt.rust/compare/v0.11.0..v0.11.1) - 2021-05-03
