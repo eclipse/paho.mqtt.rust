@@ -132,7 +132,7 @@ fn find_link_lib<P>(install_path: P) -> Option<(PathBuf,&'static str)>
 #[cfg(not(feature = "build_bindgen"))]
 mod bindings {
     use super::*;
-    use std::{fs, env};
+    use std::fs;
 
     pub fn place_bindings(_inc_dir: &Path) {
         let target = env::var("TARGET").unwrap();
@@ -231,12 +231,12 @@ mod build {
 
     use super::*;
     use std::{
-        path::Path,
+//        path::Path,
         process,
         process::Command,
-        env,
     };
 
+    /*
     // The openssl-sys crate does the hard part of finding the library,
     // but it only seems to set a variable for the path to the include files.
     // We assume the directory above that one is the SSL root.
@@ -247,6 +247,7 @@ mod build {
                 .map(|path| path.display().to_string())
         })
     }
+    */
 
     pub fn main() {
         println!("debug:Running the bundled build for Paho C");
@@ -282,9 +283,11 @@ mod build {
             cmk_cfg.cflag("/DWIN32");
         }
 
+        /*
         if let Some(ssl_dir) = openssl_root_dir() {
             cmk_cfg.define("OPENSSL_ROOT_DIR", ssl_dir);
         }
+        */
 
         // 'cmk_install_dir' is a PathBuf to the cmake install directory
         let cmk_install_path = cmk_cfg.build();
@@ -306,6 +309,7 @@ mod build {
 
         bindings::place_bindings(&inc_dir);
 
+        /*
         // Link in the SSL libraries if configured for it.
         if cfg!(feature = "ssl") {
             if let Some(openssl_root_dir) = openssl_root_dir() {
@@ -333,6 +337,7 @@ mod build {
                 println!("cargo:rustc-link-lib{}=rpcrt4", linkage);
             }
         }
+        */
 
         // we add the folder where all the libraries are built to the path search
         println!("cargo:rustc-link-search=native={}", lib_path.display());

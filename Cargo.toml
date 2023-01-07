@@ -1,6 +1,6 @@
 [package]
 name = "paho-mqtt"
-version = "0.11.1"
+version = "0.12.0-pre"
 edition = "2018"
 authors = ["Frank Pagliughi <fpagliughi@mindspring.com>"]
 homepage = "https://github.com/eclipse/paho.mqtt.rust"
@@ -21,7 +21,7 @@ ssl = ["paho-mqtt-sys/ssl"]
 vendored-ssl = ["paho-mqtt-sys/vendored-ssl"]
 
 [dependencies]
-paho-mqtt-sys = { version = "0.7", path = "paho-mqtt-sys", default-features=false }
+paho-mqtt-sys = { version = "0.8.0-pre", path = "paho-mqtt-sys", default-features=false }
 libc = "0.2"
 futures = "0.3"
 futures-timer = "3.0"
