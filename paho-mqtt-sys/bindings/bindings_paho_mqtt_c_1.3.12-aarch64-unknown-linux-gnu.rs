@@ -1140,7 +1140,7 @@ extern "C" {
     pub fn _IO_vfscanf(
         arg1: *mut _IO_FILE,
         arg2: *const ::std::os::raw::c_char,
-        arg3: __gnuc_va_list,
+        arg3: *mut __gnuc_va_list,
         arg4: *mut ::std::os::raw::c_int,
     ) -> ::std::os::raw::c_int;
 }
@@ -1148,7 +1148,7 @@ extern "C" {
     pub fn _IO_vfprintf(
         arg1: *mut _IO_FILE,
         arg2: *const ::std::os::raw::c_char,
-        arg3: __gnuc_va_list,
+        arg3: *mut __gnuc_va_list,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
@@ -1301,20 +1301,20 @@ extern "C" {
     pub fn vfprintf(
         __s: *mut FILE,
         __format: *const ::std::os::raw::c_char,
-        __arg: [u64; 4usize],
+        __arg: *mut va_list,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub fn vprintf(
         __format: *const ::std::os::raw::c_char,
-        __arg: [u64; 4usize],
+        __arg: *mut va_list,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub fn vsprintf(
         __s: *mut ::std::os::raw::c_char,
         __format: *const ::std::os::raw::c_char,
-        __arg: [u64; 4usize],
+        __arg: *mut va_list,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
@@ -1330,14 +1330,14 @@ extern "C" {
         __s: *mut ::std::os::raw::c_char,
         __maxlen: ::std::os::raw::c_ulong,
         __format: *const ::std::os::raw::c_char,
-        __arg: [u64; 4usize],
+        __arg: *mut va_list,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub fn vdprintf(
         __fd: ::std::os::raw::c_int,
         __fmt: *const ::std::os::raw::c_char,
-        __arg: __gnuc_va_list,
+        __arg: *mut __gnuc_va_list,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
@@ -1388,20 +1388,20 @@ extern "C" {
     pub fn vfscanf(
         __s: *mut FILE,
         __format: *const ::std::os::raw::c_char,
-        __arg: [u64; 4usize],
+        __arg: *mut va_list,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub fn vscanf(
         __format: *const ::std::os::raw::c_char,
-        __arg: [u64; 4usize],
+        __arg: *mut va_list,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub fn vsscanf(
         __s: *const ::std::os::raw::c_char,
         __format: *const ::std::os::raw::c_char,
-        __arg: [u64; 4usize],
+        __arg: *mut va_list,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
@@ -1409,14 +1409,14 @@ extern "C" {
     pub fn vfscanf1(
         __s: *mut FILE,
         __format: *const ::std::os::raw::c_char,
-        __arg: [u64; 4usize],
+        __arg: *mut va_list,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
     #[link_name = "\u{1}__isoc99_vscanf"]
     pub fn vscanf1(
         __format: *const ::std::os::raw::c_char,
-        __arg: [u64; 4usize],
+        __arg: *mut va_list,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
@@ -1424,7 +1424,7 @@ extern "C" {
     pub fn vsscanf1(
         __s: *const ::std::os::raw::c_char,
         __format: *const ::std::os::raw::c_char,
-        __arg: [u64; 4usize],
+        __arg: *mut va_list,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
