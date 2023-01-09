@@ -5,11 +5,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
 
-- Updated `SubscribeOptions` for more sensical creation functions and added queries.
-[#166](https://github.com/eclipse/paho.mqtt.rust/pull/166) Fix topic matches with single-level wildcard in `TopicMatcher`
-	
+## [v0.12.0](https://github.com/eclipse/paho.mqtt.rust/compare/v0.11.1..v0.12.0) - 2023-01-09
+
+- Upgrade to Paho C v1.3.12
+    - Fixes a performance issue, particularily for receiving messages.
+    - New URI protocol schemes: "mqtt://" for TCP and "mqtts://" for encrypted SSL/TLS.
+- Updated `SubscribeOptions` to be more usable.
+- Created a new [example](https://github.com/eclipse/paho.mqtt.rust/blob/develop/examples/async_subscribe_v5.rs) for MQTT v5 subscriptions with subscribe options.
+- [#182](https://github.com/eclipse/paho.mqtt.rust/issues/182) Callback must now be `Send` since they will be called from another thread.
+- [#172](https://github.com/eclipse/paho.mqtt.rust/issues/172) Linking to `User32` library on Windows to try to avoid build problems.
+- [#170](https://github.com/eclipse/paho.mqtt.rust/issues/170) Updated the cmake crate dependency in -sys to 0.1.49 to support both older CMake (pre v3.12) and newer systems like VS 2022.
+- [#156](https://github.com/eclipse/paho.mqtt.rust/issues/156) (continued) Added a mutable iterator to TopicMatcher, with functions `remove()`, `get_mut()`, and `matches_mut()`
+- [#170](https://github.com/eclipse/paho.mqtt.rust/issues/170) Upgraded cmake crate to v0.1.48 to support building with Visual Studio 2022.
+- [#166](https://github.com/eclipse/paho.mqtt.rust/issues/166) Fix topic matches with single-level wildcard.
+- [#151](https://github.com/eclipse/paho.mqtt.rust/issues/151) Fixed wrong documentation of QoS 1
+- [#57](https://github.com/eclipse/paho.mqtt.rust/issues/57) Updated this README with more help for musl builds.
+- Fixed clippy warnings
+
 
 ## [v0.11.1](https://github.com/eclipse/paho.mqtt.rust/compare/v0.11.0..v0.11.1) - 2021-05-03
 

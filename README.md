@@ -28,7 +28,7 @@ The initial version of this crate is a wrapper for the Paho C library, and inclu
     - Traditional asynchronous (token/wait) API
     - Synchronous/blocking  API
 
-Requires Paho C v1.3.11, or possibly later.
+Requires Paho C v1.3.12, or possibly later.
 
 ## Latest News
 
@@ -40,15 +40,21 @@ To keep up with the latest announcements for this project, follow:
 
 **Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
 
-### Unreleased Features in This Branch
+### What's new in v0.12
 
-- Upgrade to Paho C v1.3.11
+- Upgrade to Paho C v1.3.12
     - Fixes a performance issue, particularily for receiving messages.
     - New URI protocol schemes: "mqtt://" for TCP and "mqtts://" for encrypted SSL/TLS.
 - Updated `SubscribeOptions` to be more usable.
 - Created a new [example](https://github.com/eclipse/paho.mqtt.rust/blob/develop/examples/async_subscribe_v5.rs) for MQTT v5 subscriptions with subscribe options.
-- [#156](https://github.com/eclipse/paho.mqtt.rust/issues/156) Added a mutable iterator to TopicMatcher, with functions `remove()`, `get_mut()`, and `matches_mut()`
+- [#182](https://github.com/eclipse/paho.mqtt.rust/issues/182) Callback must now be `Send` since they will be called from another thread.
+- [#172](https://github.com/eclipse/paho.mqtt.rust/issues/172) Linking to `User32` library on Windows to try to avoid build problems.
+- [#170](https://github.com/eclipse/paho.mqtt.rust/issues/170) Updated the cmake crate dependency in -sys to 0.1.49 to support both older CMake (pre v3.12) and newer systems like VS 2022.
+- [#156](https://github.com/eclipse/paho.mqtt.rust/issues/156) (continued) Added a mutable iterator to TopicMatcher, with functions `remove()`, `get_mut()`, and `matches_mut()`
 - [#170](https://github.com/eclipse/paho.mqtt.rust/issues/170) Upgraded cmake crate to v0.1.48 to support building with Visual Studio 2022.
+- [#166](https://github.com/eclipse/paho.mqtt.rust/issues/166) Fix topic matches with single-level wildcard.
+- [#151](https://github.com/eclipse/paho.mqtt.rust/issues/151) Fixed wrong documentation of QoS 1
+- [#57](https://github.com/eclipse/paho.mqtt.rust/issues/57) Updated this README with more help for musl builds.
 - Fixed clippy warnings
 
 ### What's new in v0.11.1
@@ -58,21 +64,11 @@ To keep up with the latest announcements for this project, follow:
     - Match iterator returns key/value tuple (not just value).
 - [#154](https://github.com/eclipse/paho.mqtt.rust/pull/154) Add public interface to retrieve `client_id`.
 
-### What's new in v0.11.0
-
-- Updated to support Paho C v1.3.10
-- New client functions to stop consuming/streaming and to remove callbacks.
-- Started a README for the -sys crate.
-- Fixed a bunch of lints. Clippy report is clean.
-- [#152](https://github.com/eclipse/paho.mqtt.rust/issues/152) Consumer won't panic when the receiver drops.
-- [#113](https://github.com/eclipse/paho.mqtt.rust/issues/113) Build now respects the OPENSSL_STATIC flag (if OPENSSL_DIR or other path flags set).
-- [#145](https://github.com/eclipse/paho.mqtt.rust/issues/145) `impl From<Error> for io::Error` An MQTT error can be easily converted back to an I/O error.
-
 ## Using the Crate
 
 To use the library, simply add this to your application's `Cargo.toml` dependencies list:
 
-    paho-mqtt = "0.11"
+    paho-mqtt = "0.12"
 
 By default it enables the features "bundled" and "ssl" meaning it will attempt to compile the Paho C library for the target, using the pre-built bindings, and will enable secure sockets capabilities using the system OpenSSL library.
 
@@ -119,17 +115,17 @@ In particular:
 So, by default, your application will build for SSL/TLS, assuming an existing install of the OpenSSL library. In your _Cargo.toml_, just:
 
     # Use the system OpenSSL library
-    paho-mqtt = "0.11"
+    paho-mqtt = "0.12"
 
 If you don't have OpenSSL installed for your target and want to build it with your app:
 
     # Build OpenSSL with the project
-    paho-mqtt = { version = "0.11", features=["vendored-ssl"] }
+    paho-mqtt = { version = "0.12", features=["vendored-ssl"] }
 
 If you want to build your app _without_ SSL/TLS, disable the default features, then add "bundled" back in (if desired):
 
     # Don't use SSL at all
-    paho-mqtt = { version = "0.11", default-features=false, features=["bundled"] }
+    paho-mqtt = { version = "0.12", default-features=false, features=["bundled"] }
 
 ### Windows
 
@@ -142,7 +138,7 @@ If you install OpenSSL, you usually need tell the Rust build tools where to find
 Point it to wherever you installed the library. Alternately, you can tell Cargo to build it with the app, using the _vendored-ssl_ feature:
 
     # Build OpenSSL with the project
-    paho-mqtt = { version = "0.11", features=["vendored-ssl"] }
+    paho-mqtt = { version = "0.12", features=["vendored-ssl"] }
 
 ### Fully Static Builds with MUSL
 
@@ -154,7 +150,7 @@ Then you can use Casro to build your application, like:
 
 When using SSL/TLS with _musl_, you need a static version of the OpenSSL library built for _musl_. If you don't have one built and installed, you can use _vendored-ssl_. So, in your _Cargo.toml:_
 
-    paho-mqtt = { version = "0.11", features=["vendored-ssl"] }
+    paho-mqtt = { version = "0.12", features=["vendored-ssl"] }
 
 When using _musl_ with OpenSSL, it appears that you also need to manually link with the C library. There are two ways to do this. First, you can create a simple `build.rs` for your application, specifying the link:
 
