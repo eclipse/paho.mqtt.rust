@@ -411,8 +411,8 @@ impl AsyncClient {
         failure_cb: FF,
     ) -> ConnectToken
     where
-        FS: Fn(&AsyncClient, u16) + 'static,
-        FF: Fn(&AsyncClient, u16, i32) + 'static,
+        FS: Fn(&AsyncClient, u16) + Send + 'static,
+        FF: Fn(&AsyncClient, u16, i32) + Send + 'static,
     {
         debug!("Connecting handle with callbacks: {:?}", self.inner.handle);
 
@@ -464,8 +464,8 @@ impl AsyncClient {
     ///
     pub fn reconnect_with_callbacks<FS, FF>(&self, success_cb: FS, failure_cb: FF) -> ConnectToken
     where
-        FS: Fn(&AsyncClient, u16) + 'static,
-        FF: Fn(&AsyncClient, u16, i32) + 'static,
+        FS: Fn(&AsyncClient, u16) + Send + 'static,
+        FF: Fn(&AsyncClient, u16, i32) + Send + 'static,
     {
         let connopts = self.inner.opts.lock().unwrap().clone();
         self.connect_with_callbacks(connopts, success_cb, failure_cb)
