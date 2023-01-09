@@ -42,6 +42,7 @@ To keep up with the latest announcements for this project, follow:
 
 ### What's new in v0.12
 
+- Updated to Rust Edition 2021 w/ MSRV 1.63.0
 - Upgrade to Paho C v1.3.12
     - Fixes a performance issue, particularily for receiving messages.
     - New URI protocol schemes: "mqtt://" for TCP and "mqtts://" for encrypted SSL/TLS.
@@ -172,9 +173,9 @@ The second option is to tell Cargo to always link the C library when compiling f
 
 ### Minimum Supported Rust Version (MSRV)
 
-**v1.54.0**
+**v1.63.0**
 
-This package uses async/await and thus requires an Edition 2018 compiler or newer. Although it may build and work with slightly older versions of the compiler than v1.54, this is the oldest version being tested and maintained by the developers.
+This package uses Rust Edition 2021, requiring an MSRV of 1.63.0. Although it may build and work with slightly older versions of the compiler, this is the oldest version being tested and maintained by the developers.
 
 ## Developing the Crate
 

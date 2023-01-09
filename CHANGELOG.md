@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [v0.12.0](https://github.com/eclipse/paho.mqtt.rust/compare/v0.11.1..v0.12.0) - 2023-01-09
 
+- Updated to Rust Edition 2021 w/ MSRV 1.63.0
 - Upgrade to Paho C v1.3.12
     - Fixes a performance issue, particularily for receiving messages.
     - New URI protocol schemes: "mqtt://" for TCP and "mqtts://" for encrypted SSL/TLS.
