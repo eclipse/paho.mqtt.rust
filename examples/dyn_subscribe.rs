@@ -26,7 +26,7 @@
 //!
 
 /*******************************************************************************
- * Copyright (c) 2017-2020 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -95,7 +95,7 @@ fn main() {
 
     let host = env::args()
         .nth(1)
-        .unwrap_or_else(|| "tcp://localhost:1883".to_string());
+        .unwrap_or_else(|| "mqtt://localhost:1883".to_string());
 
     let topics: Vec<String> = DFLT_TOPICS.iter().map(|s| s.to_string()).collect();
 

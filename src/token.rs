@@ -294,7 +294,7 @@ impl TokenInner {
             }
         }
 
-        debug!("Token completed with code: {}", rc);
+        debug!("Token w ID {} completed with code: {}", msgid, rc);
 
         // Fire off any user callbacks
 
@@ -331,7 +331,7 @@ impl TokenInner {
         err_msg: Option<String>,
         rsp: *mut ffi::MQTTAsync_successData,
     ) {
-        debug!("Token completed with code: {}", rc);
+        debug!("Token w ID {} completed with code: {}", msgid, rc);
 
         // Fire off any user callbacks
 

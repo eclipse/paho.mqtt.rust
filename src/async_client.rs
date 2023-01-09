@@ -101,16 +101,16 @@ pub(crate) struct InnerAsyncClient {
 }
 
 /// User callback type for when the client is connected.
-pub type ConnectedCallback = dyn FnMut(&AsyncClient) + Send + 'static;
+pub type ConnectedCallback = dyn FnMut(&AsyncClient) + 'static;
 
 /// User callback type for when the connection is lost from the broker.
-pub type ConnectionLostCallback = dyn FnMut(&AsyncClient) + Send + 'static;
+pub type ConnectionLostCallback = dyn FnMut(&AsyncClient) + 'static;
 
 /// User callback type for when the client receives a disconnect packet.
-pub type DisconnectedCallback = dyn FnMut(&AsyncClient, Properties, ReasonCode) + Send + 'static;
+pub type DisconnectedCallback = dyn FnMut(&AsyncClient, Properties, ReasonCode) + 'static;
 
 /// User callback signature for when subscribed messages are received.
-pub type MessageArrivedCallback = dyn FnMut(&AsyncClient, Option<Message>) + Send + 'static;
+pub type MessageArrivedCallback = dyn FnMut(&AsyncClient, Option<Message>) + 'static;
 
 // The context provided for the client callbacks.
 //
@@ -540,7 +540,7 @@ impl AsyncClient {
     ///     function or a closure.
     pub fn set_connected_callback<F>(&self, cb: F)
     where
-        F: FnMut(&AsyncClient) + Send + 'static,
+        F: FnMut(&AsyncClient) + 'static,
     {
         // A pointer to the inner client will serve as the callback context
         let inner: &InnerAsyncClient = &self.inner;
@@ -574,7 +574,7 @@ impl AsyncClient {
     ///     function or a closure.
     pub fn set_connection_lost_callback<F>(&self, cb: F)
     where
-        F: FnMut(&AsyncClient) + Send + 'static,
+        F: FnMut(&AsyncClient) + 'static,
     {
         // A pointer to the inner client will serve as the callback context
         let inner: &InnerAsyncClient = &self.inner;
@@ -621,7 +621,7 @@ impl AsyncClient {
     ///     function or a closure.
     pub fn set_disconnected_callback<F>(&self, cb: F)
     where
-        F: FnMut(&AsyncClient, Properties, ReasonCode) + Send + 'static,
+        F: FnMut(&AsyncClient, Properties, ReasonCode) + 'static,
     {
         // A pointer to the inner client will serve as the callback context
         let inner: &InnerAsyncClient = &self.inner;
@@ -656,7 +656,7 @@ impl AsyncClient {
     ///
     pub fn set_message_callback<F>(&self, cb: F)
     where
-        F: FnMut(&AsyncClient, Option<Message>) + Send + 'static,
+        F: FnMut(&AsyncClient, Option<Message>) + 'static,
     {
         // A pointer to the inner client will serve as the callback context
         let inner: &InnerAsyncClient = &self.inner;

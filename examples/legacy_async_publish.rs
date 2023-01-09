@@ -40,7 +40,7 @@ fn main() {
     // Command-line option(s)
     let host = env::args()
         .nth(1)
-        .unwrap_or_else(|| "tcp://localhost:1883".to_string());
+        .unwrap_or_else(|| "mqtt://localhost:1883".to_string());
 
     // Create a client to the specified host
     // Since we don't use a client ID there's no persistence

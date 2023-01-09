@@ -148,7 +148,7 @@ fn main() {
 
     let host = env::args()
         .nth(1)
-        .unwrap_or_else(|| "tcp://localhost:1883".to_string());
+        .unwrap_or_else(|| "mqtt://localhost:1883".to_string());
 
     // Create a client & define connect options.
     // Note that for pure publishers, you don't always need a Client ID. But

@@ -4,7 +4,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2022 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -326,10 +326,13 @@ mod build {
             println!("cargo:rustc-link-lib{}={}ssl", linkage, prefix);
             println!("cargo:rustc-link-lib{}={}crypto", linkage, prefix);
 
-            if is_windows() && !is_msvc() {
-                // required for mingw builds
-                println!("cargo:rustc-link-lib{}=crypt32", linkage);
-                println!("cargo:rustc-link-lib{}=rpcrt4", linkage);
+            if is_windows() {
+                if !is_msvc() {
+                    // required for mingw builds
+                    println!("cargo:rustc-link-lib{}=crypt32", linkage);
+                    println!("cargo:rustc-link-lib{}=rpcrt4", linkage);
+                }
+                println!("cargo:rustc-link-lib=User32");
             }
         }
 
