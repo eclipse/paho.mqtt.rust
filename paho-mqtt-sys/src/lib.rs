@@ -49,13 +49,14 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 pub const CREATE_OPTIONS_STRUCT_VERSION: i32 = 2;
 
 impl Default for MQTTAsync_createOptions {
-    fn default() -> MQTTAsync_createOptions {
-        MQTTAsync_createOptions {
+    /// Creates a client that can connect using MQTT v3.x or v5
+    fn default() -> Self {
+        Self {
             struct_id: [ b'M' as c_char, b'Q' as c_char, b'C' as c_char, b'O' as c_char],
             struct_version: CREATE_OPTIONS_STRUCT_VERSION,
             sendWhileDisconnected: 0,
             maxBufferedMessages: 100,
-            MQTTVersion: MQTTVERSION_DEFAULT as c_int,
+            MQTTVersion: MQTTVERSION_5 as c_int,
             allowDisconnectedSendAtAnyTime: 0,
             deleteOldestMessages: 0,
             restoreMessages: 1,
@@ -65,11 +66,22 @@ impl Default for MQTTAsync_createOptions {
 }
 
 impl MQTTAsync_createOptions {
-    pub fn default_v5() -> MQTTAsync_createOptions {
-        MQTTAsync_createOptions {
-            MQTTVersion: MQTTVERSION_5 as c_int,
-            ..MQTTAsync_createOptions::default()
+    /// Creates a client that can connect using MQTT v3.x or v5
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Creates a client that can only connect using MQTT v3.x
+    pub fn new_v3() -> Self {
+        Self {
+            MQTTVersion: MQTTVERSION_DEFAULT as c_int,
+            ..Self::default()
         }
+    }
+
+    /// Creates a client that can connect using MQTT v3.x or v5
+    pub fn new_v5() -> Self {
+        Self::default()
     }
 }
 
@@ -84,8 +96,8 @@ impl MQTTAsync_createOptions {
 pub const CONNECT_OPTIONS_STRUCT_VERSION: i32 = 8;
 
 impl Default for MQTTAsync_connectOptions {
-    fn default() -> MQTTAsync_connectOptions {
-        MQTTAsync_connectOptions {
+    fn default() -> Self {
+        Self {
             struct_id: [ b'M' as c_char, b'Q' as c_char, b'T' as c_char, b'C' as c_char],
             struct_version: CONNECT_OPTIONS_STRUCT_VERSION,
             keepAliveInterval: 60,
@@ -118,6 +130,39 @@ impl Default for MQTTAsync_connectOptions {
             httpHeaders: ptr::null(),
             httpProxy: ptr::null(),
             httpsProxy: ptr::null(),
+        }
+    }
+}
+
+impl MQTTAsync_connectOptions {
+    /// Creates default connect options for v3.x
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Creates default connect options for v5
+    pub fn new_v5() -> Self {
+        Self {
+            cleansession: 0,
+            cleanstart: 1,
+            MQTTVersion: MQTTVERSION_5 as i32,
+            ..Self::default()
+        }
+    }
+
+    /// Creates default connect options for v3.x over websockets
+    pub fn new_ws() -> Self {
+        Self {
+            keepAliveInterval: 45,
+            ..Self::default()
+        }
+    }
+
+    /// Creates default connect options for v3.x over websockets
+    pub fn new_ws_v5() -> Self {
+        Self {
+            keepAliveInterval: 45,
+            ..Self::new_v5()
         }
     }
 }

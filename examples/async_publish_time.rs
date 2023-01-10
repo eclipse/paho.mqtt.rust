@@ -1,5 +1,7 @@
 // paho-mqtt/examples/async_publish_time.rs
 //
+// Example application for Paho MQTT Rust library.
+//
 //! This is a simple MQTT asynchronous message publisher using the Paho
 //! Rust library. It shows a typical use case (although with contrived
 //! "data"), where a client might poll a sensor and then publish the

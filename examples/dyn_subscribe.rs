@@ -1,4 +1,5 @@
 // paho-mqtt/examples/dyn_subscribe.rs
+//
 // This is a Paho MQTT Rust client, sample application.
 //
 //! This application is an MQTT subscriber using the asynchronous client
@@ -156,10 +157,9 @@ fn main() {
     // Define the set of options for the connection
     let lwt = mqtt::Message::new("test", "Async subscriber lost connection", 1);
 
+    // The connect options. Defaults to an MQTT v3.x connection.
     let conn_opts = mqtt::ConnectOptionsBuilder::new()
         .keep_alive_interval(Duration::from_secs(20))
-        .mqtt_version(mqtt::MQTT_VERSION_3_1_1)
-        .clean_session(true)
         .will_message(lwt)
         .finalize();
 

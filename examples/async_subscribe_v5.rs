@@ -1,5 +1,6 @@
-// paho-mqtt/examples/async_subscribe.rs
-// This is a Paho MQTT Rust client, sample application.
+// paho-mqtt/examples/async_subscribe_v5.rs
+//
+// This is a Paho MQTT v5 Rust sample application.
 //
 //! This application is an MQTT subscriber using the asynchronous client
 //! interface of the Paho Rust client library.
@@ -18,7 +19,7 @@
 //!
 
 /*******************************************************************************
- * Copyright (c) 2017-2022 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -54,7 +55,6 @@ fn main() {
     // Create the client. Use an ID for a persistent session.
     // A real system should try harder to use a unique ID.
     let create_opts = mqtt::CreateOptionsBuilder::new()
-        .mqtt_version(mqtt::MQTT_VERSION_5)
         .server_uri(host)
         .client_id("rust_async_sub_v5")
         .finalize();
@@ -72,8 +72,11 @@ fn main() {
         // Define the set of options for the connection
         let lwt = mqtt::Message::new("test", "Async subscriber lost connection", mqtt::QOS_1);
 
-        let conn_opts = mqtt::ConnectOptionsBuilder::new()
-            .mqtt_version(mqtt::MQTT_VERSION_5)
+        // Connect with MQTT v5 and a persistent server session (no clean start).
+        // For a persistent v5 session, we must set the Session Expiry Interval
+        // on the server. Here we set that requests will persist for an hour
+        // (3600sec) if the service disconnects or restarts.
+        let conn_opts = mqtt::ConnectOptionsBuilder::new_v5()
             .clean_start(false)
             .properties(mqtt::properties![mqtt::PropertyCode::SessionExpiryInterval => 3600])
             .will_message(lwt)

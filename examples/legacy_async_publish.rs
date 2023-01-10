@@ -1,4 +1,6 @@
-// paho-mqtt/examples/async_publish.rs
+// paho-mqtt/examples/legacy_async_publish.rs
+//
+// This is a Paho MQTT Rust client, sample application.
 //
 //! This is a simple MQTT asynchronous message publisher using the
 //! Paho Rust library.
@@ -13,7 +15,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0

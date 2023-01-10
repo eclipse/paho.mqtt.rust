@@ -9,7 +9,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-20123 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -25,7 +25,7 @@
  *******************************************************************************/
 
 use paho_mqtt as mqtt;
-use std::{env, process, time::Duration};
+use std::{env, process};
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -47,17 +47,14 @@ fn main() {
         process::exit(1);
     });
 
-    // Build the connect options
-    let mut conn_builder = mqtt::ConnectOptionsBuilder::new();
+    // Build the connect options for a WebSocket connection.
+    let mut conn_builder = mqtt::ConnectOptionsBuilder::new_ws();
 
     if !proxy.is_empty() {
         conn_builder.http_proxy(proxy);
     }
 
-    let conn_opts = conn_builder
-        .keep_alive_interval(Duration::from_secs(30))
-        .clean_session(true)
-        .finalize();
+    let conn_opts = conn_builder.finalize();
 
     // Connect and wait for it to complete or fail
     if let Err(err) = cli.connect(conn_opts).wait() {

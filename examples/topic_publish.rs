@@ -1,4 +1,5 @@
 // paho-mqtt/examples/topic_publish.rs
+//
 // Example application for Paho MQTT Rust library.
 //
 //! This is a simple asynchronous publisher that uses a topic object to

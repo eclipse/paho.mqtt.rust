@@ -1,6 +1,7 @@
 // paho-mqtt/examples/rpc_math_srvr.rs
 //
-//! This is a Paho MQTT v5 Rust sample application.
+// This is a Paho MQTT v5 Rust sample application.
+//
 //!
 //! It's an example of how to create an RPC server client for receiving and
 //! executing remote procedure calls using MQTT with the 'response topic'
@@ -16,7 +17,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2019-2022 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2019-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -38,8 +39,8 @@ use paho_mqtt as mqtt;
 use serde_json::json;
 use std::{collections::HashMap, process, thread, time::Duration};
 
+// The default QoS
 const QOS: i32 = 1;
-const MQTTV5: u32 = 5;
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -180,7 +181,6 @@ fn main() -> mqtt::Result<()> {
 
     // Create a client to the specified host, no persistence
     let create_opts = mqtt::CreateOptionsBuilder::new()
-        .mqtt_version(MQTTV5)
         .server_uri(host)
         .client_id("rpc_math_srvr")
         .persistence(None)
@@ -196,9 +196,11 @@ fn main() -> mqtt::Result<()> {
     // but it's still a good habit to start consuming first.
     let rx = cli.start_consuming();
 
-    // Connect with default options, and no clean start.
-    // Requests will persist for 60sec if the service disconnects or restarts.
-    let conn_opts = mqtt::ConnectOptionsBuilder::new()
+    // Connect with default options for MQTT v5, and a persistent session
+    // (no clean start). For a persistent v5 session, we must set the Session
+    // Expiry Interval on the server. Here we set that requests will persist
+    // for 60sec if the service disconnects or restarts.
+    let conn_opts = mqtt::ConnectOptionsBuilder::new_v5()
         .clean_start(false)
         .properties(mqtt::properties![mqtt::PropertyCode::SessionExpiryInterval => 60])
         .finalize();

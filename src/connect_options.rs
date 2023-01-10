@@ -5,7 +5,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2022 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -72,9 +72,35 @@ struct ConnectOptionsData {
 }
 
 impl ConnectOptions {
-    /// Creates a new, default set of connect options.
+    /// Creates a new, default set of connect options for MQTT v3.x
     pub fn new() -> Self {
-        ConnectOptions::default()
+        Self::default()
+    }
+
+    /// Creates a new, default set of connect options for MQTT v5
+    pub fn new_v5() -> Self {
+        Self::from_data(
+            ffi::MQTTAsync_connectOptions::new_v5(),
+            ConnectOptionsData::default(),
+        )
+    }
+
+    /// Creates a new, default set of connect options for connecting over
+    /// websockets.
+    pub fn new_ws() -> Self {
+        Self::from_data(
+            ffi::MQTTAsync_connectOptions::new_ws(),
+            ConnectOptionsData::default(),
+        )
+    }
+
+    /// Creates a new, default set of connect options for connecting MQTT v5
+    /// over websockets.
+    pub fn new_ws_v5() -> Self {
+        Self::from_data(
+            ffi::MQTTAsync_connectOptions::new_ws_v5(),
+            ConnectOptionsData::default(),
+        )
     }
 
     // Creates a set of options from a C struct and cached values.
@@ -184,6 +210,7 @@ impl ConnectOptions {
     /// selected version. For example, when setting for v5, it will make
     /// sure the `cleansession` flag is cleared, since v5 uses cleanstart,
     /// not cleansession.
+    /*
     pub fn set_mqtt_version(&mut self, ver: u32) {
         self.copts.MQTTVersion = ver as i32;
 
@@ -195,6 +222,7 @@ impl ConnectOptions {
         }
         self.fix_callbacks();
     }
+    */
 
     /// Gets the "clean session" setting in the options.
     ///
@@ -282,9 +310,42 @@ pub struct ConnectOptionsBuilder {
 }
 
 impl ConnectOptionsBuilder {
-    /// Creates a new `ConnectOptionsBuilder`
+    /// Creates a new `ConnectOptionsBuilder` for MQTT v3.x
     pub fn new() -> Self {
         Self::default()
+    }
+
+
+    /// Creates a new `ConnectOptionsBuilder` explicitly for MQTT v3.x
+    /// (although this is currently the default).
+    pub fn new_v3() -> Self {
+        Self::default()
+    }
+
+    /// Creates a new `ConnectOptionsBuilder` for MQTT v5
+    pub fn new_v5() -> Self {
+        Self {
+            copts: ffi::MQTTAsync_connectOptions::new_v5(),
+            ..Self::default()
+        }
+    }
+
+    /// Creates a new `ConnectOptionsBuilder` for connecting to MQTT v3.x
+    /// over websockets.
+    pub fn new_ws() -> Self {
+        Self {
+            copts: ffi::MQTTAsync_connectOptions::new_ws(),
+            ..Self::default()
+        }
+    }
+
+    /// Creates a new `ConnectOptionsBuilder` for connecting to MQTT v5
+    /// over websockets.
+    pub fn new_ws_v5() -> Self {
+        Self {
+            copts: ffi::MQTTAsync_connectOptions::new_ws_v5(),
+            ..Self::default()
+        }
     }
 
     /// Sets the keep alive interval for the client session.
@@ -457,34 +518,6 @@ impl ConnectOptionsBuilder {
         T: AsRef<str>,
     {
         self.data.server_uris = StringCollection::new(server_uris);
-        self
-    }
-
-    /// Sets the version of MQTT to use on the connect.
-    ///
-    /// Note that this value can not be greater than the version used to
-    /// create the client. Specifically, if the client was created for v3,
-    /// you can not try to connect with v5.
-    ///
-    /// # Arguments
-    ///
-    /// `ver` The version of MQTT to use when connecting to the broker.
-    ///       * (0) try the latest version and work backwards
-    ///       * (3) only try v3.1
-    ///       * (4) only try v3.1.1
-    ///       * (5) only try v5
-    ///
-    pub fn mqtt_version(&mut self, ver: u32) -> &mut Self {
-        self.copts.MQTTVersion = ver as i32;
-
-        // The C lib is picky about clean sessions/start fields by
-        // version.
-        if ver < 5 {
-            self.copts.cleanstart = 0;
-        }
-        else {
-            self.copts.cleansession = 0;
-        }
         self
     }
 

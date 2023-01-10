@@ -1,10 +1,9 @@
-// paho-mqtt/examples/topic_publish.rs
-// Example application for Paho MQTT Rust library.
+// paho-mqtt/examples/topic_alias_publish.rs
 //
-//! This is a Paho MQTT v5 Rust sample application.
-//!
-//! It's an asynchronous publisher that uses a topic object to
-//! repeatedly publish messages on the same topic using an alias
+// This is a Paho MQTT v5 Rust sample application.
+//
+//! This is an asynchronous publisher example that uses a topic object to
+//! repeatedly publish messages on the same topic using an alias.
 //!
 //! This sample demonstrates:
 //!   - Connecting to an MQTT broker
@@ -14,7 +13,7 @@
 //!
 
 /*******************************************************************************
- * Copyright (c) 2020-2022 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2020-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -33,6 +32,7 @@ use paho_mqtt as mqtt;
 use std::{env, process};
 
 // This is our topic alias we'll use to publish.
+// It must be a non-zero number.
 const TOPIC_ALIAS: u16 = 1;
 
 // This is the actual (long) topic name.
@@ -48,9 +48,8 @@ fn main() -> mqtt::Result<()> {
         .nth(1)
         .unwrap_or_else(|| "mqtt://localhost:1883".to_string());
 
-    // Create a client to the specified host, no persistence
+    // Create a client to the specified host, no message persistence
     let create_opts = mqtt::CreateOptionsBuilder::new()
-        .mqtt_version(mqtt::MQTT_VERSION_5)
         .server_uri(host)
         .finalize();
 
@@ -59,9 +58,7 @@ fn main() -> mqtt::Result<()> {
         process::exit(1);
     });
 
-    let conn_opts = mqtt::ConnectOptionsBuilder::new()
-        .clean_start(true)
-        .finalize();
+    let conn_opts = mqtt::ConnectOptions::new_v5();
 
     // Connect and wait for it to complete or fail
 

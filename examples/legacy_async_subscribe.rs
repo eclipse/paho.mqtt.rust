@@ -1,4 +1,5 @@
 // paho-mqtt/examples/async_subscribe.rs
+//
 // This is a Paho MQTT Rust client, sample application.
 //
 //! This application is an MQTT subscriber using the asynchronous client
@@ -17,7 +18,7 @@
 //!
 
 /*******************************************************************************
- * Copyright (c) 2017-2019 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -77,7 +78,8 @@ fn main() {
 
     // Create the client. Use an ID for a persistent session.
     // A real system should try harder to use a unique ID.
-    let create_opts = mqtt::CreateOptionsBuilder::new()
+    // It explicitly creates a client that can only be used for MQTT v3.x.
+    let create_opts = mqtt::CreateOptionsBuilder::new_v3()
         .server_uri(host)
         .client_id("rust_async_subscribe")
         .finalize();
@@ -115,10 +117,9 @@ fn main() {
     // Define the set of options for the connection
     let lwt = mqtt::Message::new("test", "Async subscriber lost connection", 1);
 
-    let conn_opts = mqtt::ConnectOptionsBuilder::new()
+    let conn_opts = mqtt::ConnectOptionsBuilder::new_v3()
         .keep_alive_interval(Duration::from_secs(20))
-        .mqtt_version(mqtt::MQTT_VERSION_3_1_1)
-        .clean_session(true)
+        .clean_session(false)
         .will_message(lwt)
         .finalize();
 

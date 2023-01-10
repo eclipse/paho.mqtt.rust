@@ -1,4 +1,5 @@
 // paho-mqtt/examples/ssl_publish.rs
+//
 // Example application for Paho MQTT Rust library.
 //
 //! This is a simple asynchronous MQTT publisher using SSL/TSL secured
@@ -25,7 +26,7 @@
 //!
 
 /*******************************************************************************
- * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0

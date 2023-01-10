@@ -1,4 +1,5 @@
 // paho-mqtt/examples/sync_publish.rs
+//
 // This is a Paho MQTT Rust client sample application.
 //
 //! This application is a simple MQTT publisher using the
@@ -11,7 +12,7 @@
 //!
 
 /*******************************************************************************
- * Copyright (c) 2017 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -48,7 +49,8 @@ fn main() {
     // Use 5sec timeouts for sync calls.
     cli.set_timeout(Duration::from_secs(5));
 
-    // Connect and wait for it to complete or fail
+    // Connect and wait for it to complete or fail.
+    // The default connection uses MQTT v3.x
     if let Err(e) = cli.connect(None) {
         println!("Unable to connect: {:?}", e);
         process::exit(1);

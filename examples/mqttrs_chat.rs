@@ -1,6 +1,7 @@
 // paho-mqtt/examples/mqttrs_chat.rs
 //
-//! This is a Paho MQTT v5 C++ sample application.
+// This is a Paho MQTT v5 C++ sample application.
+//
 //!
 //! It's an example of how to create a client for performing remote procedure
 //! calls using MQTT with the 'response topic' and 'correlation data'
@@ -15,7 +16,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2019 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2019-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -59,7 +60,6 @@ fn main() -> mqtt::Result<()> {
     let client_id = format!("mqttrs_chat-{}-{}", chat_user, chat_group);
 
     const QOS: i32 = 1;
-    const MQTTV5: u32 = 5;
     const NO_LOCAL: bool = true;
 
     // The LWT is broadcast to the group if our connection is lost
@@ -78,7 +78,6 @@ fn main() -> mqtt::Result<()> {
 
     // Create a client to the specified host, no persistence
     let create_opts = mqtt::CreateOptionsBuilder::new()
-        .mqtt_version(MQTTV5)
         .server_uri(host)
         .client_id(client_id)
         .persistence(None)
@@ -94,8 +93,13 @@ fn main() -> mqtt::Result<()> {
         mqtt::PropertyCode::SessionExpiryInterval => 86400,
     };
 
-    // Connect with default options
-    let conn_opts = mqtt::ConnectOptionsBuilder::new()
+    // Connect with a persistent sesstion
+
+    // Connect with MQTT v5 and a persistent server session (no clean start).
+    // For a persistent v5 session, we must set the Session Expiry Interval
+    // on the server. Here we set that requests will persist for a day
+    // (86,400sec) if the service disconnects or restarts.
+    let conn_opts = mqtt::ConnectOptionsBuilder::new_v5()
         .keep_alive_interval(Duration::from_secs(20))
         .clean_start(false)
         .properties(props)

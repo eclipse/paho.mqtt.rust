@@ -376,10 +376,6 @@ impl AsyncClient {
 
         let mut opts = opts.into().unwrap_or_default();
 
-        if opts.mqtt_version() == 0 && self.inner.mqtt_version >= 5 {
-            opts.set_mqtt_version(self.inner.mqtt_version);
-        }
-
         let tok = Token::from_request(ServerRequest::Connect);
         opts.set_token(tok.clone());
 
@@ -415,11 +411,6 @@ impl AsyncClient {
         FF: Fn(&AsyncClient, u16, i32) + Send + 'static,
     {
         debug!("Connecting handle with callbacks: {:?}", self.inner.handle);
-
-        if opts.mqtt_version() == 0 && self.inner.mqtt_version >= 5 {
-            debug!("Forcing connect version to: {}", self.inner.mqtt_version);
-            opts.set_mqtt_version(self.inner.mqtt_version);
-        }
 
         let tok = Token::from_client(self, ServerRequest::Connect, success_cb, failure_cb);
         opts.set_token(tok.clone());

@@ -106,7 +106,6 @@ fn main() -> mqtt::Result<()> {
     // Create the client. Use an ID for a persistent session.
     // A real system should try harder to use a unique ID.
     let create_opts = mqtt::CreateOptionsBuilder::new()
-        .mqtt_version(mqtt::MQTT_VERSION_5)
         .server_uri(host)
         .client_id("rust_sync_consumer_v5")
         .finalize();
@@ -122,8 +121,11 @@ fn main() -> mqtt::Result<()> {
         .payload("Sync consumer v5 lost connection")
         .finalize();
 
-    // Request a session that persists for an hour (3600sec) between connections
-    let conn_opts = mqtt::ConnectOptionsBuilder::new()
+    // Connect with MQTT v5 and a persistent server session (no clean start).
+    // For a persistent v5 session, we must set the Session Expiry Interval
+    // on the server. Here we set that requests will persist for an hour
+    // (3600sec) if the service disconnects or restarts.
+    let conn_opts = mqtt::ConnectOptionsBuilder::new_v5()
         .clean_start(false)
         .properties(mqtt::properties![mqtt::PropertyCode::SessionExpiryInterval => 3600])
         .will_message(lwt)

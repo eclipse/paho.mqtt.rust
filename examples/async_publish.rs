@@ -1,5 +1,7 @@
 // paho-mqtt/examples/async_publish.rs
 //
+// Example application for Paho MQTT Rust library.
+//
 //! This is a simple MQTT asynchronous message publisher using the
 //! Paho Rust library.
 //!
@@ -47,6 +49,7 @@ fn main() {
 
     if let Err(err) = block_on(async {
         // Connect with default options and wait for it to complete or fail
+        // The default is an MQTT v3.x connection.
         println!("Connecting to the MQTT server");
         cli.connect(None).await?;
 

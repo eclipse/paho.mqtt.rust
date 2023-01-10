@@ -1,6 +1,7 @@
 // paho-mqtt/examples/rpc_math_cli.rs
 //
-//! This is a Paho MQTT v5 Rust sample application.
+// This is a Paho MQTT v5 Rust sample application.
+//
 //!
 //! It's an example of how to create a client for performing remote procedure
 //! calls using MQTT with the 'response topic' and 'correlation data'
@@ -16,7 +17,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2019 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2019-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -55,14 +56,12 @@ fn main() -> mqtt::Result<()> {
     }
 
     const QOS: i32 = 1;
-    const MQTTV5: u32 = 5;
 
     const REQ_TOPIC_HDR: &str = "requests/math";
     const REP_TOPIC_HDR: &str = "replies/math";
 
     // Create a client to the specified host, no persistence
     let create_opts = mqtt::CreateOptionsBuilder::new()
-        .mqtt_version(MQTTV5)
         .server_uri(host)
         .finalize();
 
@@ -76,10 +75,8 @@ fn main() -> mqtt::Result<()> {
     // but it's still a good habit to start consuming first.
     let rx = cli.start_consuming();
 
-    // Connect with default options, and a clean start
-    let conn_opts = mqtt::ConnectOptionsBuilder::new()
-        .clean_start(true)
-        .finalize();
+    // Connect with default options for MQTT v5, (clean start)
+    let conn_opts = mqtt::ConnectOptions::new_v5();
 
     // Connect and wait for it to complete or fail
 

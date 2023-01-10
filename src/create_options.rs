@@ -5,7 +5,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2018 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -65,11 +65,12 @@ pub enum PersistenceType {
 
 impl fmt::Debug for PersistenceType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use PersistenceType::*;
         match *self {
-            PersistenceType::File => write!(f, "File"),
-            PersistenceType::FilePath(_) => write!(f, "File with Path"),
-            PersistenceType::None => write!(f, "None"),
-            PersistenceType::User(_) => write!(f, "User"),
+            File => write!(f, "File"),
+            FilePath(_) => write!(f, "File with Path"),
+            None => write!(f, "None"),
+            User(_) => write!(f, "User"),
         }
     }
 }
@@ -140,9 +141,17 @@ pub struct CreateOptions {
 }
 
 impl CreateOptions {
-    /// Create a new set of default client creation options.
-    pub fn new() -> CreateOptions {
-        CreateOptions::default()
+    /// Create options for a client that can connect using MQTT v3.x or v5.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Create options for a client that can only connect using MQTT v3.x.
+    pub fn new_v3() -> Self {
+        Self {
+            copts: ffi::MQTTAsync_createOptions::new_v3(),
+            ..Self::default()
+        }
     }
 
     /// Gets the MQTT protocol version used when creating the client.
@@ -232,9 +241,19 @@ pub struct CreateOptionsBuilder {
 }
 
 impl CreateOptionsBuilder {
-    /// Constructs a builder with default options.
+    /// Constructs a builder for a client that can connect using MQTT v3.x
+    /// or v5.
     pub fn new() -> Self {
         Self {
+            persistence: PersistenceType::File,
+            ..Self::default()
+        }
+    }
+
+    /// Constructs a builder for a client that can only connect using MQTT v3.x.
+    pub fn new_v3() -> Self {
+        Self {
+            copts: ffi::MQTTAsync_createOptions::new_v3(),
             persistence: PersistenceType::File,
             ..Self::default()
         }
