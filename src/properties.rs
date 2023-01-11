@@ -1627,7 +1627,6 @@ mod tests {
             PropertyCode::MaximumQos => 1,
         };
 
-        println!("{:?}", props);
         assert!(!props.is_empty());
         assert_eq!(3, props.len());
         assert_eq!(

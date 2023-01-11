@@ -95,7 +95,7 @@ pub struct ConnectResponse {
     /// The URI of the server.
     pub server_uri: String,
     /// The version of MQTT granted by the server.
-    pub mqtt_version: i32,
+    pub mqtt_version: u32,
     /// Whether the client session is already present on the server.
     pub session_present: bool,
 }
@@ -130,19 +130,21 @@ impl ServerResponse {
     /// in the C `MQTTAsync_successData` struct.
     ///
     pub unsafe fn from_success(req: ServerRequest, rsp: &ffi::MQTTAsync_successData) -> Self {
+        use ServerRequest::*;
+
         let rsp = match req {
-            ServerRequest::Connect => {
+            Connect => {
                 let conn_rsp = ConnectResponse {
                     server_uri: CStr::from_ptr(rsp.alt.connect.serverURI)
                         .to_string_lossy()
                         .to_string(),
-                    mqtt_version: rsp.alt.connect.MQTTVersion,
+                    mqtt_version: rsp.alt.connect.MQTTVersion as u32,
                     session_present: from_c_bool(rsp.alt.connect.sessionPresent),
                 };
                 RequestResponse::Connect(conn_rsp)
             }
-            ServerRequest::Subscribe => RequestResponse::Subscribe(rsp.alt.qos),
-            ServerRequest::SubscribeMany(n) => {
+            Subscribe => RequestResponse::Subscribe(rsp.alt.qos),
+            SubscribeMany(n) => {
                 let mut qosv = Vec::new();
                 if n == 1 {
                     qosv.push(rsp.alt.qos);
@@ -157,7 +159,7 @@ impl ServerResponse {
             }
             _ => RequestResponse::None,
         };
-        ServerResponse {
+        Self {
             rsp,
             props: Properties::new(),
             reason_code: ReasonCode::default(),
@@ -174,23 +176,25 @@ impl ServerResponse {
     /// in the C `MQTTAsync_successData5` struct.
     ///
     pub unsafe fn from_success5(req: ServerRequest, rsp: &ffi::MQTTAsync_successData5) -> Self {
+        use ServerRequest::*;
+
         let props = Properties::from_c_struct(&rsp.properties);
         //debug!("Properties: {:?}", props);
         let reason_code = ReasonCode::from(rsp.reasonCode);
 
         let rsp = match req {
-            ServerRequest::Connect => {
+            Connect => {
                 let conn_rsp = ConnectResponse {
                     server_uri: CStr::from_ptr(rsp.alt.connect.serverURI)
                         .to_string_lossy()
                         .to_string(),
-                    mqtt_version: rsp.alt.connect.MQTTVersion,
+                    mqtt_version: rsp.alt.connect.MQTTVersion as u32,
                     session_present: from_c_bool(rsp.alt.connect.sessionPresent),
                 };
                 RequestResponse::Connect(conn_rsp)
             }
-            ServerRequest::Subscribe => RequestResponse::Subscribe(rsp.reasonCode as i32),
-            ServerRequest::SubscribeMany(n) => {
+            Subscribe => RequestResponse::Subscribe(rsp.reasonCode as i32),
+            SubscribeMany(n) => {
                 let ncode = rsp.alt.sub.reasonCodeCount as usize;
                 debug_assert!(n == ncode);
                 let n = std::cmp::min(n, ncode);
@@ -207,8 +211,8 @@ impl ServerResponse {
                 debug!("Subscribed to {} topics w/ QoS: {:?}", qosv.len(), qosv);
                 RequestResponse::SubscribeMany(qosv)
             }
-            ServerRequest::Unsubscribe => RequestResponse::Unsubscribe(rsp.reasonCode as i32),
-            ServerRequest::UnsubscribeMany(n) => {
+            Unsubscribe => RequestResponse::Unsubscribe(rsp.reasonCode as i32),
+            UnsubscribeMany(n) => {
                 let ncode = rsp.alt.unsub.reasonCodeCount as usize;
                 debug!("Server returned {} unsubscribe codes", ncode);
                 debug_assert!(n == ncode);
@@ -228,7 +232,7 @@ impl ServerResponse {
             }
             _ => RequestResponse::None,
         };
-        ServerResponse {
+        Self {
             rsp,
             props,
             reason_code,
@@ -245,7 +249,7 @@ impl ServerResponse {
     /// in the C `MQTTAsync_failureData5` struct.
     ///
     pub unsafe fn from_failure5(rsp: &ffi::MQTTAsync_failureData5) -> Self {
-        ServerResponse {
+        Self {
             rsp: RequestResponse::default(),
             props: Properties::from_c_struct(&rsp.properties),
             reason_code: rsp.reasonCode.into(),

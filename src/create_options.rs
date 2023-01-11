@@ -224,9 +224,9 @@ impl From<(String, String)> for CreateOptions {
 /// use paho_mqtt as mqtt;
 ///
 /// let opts = mqtt::CreateOptionsBuilder::new()
-///                    .server_uri("tcp://localhost:1883")
-///                    .client_id("client1")
-///                    .finalize();
+///     .server_uri("tcp://localhost:1883")
+///     .client_id("client1")
+///     .finalize();
 ///
 /// let cli = mqtt::AsyncClient::new(opts).unwrap();
 /// ```
@@ -244,17 +244,13 @@ impl CreateOptionsBuilder {
     /// Constructs a builder for a client that can connect using MQTT v3.x
     /// or v5.
     pub fn new() -> Self {
-        Self {
-            persistence: PersistenceType::File,
-            ..Self::default()
-        }
+        Self::default()
     }
 
     /// Constructs a builder for a client that can only connect using MQTT v3.x.
     pub fn new_v3() -> Self {
         Self {
             copts: ffi::MQTTAsync_createOptions::new_v3(),
-            persistence: PersistenceType::File,
             ..Self::default()
         }
     }

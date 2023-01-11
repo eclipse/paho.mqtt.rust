@@ -207,7 +207,6 @@ mod tests {
     #[test]
     fn test_new_from_vec_strings() {
         let v = vec_of_string_pairs![("name0", "val0"), ("name1", "val1"), ("name2", "val2")];
-        println!("{:?}", v);
         let n = v.len();
 
         let sc = NameValueCollection::new(&v);
@@ -245,7 +244,6 @@ mod tests {
         let n = hmap.len();
 
         let sc: NameValueCollection = hmap.into();
-        println!("From HashMap: {:?}", sc);
 
         assert_eq!(n, sc.len());
         assert_eq!(n + 1, sc.c_coll.len());

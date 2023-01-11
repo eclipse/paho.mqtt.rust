@@ -347,7 +347,6 @@ mod tests {
 
     #[test]
     fn test_get_client_id() {
-        println!("get client id");
         let c_id = "test_client_id_can_be_retrieved";
         let options = CreateOptionsBuilder::new().client_id(c_id).finalize();
         let client = Client::new(options);

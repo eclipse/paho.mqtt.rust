@@ -4,7 +4,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2018-2020 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2018-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -142,24 +142,29 @@ pub(crate) struct TokenInner {
 
 impl TokenInner {
     /// Creates a new, unsignaled Token.
-    pub fn new() -> Arc<TokenInner> {
-        Arc::new(TokenInner::default())
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self::default())
     }
 
     /// Creates a token for a specific request type
-    pub fn from_request(req: ServerRequest) -> Arc<TokenInner> {
-        Arc::new(TokenInner {
+    pub fn from_request<'a, C>(cli: C, req: ServerRequest) -> Arc<Self>
+    where
+        C: Into<Option<&'a AsyncClient>>,
+    {
+        let cli = cli.into().cloned();
+        Arc::new(Self {
+            cli,
             req,
-            ..TokenInner::default()
+            ..Self::default()
         })
     }
 
     /// Creates a new, un-signaled delivery Token.
     /// This is a token which tracks delivery of a message.
-    pub fn from_message(msg: &Message) -> Arc<TokenInner> {
-        Arc::new(TokenInner {
+    pub fn from_message(msg: &Message) -> Arc<Self> {
+        Arc::new(Self {
             lock: Mutex::new(TokenData::from_message_id(msg.cmsg.msgid as i16)),
-            ..TokenInner::default()
+            ..Self::default()
         })
     }
 
@@ -169,25 +174,25 @@ impl TokenInner {
         req: ServerRequest,
         success_cb: FS,
         failure_cb: FF,
-    ) -> Arc<TokenInner>
+    ) -> Arc<Self>
     where
         FS: Fn(&AsyncClient, u16) + 'static,
         FF: Fn(&AsyncClient, u16, i32) + 'static,
     {
-        Arc::new(TokenInner {
+        Arc::new(Self {
             cli: Some(cli.clone()),
             req,
             on_success: Some(Box::new(success_cb)),
             on_failure: Some(Box::new(failure_cb)),
-            ..TokenInner::default()
+            ..Self::default()
         })
     }
 
     /// Creates a new Token signaled with a return code.
     pub fn from_error(rc: i32) -> Arc<TokenInner> {
-        Arc::new(TokenInner {
+        Arc::new(Self {
             lock: Mutex::new(TokenData::from_error(rc)),
-            ..TokenInner::default()
+            ..Self::default()
         })
     }
 
@@ -364,6 +369,12 @@ impl TokenInner {
         }
         debug!("Got response: {:?}", data.srvr_rsp);
 
+        if let Some(rsp) = data.srvr_rsp.connect_response() {
+            if let Some(cli) = &self.cli {
+                cli.set_mqtt_version(rsp.mqtt_version);
+            }
+        }
+
         // If this is none, it means that no one is waiting on
         // the future yet, so we don't need to wake it.
         if let Some(waker) = data.waker.take() {
@@ -412,6 +423,12 @@ impl TokenInner {
         }
         debug!("Got response: {:?}", data.srvr_rsp);
 
+        if let Some(rsp) = data.srvr_rsp.connect_response() {
+            if let Some(cli) = &self.cli {
+                cli.set_mqtt_version(rsp.mqtt_version);
+            }
+        }
+
         // If this is none, it means that no one is waiting on
         // the future yet, so we don't need to wake it.
         if let Some(waker) = data.waker.take() {
@@ -422,7 +439,7 @@ impl TokenInner {
 
 impl Default for TokenInner {
     fn default() -> Self {
-        TokenInner {
+        Self {
             lock: Mutex::new(TokenData::default()),
             cli: None,
             req: ServerRequest::None,
@@ -444,16 +461,19 @@ pub struct Token {
 
 impl Token {
     /// Creates a new, unsignaled Token.
-    pub fn new() -> Token {
-        Token {
+    pub fn new() -> Self {
+        Self {
             inner: TokenInner::new(),
         }
     }
 
     /// Creates a token for a specific request type
-    pub fn from_request(req: ServerRequest) -> Token {
-        Token {
-            inner: TokenInner::from_request(req),
+    pub fn from_request<'a, C>(cli: C, req: ServerRequest) -> Self
+    where
+        C: Into<Option<&'a AsyncClient>>,
+    {
+        Self {
+            inner: TokenInner::from_request(cli, req),
         }
     }
 
@@ -463,26 +483,26 @@ impl Token {
         req: ServerRequest,
         success_cb: FS,
         failure_cb: FF,
-    ) -> Token
+    ) -> Self
     where
         FS: Fn(&AsyncClient, u16) + 'static,
         FF: Fn(&AsyncClient, u16, i32) + 'static,
     {
-        Token {
+        Self {
             inner: TokenInner::from_client(cli, req, success_cb, failure_cb),
         }
     }
 
     /// Creates a new Token signaled with an error code.
-    pub fn from_error(rc: i32) -> Token {
-        Token {
+    pub fn from_error(rc: i32) -> Self {
+        Self {
             inner: TokenInner::from_error(rc),
         }
     }
 
     /// Creates a new Token signaled with a "success" return code.
-    pub fn from_success() -> Token {
-        Token {
+    pub fn from_success() -> Self {
+        Self {
             inner: TokenInner::from_error(ffi::MQTTASYNC_SUCCESS as i32),
         }
     }
@@ -490,8 +510,8 @@ impl Token {
     /// Constructs a Token from a raw pointer to the inner structure.
     /// This is how a token is normally reconstructed from a context
     /// pointer coming back from the C lib.
-    pub(crate) unsafe fn from_raw(ptr: *mut c_void) -> Token {
-        Token {
+    pub(crate) unsafe fn from_raw(ptr: *mut c_void) -> Self {
+        Self {
             inner: Arc::from_raw(ptr as *mut TokenInner),
         }
     }

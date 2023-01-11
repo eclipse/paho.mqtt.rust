@@ -12,6 +12,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Upgrade to Paho C v1.3.12
     - Fixes a performance issue, particularily for receiving messages.
     - New URI protocol schemes: "mqtt://" for TCP and "mqtts://" for encrypted SSL/TLS.
+- [**Breaking**] Updated `CreateOptions` and `ConnectOptions` behavior:
+    - The `CreateOptions` default is for a "universal" client that can connect using v3.x or v5. (This was previously specified as the v5 option).
+        - Can use `CreateOptions::new_v3()` for a client that can only connect using v3.x
+        - Defaults to no message persistence (i.e. persistence is opt-in).
+    - The v3.x vs v5 devision is made when connecting.
+    - `ConnectOptions::new()` still defaults to v3.x
+    - New constructors for specific protocol version, `ConnectOptions::new_v5()`, `new_ws()`, and `new_ws_v5()`, for v5, websocket,  and v5 over websockets, respectively.
+    - Connect options default to clean session/state, as appropriate for the constructed protocol version.
+    - You select the MQTT protocol version with one of the new constructors, and can not change it after creation. (No longer a set `mqtt_version()` function).
+- `AsyncClient::mqtt_version()` now returns the version for the current connection - or the most recent successful connection. Removed `AsyncClient::current_mqtt_version()`.
 - Updated `SubscribeOptions` to be more usable.
 - Created a new [example](https://github.com/eclipse/paho.mqtt.rust/blob/develop/examples/async_subscribe_v5.rs) for MQTT v5 subscriptions with subscribe options.
 - [#182](https://github.com/eclipse/paho.mqtt.rust/issues/182) Callback must now be `Send` since they will be called from another thread.

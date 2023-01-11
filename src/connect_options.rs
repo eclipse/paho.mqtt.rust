@@ -725,10 +725,14 @@ mod tests {
 
     #[test]
     fn test_mqtt_version() {
-        const VER: u32 = MQTT_VERSION_3_1_1;
+        let opts = ConnectOptionsBuilder::new().finalize();
+        assert_eq!(MQTT_VERSION_DEFAULT as c_int, opts.copts.MQTTVersion);
 
-        let opts = ConnectOptionsBuilder::new().mqtt_version(VER).finalize();
-        assert_eq!(VER as i32, opts.copts.MQTTVersion);
+        let opts = ConnectOptionsBuilder::new_v3().finalize();
+        assert_eq!(MQTT_VERSION_DEFAULT as c_int, opts.copts.MQTTVersion);
+
+        let opts = ConnectOptionsBuilder::new_v5().finalize();
+        assert_eq!(MQTT_VERSION_5 as c_int, opts.copts.MQTTVersion);
     }
 
     // Test that we can set each of the HTTP and HTTPS proxy values, but also
@@ -784,7 +788,7 @@ mod tests {
 
         let opts = org_opts;
 
-        assert_eq!(KEEP_ALIVE_SECS as i32, opts.copts.keepAliveInterval);
+        assert_eq!(KEEP_ALIVE_SECS as c_int, opts.copts.keepAliveInterval);
         assert_eq!(0, opts.copts.cleansession);
         assert_eq!(MAX_INFLIGHT, opts.copts.maxInflight);
 
@@ -814,9 +818,8 @@ mod tests {
             .unwrap();
 
         // Remember, you can only set properties on a v5 connection.
-        let opts = ConnectOptionsBuilder::new()
-            .properties(props) // Note: Order shouldn't matter when
-            .mqtt_version(MQTT_VERSION_5) // building options
+        let opts = ConnectOptionsBuilder::new_v5()
+            .properties(props)
             .finalize();
 
         let props = opts.data.props.as_ref().unwrap();
@@ -841,8 +844,7 @@ mod tests {
             .finalize();
 
         // Remember, you can only set properties on a v5 connection.
-        let opts = ConnectOptionsBuilder::new()
-            .mqtt_version(MQTT_VERSION_5)
+        let opts = ConnectOptionsBuilder::new_v5()
             .will_message(lwt)
             .finalize();
 

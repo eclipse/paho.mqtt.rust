@@ -1,8 +1,9 @@
 // paho-mqtt/src/async_client.rs
+//
 // This file is part of the Eclipse Paho MQTT Rust Client library.
 
 /*******************************************************************************
- * Copyright (c) 2017-2020 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -59,6 +60,7 @@ use crate::{
     string_collection::StringCollection,
     subscribe_options::SubscribeOptions,
     token::{ConnectToken, DeliveryToken, SubscribeManyToken, SubscribeToken, Token},
+    types::*,
     AsyncReceiver, Receiver, UserData,
 };
 use crossbeam_channel as channel;
@@ -66,7 +68,7 @@ use std::{
     ffi::{CStr, CString},
     os::raw::{c_char, c_int, c_void},
     ptr, slice, str,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, atomic::{AtomicU32, Ordering}},
     time::Duration,
 };
 
@@ -83,9 +85,8 @@ pub struct AsyncClient {
 pub(crate) struct InnerAsyncClient {
     // The handle to the Paho C client
     handle: ffi::MQTTAsync,
-    // The version with which the client was created
-    // This is the default for connecting
-    mqtt_version: u32,
+    // The MQTT version of the connection
+    mqtt_version: AtomicU32,
     // The options for connecting to the broker
     opts: Mutex<ConnectOptions>,
     // The context to give to the C callbacks
@@ -147,7 +148,7 @@ impl AsyncClient {
 
         let mut cli = InnerAsyncClient {
             handle: ptr::null_mut(),
-            mqtt_version: opts.mqtt_version(),
+            mqtt_version: AtomicU32::new(MQTT_VERSION_DEFAULT),
             opts: Mutex::new(ConnectOptions::new()),
             callback_context: Mutex::new(CallbackContext::default()),
             server_uri: CString::new(opts.server_uri)?,
@@ -330,23 +331,20 @@ impl AsyncClient {
         1
     }
 
-    /// Gets the MQTT version for which the client was created.
+    /// Gets the most recent MQTT version for the client.
     ///
-    /// This is the default version used when connecting, unless a specific
-    /// value is set in the connect options. It is typically the highest
-    /// version that can be used by the client. Specifically, if the client
-    /// is created for v3, then it can not be used to connect with the v5
-    /// protocol.
+    /// This is the version of the current connection, or the most recent
+    /// connection if currently disconnected. Before an initial connection
+    /// is made, this will report MQTT_VERSION_DEFAULT (0).
     pub fn mqtt_version(&self) -> u32 {
-        self.inner.mqtt_version
+        self.inner.mqtt_version.load(Ordering::SeqCst)
     }
 
-    /// The current version of the protol being used, if the client is
-    /// connected.
-    pub fn current_mqtt_version(&self) -> u32 {
-        // TODO: This is the requested version. The connect response
-        // contains the actual, negotiated protocol version
-        self.inner.opts.lock().unwrap().copts.MQTTVersion as u32
+    /// Sets the current MQTT version.
+    /// This is set when a connection is requested or established.
+    pub(crate) fn set_mqtt_version(&self, ver: u32) {
+        trace!("Updating client MQTT version: {}", ver);
+        self.inner.mqtt_version.store(ver, Ordering::SeqCst);
     }
 
     /// Get access to the user-defined data in the client.
@@ -375,8 +373,9 @@ impl AsyncClient {
         debug!("Connecting handle: {:?}", self.inner.handle);
 
         let mut opts = opts.into().unwrap_or_default();
+        self.set_mqtt_version(opts.mqtt_version());
 
-        let tok = Token::from_request(ServerRequest::Connect);
+        let tok = Token::from_request(self, ServerRequest::Connect);
         opts.set_token(tok.clone());
 
         debug!("Connect options: {:?}", opts);
@@ -411,6 +410,7 @@ impl AsyncClient {
         FF: Fn(&AsyncClient, u16, i32) + Send + 'static,
     {
         debug!("Connecting handle with callbacks: {:?}", self.inner.handle);
+        self.set_mqtt_version(opts.mqtt_version());
 
         let tok = Token::from_client(self, ServerRequest::Connect, success_cb, failure_cb);
         opts.set_token(tok.clone());
@@ -734,7 +734,7 @@ impl AsyncClient {
         S: Into<String>,
     {
         let ver = self.mqtt_version();
-        let tok = Token::from_request(ServerRequest::Subscribe);
+        let tok = Token::from_request(None, ServerRequest::Subscribe);
         let mut rsp_opts = ResponseOptions::new(ver, tok.clone());
         let topic = CString::new(topic.into()).unwrap();
 
@@ -775,7 +775,7 @@ impl AsyncClient {
     {
         debug_assert!(self.mqtt_version() >= ffi::MQTTVERSION_5);
 
-        let tok = Token::from_request(ServerRequest::Subscribe);
+        let tok = Token::from_request(None, ServerRequest::Subscribe);
         let mut rsp_opts = ResponseOptionsBuilder::new()
             .token(tok.clone())
             .subscribe_options(opts.into())
@@ -813,7 +813,7 @@ impl AsyncClient {
 
         let ver = self.mqtt_version();
         // TOOD: Make sure topics & qos are same length (or use min)
-        let tok = Token::from_request(ServerRequest::SubscribeMany(n));
+        let tok = Token::from_request(None, ServerRequest::SubscribeMany(n));
         let mut rsp_opts = ResponseOptions::new(ver, tok.clone());
         let topics = StringCollection::new(topics);
 
@@ -861,7 +861,7 @@ impl AsyncClient {
 
         let n = topics.len();
         // TOOD: Make sure topics & qos are same length (or use min)
-        let tok = Token::from_request(ServerRequest::SubscribeMany(n));
+        let tok = Token::from_request(None, ServerRequest::SubscribeMany(n));
         let mut rsp_opts = ResponseOptionsBuilder::new()
             .token(tok.clone())
             .subscribe_many_options(opts)
@@ -906,7 +906,7 @@ impl AsyncClient {
         S: Into<String>,
     {
         let ver = self.mqtt_version();
-        let tok = Token::from_request(ServerRequest::Unsubscribe);
+        let tok = Token::from_request(None, ServerRequest::Unsubscribe);
         let mut rsp_opts = ResponseOptions::new(ver, tok.clone());
         let topic = CString::new(topic.into()).unwrap();
 
@@ -938,7 +938,7 @@ impl AsyncClient {
     {
         debug_assert!(self.mqtt_version() >= ffi::MQTTVERSION_5);
 
-        let tok = Token::from_request(ServerRequest::Unsubscribe);
+        let tok = Token::from_request(None, ServerRequest::Unsubscribe);
         let mut rsp_opts = ResponseOptionsBuilder::new()
             .token(tok.clone())
             .properties(props)
@@ -974,7 +974,7 @@ impl AsyncClient {
         let ver = self.mqtt_version();
 
         let n = topics.len();
-        let tok = Token::from_request(ServerRequest::UnsubscribeMany(n));
+        let tok = Token::from_request(None, ServerRequest::UnsubscribeMany(n));
         let mut rsp_opts = ResponseOptions::new(ver, tok.clone());
         let topics = StringCollection::new(topics);
 
@@ -1012,7 +1012,7 @@ impl AsyncClient {
         debug_assert!(self.mqtt_version() >= ffi::MQTTVERSION_5);
 
         let n = topics.len();
-        let tok = Token::from_request(ServerRequest::UnsubscribeMany(n));
+        let tok = Token::from_request(None, ServerRequest::UnsubscribeMany(n));
         let mut rsp_opts = ResponseOptionsBuilder::new()
             .token(tok.clone())
             .properties(props)
@@ -1196,7 +1196,6 @@ mod tests {
 
     #[test]
     fn test_with_client_id() {
-        println!("With client id");
         let options = CreateOptionsBuilder::new().client_id("test1").finalize();
         let client = AsyncClient::new(options);
         assert!(
@@ -1321,7 +1320,6 @@ mod tests {
 
     #[test]
     fn test_get_client_id() {
-        println!("get client id");
         let c_id = "test_client_id_can_be_retrieved";
         let options = CreateOptionsBuilder::new().client_id(c_id).finalize();
         let client = AsyncClient::new(options);

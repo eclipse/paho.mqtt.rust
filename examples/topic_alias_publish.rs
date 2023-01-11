@@ -29,7 +29,7 @@
  *******************************************************************************/
 
 use paho_mqtt as mqtt;
-use std::{env, process};
+use std::{env, process, time::Duration};
 
 // This is our topic alias we'll use to publish.
 // It must be a non-zero number.
@@ -58,7 +58,9 @@ fn main() -> mqtt::Result<()> {
         process::exit(1);
     });
 
-    let conn_opts = mqtt::ConnectOptions::new_v5();
+    let conn_opts = mqtt::ConnectOptionsBuilder::new_v5()
+        .connect_timeout(Duration::from_secs(5))
+        .finalize();
 
     // Connect and wait for it to complete or fail
 
