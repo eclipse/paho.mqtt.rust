@@ -52,17 +52,17 @@ type LenString = ffi::MQTTLenString;
 pub enum PropertyType {
     /// A property containing a single byte
     Byte = 0,
-    /// A property containing a 16-bit integer, i16 or u16.
+    /// A property containing a 16-bit integer, `i16` or `u16`.
     TwoByteInteger = 1,
-    /// A property containing a 32-bit integer, i32 or u32.
+    /// A property containing a 32-bit integer, `i32` or `u32`.
     FourByteInteger = 2,
     /// A property containing a variable-byte value.
     VariableByteInteger = 3,
-    /// A property containing a binary blob, like Vec<u8>
+    /// A property containing a binary blob, like `Vec<u8>`
     BinaryData = 4,
-    /// A property containing a String
+    /// A property containing a `String`
     Utf8EncodedString = 5,
-    /// A property containing a pair of strings (two)
+    /// A property containing a pair of strings `(String,String)`
     Utf8StringPair = 6,
 }
 
@@ -77,14 +77,15 @@ impl PropertyType {
 
     /// Gets the any::TypeId that corresponds to the property type.
     pub fn type_of(&self) -> TypeId {
+        use PropertyType::*;
         match *self {
-            Self::Byte => TypeId::of::<u8>(),
-            Self::TwoByteInteger => TypeId::of::<u16>(),
-            Self::FourByteInteger => TypeId::of::<u32>(),
-            Self::VariableByteInteger => TypeId::of::<i32>(),
-            Self::BinaryData => TypeId::of::<Binary>(),
-            Self::Utf8EncodedString => TypeId::of::<String>(),
-            Self::Utf8StringPair => TypeId::of::<(String, String)>(),
+            Byte => TypeId::of::<u8>(),
+            TwoByteInteger => TypeId::of::<u16>(),
+            FourByteInteger => TypeId::of::<u32>(),
+            VariableByteInteger => TypeId::of::<i32>(),
+            BinaryData => TypeId::of::<Binary>(),
+            Utf8EncodedString => TypeId::of::<String>(),
+            Utf8StringPair => TypeId::of::<(String, String)>(),
         }
     }
 }
@@ -95,14 +96,15 @@ impl TryFrom<ffi::MQTTPropertyTypes> for PropertyType {
     /// Try to convert from an integer property type to and enumeration
     /// value.
     fn try_from(typ: ffi::MQTTPropertyTypes) -> Result<Self> {
+        use PropertyType::*;
         match typ {
-            0 => Ok(Self::Byte),
-            1 => Ok(Self::TwoByteInteger),
-            2 => Ok(Self::FourByteInteger),
-            3 => Ok(Self::VariableByteInteger),
-            4 => Ok(Self::BinaryData),
-            5 => Ok(Self::Utf8EncodedString),
-            6 => Ok(Self::Utf8StringPair),
+            0 => Ok(Byte),
+            1 => Ok(TwoByteInteger),
+            2 => Ok(FourByteInteger),
+            3 => Ok(VariableByteInteger),
+            4 => Ok(BinaryData),
+            5 => Ok(Utf8EncodedString),
+            6 => Ok(Utf8StringPair),
             _ => Err(crate::Error::Conversion),
         }
     }
@@ -173,34 +175,35 @@ impl TryFrom<ffi::MQTTPropertyCodes> for PropertyCode {
     /// Try to convert from an integer property type to and enumeration
     /// value.
     fn try_from(code: ffi::MQTTPropertyCodes) -> Result<Self> {
+        use PropertyCode::*;
         match code {
-            1 => Ok(Self::PayloadFormatIndicator),
-            2 => Ok(Self::MessageExpiryInterval),
-            3 => Ok(Self::ContentType),
-            8 => Ok(Self::ResponseTopic),
-            9 => Ok(Self::CorrelationData),
-            11 => Ok(Self::SubscriptionIdentifier),
-            17 => Ok(Self::SessionExpiryInterval),
-            18 => Ok(Self::AssignedClientIdentifer),
-            19 => Ok(Self::ServerKeepAlive),
-            21 => Ok(Self::AuthenticationMethod),
-            22 => Ok(Self::AuthenticationData),
-            23 => Ok(Self::RequestProblemInformation),
-            24 => Ok(Self::WillDelayInterval),
-            25 => Ok(Self::RequestResponseInformation),
-            26 => Ok(Self::ResponseInformation),
-            28 => Ok(Self::ServerReference),
-            31 => Ok(Self::ReasonString),
-            33 => Ok(Self::ReceiveMaximum),
-            34 => Ok(Self::TopicAliasMaximum),
-            35 => Ok(Self::TopicAlias),
-            36 => Ok(Self::MaximumQos),
-            37 => Ok(Self::RetainAvailable),
-            38 => Ok(Self::UserProperty),
-            39 => Ok(Self::MaximumPacketSize),
-            40 => Ok(Self::WildcardSubscriptionAvailable),
-            41 => Ok(Self::SubscriptionIdentifiersAvailable),
-            42 => Ok(Self::SharedSubscriptionAvailable),
+            1 => Ok(PayloadFormatIndicator),
+            2 => Ok(MessageExpiryInterval),
+            3 => Ok(ContentType),
+            8 => Ok(ResponseTopic),
+            9 => Ok(CorrelationData),
+            11 => Ok(SubscriptionIdentifier),
+            17 => Ok(SessionExpiryInterval),
+            18 => Ok(AssignedClientIdentifer),
+            19 => Ok(ServerKeepAlive),
+            21 => Ok(AuthenticationMethod),
+            22 => Ok(AuthenticationData),
+            23 => Ok(RequestProblemInformation),
+            24 => Ok(WillDelayInterval),
+            25 => Ok(RequestResponseInformation),
+            26 => Ok(ResponseInformation),
+            28 => Ok(ServerReference),
+            31 => Ok(ReasonString),
+            33 => Ok(ReceiveMaximum),
+            34 => Ok(TopicAliasMaximum),
+            35 => Ok(TopicAlias),
+            36 => Ok(MaximumQos),
+            37 => Ok(RetainAvailable),
+            38 => Ok(UserProperty),
+            39 => Ok(MaximumPacketSize),
+            40 => Ok(WildcardSubscriptionAvailable),
+            41 => Ok(SubscriptionIdentifiersAvailable),
+            42 => Ok(SharedSubscriptionAvailable),
             _ => Err(crate::Error::Conversion),
         }
     }
@@ -219,12 +222,12 @@ impl TryFrom<ffi::MQTTPropertyCodes> for PropertyCode {
 ///
 /// There are only a limited number of data types that are possible for
 /// properties:
-///   "Byte"  - u8
-///   "Two Byte Integer"  - u16
-///   "Four Byte Integer"  - u32
-///   "Binary Data"  - Vec<u8>
-///   "UTF-8 Encoded String"  - String
-///   "UTF-8 String Pair"  - (String,String)
+///   "Byte"  - `u8`
+///   "Two Byte Integer"  - `u16`
+///   "Four Byte Integer"  - `u32`
+///   "Binary Data"  - `Vec<u8>`
+///   "UTF-8 Encoded String"  - `String`
+///   "UTF-8 String Pair"  - `(String,String)`
 ///
 #[derive(Debug)]
 pub struct Property {
@@ -506,6 +509,8 @@ impl Property {
 
     /// Creates a property from a C lib MQTTProperty struct.
     fn from_c_property(cprop: &ffi::MQTTProperty) -> Result<Property> {
+        use PropertyType::*;
+
         let mut cprop = *cprop;
         let typ = match PropertyCode::new(cprop.identifier).map(|c| c.property_type()) {
             Some(typ) => typ,
@@ -517,7 +522,7 @@ impl Property {
             let n = cprop.value.__bindgen_anon_1.data.len as usize;
 
             match typ {
-                PropertyType::BinaryData => {
+                BinaryData => {
                     if pdata.is_null() {
                         return Err(INVALID_PROPERTY_ID.into());
                     }
@@ -527,7 +532,7 @@ impl Property {
                     mem::forget(v);
                     mem::forget(vc);
                 }
-                PropertyType::Utf8EncodedString => {
+                Utf8EncodedString => {
                     if pdata.is_null() {
                         return Err(INVALID_PROPERTY_ID.into());
                     }
@@ -539,7 +544,7 @@ impl Property {
                     pdata = sr.unwrap().into_raw();
                     mem::forget(v);
                 }
-                PropertyType::Utf8StringPair => {
+                Utf8StringPair => {
                     let pvalue = cprop.value.__bindgen_anon_1.value.data;
                     if pdata.is_null() || pvalue.is_null() {
                         return Err(INVALID_PROPERTY_ID.into());
@@ -1157,9 +1162,6 @@ mod tests {
         let prop = Property::new(PropertyCode::ResponseTopic, 42u16);
         assert!(!prop.is_ok());
 
-        //let prop = Property::new(PropertyCode::ResponseTopic, "events".to_string());
-        //assert!(prop.is_ok());
-
         let prop = Property::new(PropertyCode::MaximumQos, 2u8);
         assert!(prop.is_ok());
 
@@ -1608,10 +1610,10 @@ mod tests {
             .push(Property::new_string_pair(code, "user2", "val2").unwrap())
             .unwrap();
 
-        assert_eq!(props.find_user_property("user0"), Some("val0".to_string()));
-        assert_eq!(props.find_user_property("user1"), Some("val1".to_string()));
-        assert_eq!(props.find_user_property("user2"), Some("val2".to_string()));
-        assert_eq!(props.find_user_property("user3"), None);
+        assert_eq!(Some("val0"), props.find_user_property("user0").as_deref());
+        assert_eq!(Some("val1"), props.find_user_property("user1").as_deref());
+        assert_eq!(Some("val2"), props.find_user_property("user2").as_deref());
+        assert_eq!(None, props.find_user_property("user3"));
     }
 
     #[test]
