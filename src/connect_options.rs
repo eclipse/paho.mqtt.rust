@@ -203,27 +203,6 @@ impl ConnectOptions {
         self.copts.MQTTVersion as u32
     }
 
-    /// Sets the MQTT protocol version that should be used for the
-    /// connection.
-    ///
-    /// This also insures that the other options are compatible with the
-    /// selected version. For example, when setting for v5, it will make
-    /// sure the `cleansession` flag is cleared, since v5 uses cleanstart,
-    /// not cleansession.
-    /*
-    pub fn set_mqtt_version(&mut self, ver: u32) {
-        self.copts.MQTTVersion = ver as i32;
-
-        if ver < ffi::MQTTVERSION_5 {
-            self.copts.cleanstart = 0;
-        }
-        else {
-            self.copts.cleansession = 0;
-        }
-        self.fix_callbacks();
-    }
-    */
-
     /// Gets the "clean session" setting in the options.
     ///
     /// This is only used in MQTT v3 connections.

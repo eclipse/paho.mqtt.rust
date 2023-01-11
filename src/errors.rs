@@ -121,9 +121,11 @@ pub fn error_message(rc: i32) -> &'static str {
         ffi::MQTTASYNC_MAX_BUFFERED_MESSAGES => "Max buffered messages",
         ffi::MQTTASYNC_SSL_NOT_SUPPORTED => "SSL not supported by Paho C library",
         ffi::MQTTASYNC_BAD_PROTOCOL => "Bad protocol",
-        ffi::MQTTASYNC_BAD_MQTT_OPTION => "Bad option",
+        ffi::MQTTASYNC_BAD_MQTT_OPTION => "Bad MQTT option",
         ffi::MQTTASYNC_WRONG_MQTT_VERSION => "Wrong MQTT version",
         ffi::MQTTASYNC_0_LEN_WILL_TOPIC => "Zero length Will Topic",
+        ffi::MQTTASYNC_COMMAND_IGNORED => "Command Ignored",
+        ffi::MQTTASYNC_MAX_BUFFERED => "Max buffered is zero",
         _ => "Unknown Error",
     }
 }

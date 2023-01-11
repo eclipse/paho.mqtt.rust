@@ -26,6 +26,7 @@
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
+#![allow(clippy::unnecessary_cast)]
 
 #[macro_use]
 extern crate log;
@@ -134,17 +135,37 @@ pub type UserData = Box<dyn Any + 'static + Send + Sync>;
 
 // --------------------------------------------------------------------------
 
-/// Convert a Rust bool to a Paho C boolean
+/// Convert a Rust bool to a Paho C integer boolean
 pub fn to_c_bool(on: bool) -> c_int {
-    if on {
-        1
-    }
-    else {
-        0
-    }
+    c_int::from(on)
 }
 
 /// Converts a C integer boolean to a Rust bool
 pub fn from_c_bool(on: c_int) -> bool {
     on != 0
 }
+
+
+/////////////////////////////////////////////////////////////////////////////
+//                              Unit Tests
+/////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_to_c_bool() {
+        // C lib is sometimes picky about using 1, specifically, for true.
+        assert_eq!(1, to_c_bool(true));
+        assert_eq!(0, to_c_bool(false));
+    }
+
+    #[test]
+    fn test_from_c_bool() {
+        assert!(from_c_bool(1));
+        assert!(from_c_bool(42));
+        assert!(!from_c_bool(0));
+    }
+}
+

@@ -96,10 +96,10 @@ impl<T> TopicMatcher<T> {
 
         for sym in key.split('/') {
             node = match sym {
-                "+" => node.plus_wild.get_or_insert(Box::new(Node::<T>::default())),
+                "+" => node.plus_wild.get_or_insert(Box::<Node<T>>::default()),
                 "#" => node
                     .pound_wild
-                    .get_or_insert(Box::new(Node::<T>::default())),
+                    .get_or_insert(Box::<Node::<T>>::default()),
                 sym => node
                     .children
                     .entry(sym.to_string())
