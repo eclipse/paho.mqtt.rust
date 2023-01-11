@@ -140,6 +140,11 @@ impl MQTTAsync_connectOptions {
         Self::default()
     }
 
+    /// Creates default connect options specifically for v3.x
+    pub fn new_v3() -> Self {
+        Self::default()
+    }
+
     /// Creates default connect options for v5
     pub fn new_v5() -> Self {
         Self {

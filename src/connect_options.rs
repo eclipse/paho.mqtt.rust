@@ -103,6 +103,23 @@ impl ConnectOptions {
         )
     }
 
+    /// Creates a new set of connect options for the specified MQTT
+    /// protocol version.
+    ///
+    /// Note that this will return the options with the requested version,
+    /// even if it's not currently known. The server will likely reject a
+    /// request with a bad protocol version, however.
+    pub fn with_mqtt_version(ver: u32) -> Self {
+        let mut opts = if ver < MQTT_VERSION_5 {
+            Self::new()
+        }
+        else {
+            Self::new_v5()
+        };
+        opts.copts.MQTTVersion = ver as i32;
+        opts
+    }
+
     // Creates a set of options from a C struct and cached values.
     // Fixes up the underlying C struct to point to the cached values,
     // then returns a new options object with them combined.
@@ -294,7 +311,6 @@ impl ConnectOptionsBuilder {
         Self::default()
     }
 
-
     /// Creates a new `ConnectOptionsBuilder` explicitly for MQTT v3.x
     /// (although this is currently the default).
     pub fn new_v3() -> Self {
@@ -327,6 +343,27 @@ impl ConnectOptionsBuilder {
         }
     }
 
+    /// Creates a new set of `ConnectOptionsBuilder` for the specified MQTT
+    /// protocol version.
+    ///
+    /// Note that this will initialize the options with the requested version,
+    /// even if it's not currently known. The server will likely reject a
+    /// request with a bad protocol version, however.
+    pub fn with_mqtt_version(ver: u32) -> Self {
+        let mut copts = if ver < MQTT_VERSION_5 {
+            ffi::MQTTAsync_connectOptions::new_v3()
+        }
+        else {
+            ffi::MQTTAsync_connectOptions::new_v5()
+        };
+        copts.MQTTVersion = ver as i32;
+
+        Self {
+            copts,
+            ..Self::default()
+        }
+    }
+
     /// Sets the keep alive interval for the client session.
     ///
     /// # Arguments
@@ -353,11 +390,9 @@ impl ConnectOptionsBuilder {
         self.copts.cleansession = to_c_bool(clean);
 
         // Force the options to those compatible with v3 if set
-        if clean {
-            self.copts.cleanstart = 0;
-            if self.copts.MQTTVersion >= ffi::MQTTVERSION_5 as i32 {
-                self.copts.MQTTVersion = 0;
-            }
+        self.copts.cleanstart = 0;
+        if self.copts.MQTTVersion >= ffi::MQTTVERSION_5 as i32 {
+            self.copts.MQTTVersion = 0;
         }
         self
     }
@@ -375,10 +410,7 @@ impl ConnectOptionsBuilder {
         self.copts.cleanstart = to_c_bool(clean);
 
         // Force the options to those compatible with v5 if set
-        if clean {
-            self.copts.cleansession = 0;
-        }
-
+        self.copts.cleansession = 0;
         if self.copts.MQTTVersion < 5 {
             self.copts.MQTTVersion = 5;
         }
@@ -614,6 +646,7 @@ mod tests {
         assert_eq!(STRUCT_ID, opts.copts.struct_id);
         assert_eq!(STRUCT_VERSION, opts.copts.struct_version);
         assert!(opts.copts.will.is_null());
+        assert_eq!(1, opts.copts.cleansession);
 
         assert!(opts.copts.username.is_null());
         assert!(opts.copts.password.is_null());
@@ -632,6 +665,21 @@ mod tests {
 
         assert!(opts.copts.connectProperties.is_null());
         assert!(opts.copts.willProperties.is_null());
+    }
+
+    #[test]
+    fn test_new_versions() {
+        // v3 defaults to clean session, but no clean start
+        let opts = ConnectOptions::new();
+        assert_eq!(MQTT_VERSION_DEFAULT, opts.mqtt_version());
+        assert!(opts.clean_session());
+        assert!(!opts.clean_start());
+
+        // v5 defaults to clean start, but no clean session
+        let opts = ConnectOptions::new_v5();
+        assert_eq!(MQTT_VERSION_5, opts.mqtt_version());
+        assert!(!opts.clean_session());
+        assert!(opts.clean_start());
     }
 
     #[test]

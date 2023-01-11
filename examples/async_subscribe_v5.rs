@@ -35,7 +35,7 @@
  *******************************************************************************/
 
 use futures::{executor::block_on, stream::StreamExt};
-use paho_mqtt as mqtt;
+use paho_mqtt::{self as mqtt, MQTT_VERSION_5};
 use std::{env, process, time::Duration};
 
 // The topics to which we subscribe.
@@ -76,7 +76,7 @@ fn main() {
         // For a persistent v5 session, we must set the Session Expiry Interval
         // on the server. Here we set that requests will persist for an hour
         // (3600sec) if the service disconnects or restarts.
-        let conn_opts = mqtt::ConnectOptionsBuilder::new_v5()
+        let conn_opts = mqtt::ConnectOptionsBuilder::with_mqtt_version(MQTT_VERSION_5)
             .clean_start(false)
             .properties(mqtt::properties![mqtt::PropertyCode::SessionExpiryInterval => 3600])
             .will_message(lwt)
