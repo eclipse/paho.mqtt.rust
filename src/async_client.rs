@@ -1092,7 +1092,10 @@ impl AsyncClient {
     /// arriving as soon as the connection is made - even before the
     /// connect() call returns.
     pub fn get_stream(&mut self, buffer_sz: usize) -> AsyncReceiver<Option<Message>> {
-        let (tx, rx) = async_channel::bounded(buffer_sz);
+        let (tx, rx) = match buffer_sz {
+            0 => async_channel::unbounded(),
+            cap => async_channel::bounded(cap),
+        };
 
         // Make sure at least the low-level connection_lost handler is in
         // place to notify us when the connection is lost (sends a 'None' to
