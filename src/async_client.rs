@@ -272,11 +272,22 @@ impl AsyncClient {
 
         if !context.is_null() {
             let cli = AsyncClient::from_raw(context);
-            if let Some(ref mut cb) = cli.inner.callback_context.lock().unwrap().on_disconnected {
-                let reason_code = ReasonCode::from(reason);
-                let props = Properties::from_c_struct(&*cprops);
-                trace!("Invoking disconnected callback");
-                cb(&cli, props, reason_code);
+            {
+                let mut cbctx = cli.inner.callback_context.lock().unwrap();
+
+                // Push a None into the message stream to cleanly
+                // shutdown any consumers.
+                if let Some(ref mut cb) = cbctx.on_message_arrived {
+                    trace!("Invoking message callback with None");
+                    cb(&cli, None);
+                }
+
+                if let Some(ref mut cb) = cbctx.on_disconnected {
+                    let reason_code = ReasonCode::from(reason);
+                    let props = Properties::from_c_struct(&*cprops);
+                    trace!("Invoking disconnected callback");
+                    cb(&cli, props, reason_code);
+                }
             }
             let _ = cli.into_raw();
         }
@@ -329,6 +340,25 @@ impl AsyncClient {
         ffi::MQTTAsync_freeMessage(&mut cmsg);
         ffi::MQTTAsync_free(topic_name as *mut c_void);
         1
+    }
+
+    // Set the disconnection callbacks, usually to prepare for creating
+    // an input channel/stream of messages.
+    fn set_disconnection_callbacks(&self) {
+        let inner: &InnerAsyncClient = &self.inner;
+
+        unsafe {
+            ffi::MQTTAsync_setConnectionLostCallback(
+                inner.handle,
+                inner as *const _ as *mut c_void,
+                Some(AsyncClient::on_connection_lost),
+            );
+            ffi::MQTTAsync_setDisconnected(
+                inner.handle,
+                inner as *const _ as *mut c_void,
+                Some(AsyncClient::on_disconnected),
+            );
+        }
     }
 
     /// Gets the most recent MQTT version for the client.
@@ -570,7 +600,6 @@ impl AsyncClient {
         // A pointer to the inner client will serve as the callback context
         let inner: &InnerAsyncClient = &self.inner;
 
-        // This should be protected by a mutex if we'll have a thread-safe client
         inner.callback_context.lock().unwrap().on_connection_lost = Some(Box::new(cb));
 
         unsafe {
@@ -1054,15 +1083,7 @@ impl AsyncClient {
         // Make sure at least the low-level connection_lost handler is in
         // place to notify us when the connection is lost (sends a 'None' to
         // the receiver).
-        let inner: &InnerAsyncClient = &self.inner;
-
-        unsafe {
-            ffi::MQTTAsync_setConnectionLostCallback(
-                inner.handle,
-                inner as *const _ as *mut c_void,
-                Some(AsyncClient::on_connection_lost),
-            );
-        }
+        self.set_disconnection_callbacks();
 
         // Message callback just queues incoming messages.
         self.set_message_callback(move |_, msg| {
@@ -1094,18 +1115,10 @@ impl AsyncClient {
     pub fn get_stream(&mut self, buffer_sz: usize) -> AsyncReceiver<Option<Message>> {
         let (tx, rx) = async_channel::bounded(buffer_sz);
 
-        // Make sure at least the low-level connection_lost handler is in
+        // Make sure at least the low-level connection lost handlers are in
         // place to notify us when the connection is lost (sends a 'None' to
         // the receiver).
-        let inner: &InnerAsyncClient = &self.inner;
-
-        unsafe {
-            ffi::MQTTAsync_setConnectionLostCallback(
-                inner.handle,
-                inner as *const _ as *mut c_void,
-                Some(AsyncClient::on_connection_lost),
-            );
-        }
+        self.set_disconnection_callbacks();
 
         self.set_message_callback(move |_, msg| {
             if let Err(err) = tx.try_send(msg) {
