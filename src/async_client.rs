@@ -1087,14 +1087,18 @@ impl AsyncClient {
     /// gets disconnected, it will insert `None` into the channel to signal
     /// the app about the disconnect.
     ///
+    /// The stream will rely on a bounded channel with the given buffer
+    /// capacity if 'buffer_sz' is 'Some' or will rely on an unbounded channel
+    /// if 'buffer_sz' is 'None'.
+    /// 
     /// It's a best practice to open the stream _before_ connecting to the
     /// server. When using persistent (non-clean) sessions, messages could
     /// arriving as soon as the connection is made - even before the
     /// connect() call returns.
-    pub fn get_stream(&mut self, buffer_sz: usize) -> AsyncReceiver<Option<Message>> {
+    pub fn get_stream(&mut self, buffer_sz: Option<usize>) -> AsyncReceiver<Option<Message>> {
         let (tx, rx) = match buffer_sz {
-            0 => async_channel::unbounded(),
-            cap => async_channel::bounded(cap),
+            None => async_channel::unbounded(),
+            Some(capacity) => async_channel::bounded(capacity),
         };
 
         // Make sure at least the low-level connection_lost handler is in
