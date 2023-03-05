@@ -37,5 +37,5 @@ openssl-sys = { version = "0.9", optional = true }
 # For now, we keep fixed to cmake crate v0.1.45.
 
 [build-dependencies]
-bindgen = { version = "0.52", optional = true }
+bindgen = { version = "0.64", optional = true }
 cmake = { version = "0.1.49", optional = true }
