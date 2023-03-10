@@ -1078,7 +1078,7 @@ impl AsyncClient {
     /// can be lost.
     //
     pub fn start_consuming(&self) -> Receiver<Option<Message>> {
-        let (tx, rx) = channel::unbounded::<Option<Message>>();
+        let (tx, rx) = channel::unbounded();
 
         // Make sure at least the low-level connection_lost handler is in
         // place to notify us when the connection is lost (sends a 'None' to
@@ -1116,10 +1116,13 @@ impl AsyncClient {
     /// server. When using persistent (non-clean) sessions, messages could
     /// arriving as soon as the connection is made - even before the
     /// connect() call returns.
-    pub fn get_stream(&mut self, buffer_sz: Option<usize>) -> AsyncReceiver<Option<Message>> {
-        let (tx, rx) = match buffer_sz {
+    pub fn get_stream<L>(&mut self, buffer_lim: L) -> AsyncReceiver<Option<Message>>
+    where
+        L: Into<Option<usize>>,
+    {
+        let (tx, rx) = match buffer_lim.into() {
             None => async_channel::unbounded(),
-            Some(capacity) => async_channel::bounded(capacity),
+            Some(lim) => async_channel::bounded(lim),
         };
 
         // Make sure at least the low-level connection lost handlers are in
