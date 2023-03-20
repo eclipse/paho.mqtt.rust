@@ -894,9 +894,7 @@ mod tests {
             .unwrap();
 
         // Remember, you can only set properties on a v5 connection.
-        let opts = ConnectOptionsBuilder::new_v5()
-            .properties(props)
-            .finalize();
+        let opts = ConnectOptionsBuilder::new_v5().properties(props).finalize();
 
         let props = opts.data.props.as_ref().unwrap();
         assert_eq!(1, props.len());
@@ -920,9 +918,7 @@ mod tests {
             .finalize();
 
         // Remember, you can only set properties on a v5 connection.
-        let opts = ConnectOptionsBuilder::new_v5()
-            .will_message(lwt)
-            .finalize();
+        let opts = ConnectOptionsBuilder::new_v5().will_message(lwt).finalize();
 
         let will_props = opts.data.will_props.as_ref().unwrap();
         assert_eq!(1, will_props.len());

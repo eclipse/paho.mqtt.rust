@@ -68,7 +68,10 @@ use std::{
     ffi::{CStr, CString},
     os::raw::{c_char, c_int, c_void},
     ptr, slice, str,
-    sync::{Arc, Mutex, atomic::{AtomicU32, Ordering}},
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc, Mutex,
+    },
     time::Duration,
 };
 
@@ -199,7 +202,11 @@ impl AsyncClient {
             inner: Arc::new(cli),
         };
 
-        debug!("AsyncClient w/ Inner {:?} and Handle: {:?}", Arc::as_ptr(&cli.inner), cli.inner.handle);
+        debug!(
+            "AsyncClient w/ Inner {:?} and Handle: {:?}",
+            Arc::as_ptr(&cli.inner),
+            cli.inner.handle
+        );
         Ok(cli)
     }
 
@@ -446,7 +453,10 @@ impl AsyncClient {
         FS: Fn(&AsyncClient, u16) + Send + 'static,
         FF: Fn(&AsyncClient, u16, i32) + Send + 'static,
     {
-        debug!("Connecting with callbacks. Handle: {:?}, opts: {:?}", self.inner.handle, opts);
+        debug!(
+            "Connecting with callbacks. Handle: {:?}, opts: {:?}",
+            self.inner.handle, opts
+        );
         unsafe {
             if !opts.copts.will.is_null() {
                 debug!("Will: {:?}", *(opts.copts.will));
@@ -1118,7 +1128,7 @@ impl AsyncClient {
     /// The stream will rely on a bounded channel with the given buffer
     /// capacity if 'buffer_sz' is 'Some' or will rely on an unbounded channel
     /// if 'buffer_sz' is 'None'.
-    /// 
+    ///
     /// It's a best practice to open the stream _before_ connecting to the
     /// server. When using persistent (non-clean) sessions, messages could
     /// arriving as soon as the connection is made - even before the
