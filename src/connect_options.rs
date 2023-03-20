@@ -838,6 +838,55 @@ mod tests {
     }
 
     #[test]
+    fn test_clone() {
+        const KEEP_ALIVE_SECS: u64 = 30;
+        const MAX_INFLIGHT: i32 = 25;
+        const USER_NAME: &str = "some-name";
+        const PASSWORD: &str = "some-password";
+        const CONNECT_TIMEOUT_SECS: u64 = 120;
+
+        let org_opts = ConnectOptionsBuilder::new()
+            .keep_alive_interval(Duration::new(KEEP_ALIVE_SECS, 0))
+            .clean_session(false)
+            .max_inflight(MAX_INFLIGHT)
+            .user_name(USER_NAME)
+            .password(PASSWORD)
+            .connect_timeout(Duration::new(CONNECT_TIMEOUT_SECS, 0))
+            .finalize();
+
+        let opts = org_opts.clone();
+
+        // Test original still intact
+
+        assert_eq!(KEEP_ALIVE_SECS as c_int, org_opts.copts.keepAliveInterval);
+        assert_eq!(0, org_opts.copts.cleansession);
+        assert_eq!(MAX_INFLIGHT, org_opts.copts.maxInflight);
+
+        // Now test the copy
+
+        assert_eq!(KEEP_ALIVE_SECS as c_int, opts.copts.keepAliveInterval);
+        assert_eq!(0, opts.copts.cleansession);
+        assert_eq!(MAX_INFLIGHT, opts.copts.maxInflight);
+
+        assert_eq!(
+            USER_NAME,
+            opts.data.user_name.as_ref().unwrap().to_str().unwrap()
+        );
+        assert_eq!(
+            PASSWORD,
+            opts.data.password.as_ref().unwrap().to_str().unwrap()
+        );
+
+        let user_name = opts.data.user_name.as_deref().unwrap();
+        assert_eq!(user_name.as_ptr(), opts.copts.username);
+
+        let password = opts.data.password.as_deref().unwrap();
+        assert_eq!(password.as_ptr(), opts.copts.password);
+
+        assert_eq!(CONNECT_TIMEOUT_SECS as i32, opts.copts.connectTimeout);
+    }
+
+    #[test]
     fn test_connect_properties() {
         let mut props = Properties::new();
         props

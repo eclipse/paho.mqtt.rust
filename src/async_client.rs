@@ -191,14 +191,16 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            warn!("Create result: {}", rc);
+            warn!("Create failure: {}", rc);
             return Err(rc.into());
         }
 
-        debug!("AsyncClient handle: {:?}", cli.handle);
-        Ok(AsyncClient {
+        let cli = AsyncClient {
             inner: Arc::new(cli),
-        })
+        };
+
+        debug!("AsyncClient w/ Inner {:?} and Handle: {:?}", Arc::as_ptr(&cli.inner), cli.inner.handle);
+        Ok(cli)
     }
 
     /// Constructs a client from a raw pointer to the inner structure.
@@ -216,10 +218,15 @@ impl AsyncClient {
         Arc::into_raw(self.inner) as *mut c_void
     }
 
+    /// Gets the client "C" handle, normally for diagnostics
+    pub(crate) fn handle(&self) -> ffi::MQTTAsync {
+        self.inner.handle
+    }
+
     // Low-level callback from the C library when the client is connected.
     // We just pass the call on to the handler registered with the client, if any.
     unsafe extern "C" fn on_connected(context: *mut c_void, _cause: *mut c_char) {
-        debug!("Connected! {:?}", context);
+        debug!("Connected! Client {:?}", context);
 
         if !context.is_null() {
             let cli = AsyncClient::from_raw(context);
@@ -236,7 +243,7 @@ impl AsyncClient {
     // Low-level callback from the C library when the connection is lost.
     // We pass the call on to the handler registered with the client, if any.
     unsafe extern "C" fn on_connection_lost(context: *mut c_void, _cause: *mut c_char) {
-        warn!("Connection lost. Context: {:?}", context);
+        warn!("Connection lost. Client: {:?}", context);
 
         if !context.is_null() {
             let cli = AsyncClient::from_raw(context);
@@ -266,8 +273,8 @@ impl AsyncClient {
         reason: ffi::MQTTReasonCodes,
     ) {
         debug!(
-            "Disconnected on context {:?}, with reason code: {}",
-            context, reason
+            "Disconnected with reason code: {}. Client: {:?}",
+            reason, context
         );
 
         if !context.is_null() {
@@ -302,7 +309,7 @@ impl AsyncClient {
         mut cmsg: *mut ffi::MQTTAsync_message,
     ) -> c_int {
         debug!(
-            "Message arrived. Context: {:?}, topic: {:?} len {:?} cmsg: {:?}: {:?}",
+            "Message arrived. Client: {:?}, topic: {:?} len {:?} cmsg: {:?}: {:?}",
             context, topic_name, topic_len, cmsg, *cmsg
         );
 
@@ -400,7 +407,7 @@ impl AsyncClient {
     where
         T: Into<Option<ConnectOptions>>,
     {
-        debug!("Connecting handle: {:?}", self.inner.handle);
+        debug!("Connecting. Handle: {:?}", self.inner.handle);
 
         let mut opts = opts.into().unwrap_or_default();
         self.set_mqtt_version(opts.mqtt_version());
@@ -439,18 +446,18 @@ impl AsyncClient {
         FS: Fn(&AsyncClient, u16) + Send + 'static,
         FF: Fn(&AsyncClient, u16, i32) + Send + 'static,
     {
-        debug!("Connecting handle with callbacks: {:?}", self.inner.handle);
-        self.set_mqtt_version(opts.mqtt_version());
-
-        let tok = Token::from_client(self, ServerRequest::Connect, success_cb, failure_cb);
-        opts.set_token(tok.clone());
-
-        debug!("Connect opts: {:?}", opts);
+        debug!("Connecting with callbacks. Handle: {:?}, opts: {:?}", self.inner.handle, opts);
         unsafe {
             if !opts.copts.will.is_null() {
                 debug!("Will: {:?}", *(opts.copts.will));
             }
         }
+
+        self.set_mqtt_version(opts.mqtt_version());
+
+        let tok = Token::from_client(self, ServerRequest::Connect, success_cb, failure_cb);
+        opts.set_token(tok.clone());
+
         let mut lkopts = self.inner.opts.lock().unwrap();
         *lkopts = opts;
 
@@ -504,7 +511,7 @@ impl AsyncClient {
         T: Into<Option<DisconnectOptions>>,
     {
         let mut opts = opt_opts.into().unwrap_or_default();
-        debug!("Disconnecting");
+        debug!("Disconnecting.  Handle: {:?}", self.inner.handle);
         trace!("Disconnect options: {:?}", opts);
 
         let tok = Token::new();
