@@ -116,10 +116,10 @@ impl DisconnectOptionsBuilder {
     /// # Arguments
     ///
     /// `timeout` The time interval to allow the disconnect to
-    ///           complete. This has a resolution of seconds.
+    ///           complete. This has a resolution of milliseconds.
     pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
-        let secs = timeout.as_secs();
-        self.copts.timeout = if secs == 0 { 1 } else { secs as i32 };
+        let millis = timeout.as_millis();
+        self.copts.timeout = if millis == 0 { 1 } else { millis as i32 };
         self
     }
 
