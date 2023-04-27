@@ -1173,6 +1173,14 @@ impl AsyncClient {
     pub fn client_id(&self) -> String {
         self.inner.client_id.clone().into_string().unwrap()
     }
+ 
+    /// Returns server URI used for connection
+    ///
+    /// Server URI is returned as a rust String as set in a
+    /// CreateOptionsBuilder for symmetry
+    pub fn server_uri(&self) -> String {
+        self.inner.server_uri.clone().into_string().unwrap()
+    }
 }
 
 // The client is safe to send or share between threads.
@@ -1369,5 +1377,19 @@ mod tests {
         );
         let retrieved = client.unwrap().client_id();
         assert_eq!(retrieved, c_id.to_string());
+    }
+ 
+    #[test]
+    fn test_get_server_uri() {
+        let server_uri = "tcp://localhost:1883";
+        let client = CreateOptionsBuilder::new()
+            .server_uri(server_uri)
+            .create_client();
+        assert!(
+            client.is_ok(),
+            "Error in creating async client with server_uri"
+        );
+        let retrieved = client.unwrap().server_uri();
+        assert_eq!(retrieved, server_uri.to_string());
     }
 }
