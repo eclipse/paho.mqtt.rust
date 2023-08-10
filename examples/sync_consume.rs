@@ -45,11 +45,11 @@ use std::{env, process, thread, time::Duration};
 // trying indefinitely, with a backoff, or something like that.
 
 fn try_reconnect(cli: &mqtt::Client) -> bool {
-    println!("Connection lost. Waiting to retry connection");
-    for _ in 0..12 {
-        thread::sleep(Duration::from_millis(5000));
+    println!("Connection lost. Reconnecting...");
+    for _ in 0..60 {
+        thread::sleep(Duration::from_secs(1));
         if cli.reconnect().is_ok() {
-            println!("Successfully reconnected");
+            println!("  Successfully reconnected");
             return true;
         }
     }
@@ -66,6 +66,8 @@ fn main() {
     let host = env::args()
         .nth(1)
         .unwrap_or_else(|| "mqtt://localhost:1883".to_string());
+
+    println!("Connecting to the MQTT broker at '{}'...", host);
 
     // Create the client. Use an ID for a persistent session.
     // A real system should try harder to use a unique ID.
@@ -98,7 +100,6 @@ fn main() {
     let qos = [1, 1];
 
     // Make the connection to the broker
-    println!("Connecting to the MQTT broker...");
     match cli.connect(conn_opts) {
         Ok(rsp) => {
             if let Some(conn_rsp) = rsp.connect_response() {
@@ -107,11 +108,18 @@ fn main() {
                     conn_rsp.server_uri, conn_rsp.mqtt_version
                 );
                 if conn_rsp.session_present {
+                    // Since our persistent session is already on the broker
+                    // we don't need to subscribe to the topics.
                     println!("  w/ client session already present on broker.");
                 }
                 else {
-                    // Register subscriptions on the server
-                    println!("Subscribing to topics with requested QoS: {:?}...", qos);
+                    // The server doesn't have a persistent session already
+                    // stored for us (1st connection?), so we need to subscribe
+                    // to the topics we want to receive.
+                    println!(
+                        "Subscribing to topics {:?} with requested QoS: {:?}...",
+                        subscriptions, qos
+                    );
 
                     cli.subscribe_many(&subscriptions, &qos)
                         .and_then(|rsp| {

@@ -155,7 +155,7 @@ fn main() {
     });
 
     // Define the set of options for the connection
-    let lwt = mqtt::Message::new("test", "Dynamic subscriber lost connection", 1);
+    let lwt = mqtt::Message::new("test/lwt", "[LWT] Dynamic subscriber lost connection", 1);
 
     // The connect options. Defaults to an MQTT v3.x connection.
     let conn_opts = mqtt::ConnectOptionsBuilder::new()
