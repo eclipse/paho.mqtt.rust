@@ -21,6 +21,56 @@
 
 //! This is the Eclipse Paho MQTT client library for the Rust language.
 //!
+//! # Crate Features
+//!
+//! ### Default
+//!
+//! * **bundled**
+//!   Builds the Paho C library for the target and automatically links it.
+//!
+//! * **ssl**
+//!   Builds the library with OpenSSL support. This allow secure SSL/TLS
+//!   connections to a broker along with secure websockets. This requires
+//!   OpenSSL to be installed for the target or using the `vendored-ssl`
+//!   feature to build it.
+//!
+//! ### Non-default
+//!
+//! * **build_bindgen**
+//!   Build the bindings to the Paho C library for the target. The library
+//!   ships with a number of pre-built bindings for common targets. For
+//!   other targets it might be helpful to build the bindings for the
+//!   specific target platform, especially if the library segfauls due to
+//!   an improper API.
+//!
+//! * **vendored-ssl**
+//!   Download an build OpenSSL for the target.
+//!
+//! # Logging
+//!
+//! The library uses the standard Rust log facility with the target/module
+//! "paho_mqtt".
+//!
+//! In addition, the traces from the underlying Paho C library are captured
+//! and redirected to the Rust log facility. Since the C library is a bit
+//! cryptic and verbose, the output is controlled separately using a
+//! "paho_mqtt_c" target/module. The levels for the C library are
+//! approximated to suit the Rust filter level selected for it.
+//!
+//! The example applications use the simple
+//! [environment logger](https://crates.io/crates/env_logger) which can be
+//! controlled by the `RUST_LOG` environment variable. To set the logging
+//! for the two modules, you can do something like:
+//!
+//! ```text
+//! $ RUST_LOG="pago_mqtt=info,paho_mqtt_c=debug" ./target/debug/examples/async_subscribe
+//! Connecting to the MQTT server at 'mqtt://localhost:1883'...
+//! [2023-09-11T13:26:18Z DEBUG paho_mqtt::async_client] =========================================================
+//! [2023-09-11T13:26:18Z DEBUG paho_mqtt::async_client]                    Trace Output
+//! [2023-09-11T13:26:18Z DEBUG paho_mqtt::async_client] Product name: Eclipse Paho Asynchronous MQTT C Client Library
+//! [2023-09-11T13:26:18Z DEBUG paho_mqtt::async_client] Version: 1.3.11
+//! ...
+//! ```
 
 #![deny(missing_docs)]
 #![allow(non_upper_case_globals)]
@@ -124,6 +174,10 @@ pub mod string_collection;
 /// Utility for creating name/value string pair collections
 /// (to pass to the C library).
 pub mod name_value;
+
+// C log tracing pass-through
+mod c_trace;
+use c_trace::{c_trace_level, on_c_trace};
 
 // --------------------------------------------------------------------------
 

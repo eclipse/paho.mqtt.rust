@@ -70,7 +70,7 @@ use std::{
     ptr, slice, str,
     sync::{
         atomic::{AtomicU32, Ordering},
-        Arc, Mutex,
+        Arc, Mutex, Once,
     },
     time::Duration,
 };
@@ -135,6 +135,9 @@ struct CallbackContext {
     on_message_arrived: Option<Box<MessageArrivedCallback>>,
 }
 
+// Runs code to initialize the underlying C library
+static C_LIB_INIT: Once = Once::new();
+
 impl AsyncClient {
     /// Creates a new MQTT client which can connect to an MQTT broker.
     ///
@@ -146,6 +149,18 @@ impl AsyncClient {
     where
         T: Into<CreateOptions>,
     {
+        // Do any initialization of the C lib
+        C_LIB_INIT.call_once(|| {
+            if let Some(lvl) = crate::c_trace_level() {
+                debug!("Setting Paho C log level to {}", lvl);
+                unsafe {
+                    ffi::MQTTAsync_setTraceCallback(Some(crate::on_c_trace));
+                    ffi::MQTTAsync_setTraceLevel(lvl);
+                }
+            }
+        });
+
+        // Create the client
         let mut opts = opts.into();
         debug!("Create options: {:?}", opts);
 
