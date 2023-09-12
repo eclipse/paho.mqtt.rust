@@ -65,10 +65,10 @@
 //! ```text
 //! $ RUST_LOG="pago_mqtt=info,paho_mqtt_c=debug" ./target/debug/examples/async_subscribe
 //! Connecting to the MQTT server at 'mqtt://localhost:1883'...
-//! [2023-09-11T13:26:18Z DEBUG paho_mqtt::async_client] =========================================================
-//! [2023-09-11T13:26:18Z DEBUG paho_mqtt::async_client]                    Trace Output
-//! [2023-09-11T13:26:18Z DEBUG paho_mqtt::async_client] Product name: Eclipse Paho Asynchronous MQTT C Client Library
-//! [2023-09-11T13:26:18Z DEBUG paho_mqtt::async_client] Version: 1.3.11
+//! [2023-09-11T13:26:18Z DEBUG paho_mqtt::c_trace] =========================================================
+//! [2023-09-11T13:26:18Z DEBUG paho_mqtt::c_trace]                    Trace Output
+//! [2023-09-11T13:26:18Z DEBUG paho_mqtt::c_trace] Product name: Eclipse Paho Asynchronous MQTT C Client Library
+//! [2023-09-11T13:26:18Z DEBUG paho_mqtt::c_trace] Version: 1.3.11
 //! ...
 //! ```
 
