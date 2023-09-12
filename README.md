@@ -38,7 +38,10 @@ To keep up with the latest announcements for this project, follow:
 
 **EMail:** [Eclipse Paho Mailing List](https://accounts.eclipse.org/mailing-list/paho-dev)
 
-**Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
+### What's new in v0.12.2
+
+- [#209](https://github.com/eclipse/paho.mqtt.rust/issues/209) Added trace/log statements from the Paho C library to the Rust logs
+- Minor cleanup of subscriber examples.
 
 ### What's new in v0.12.1
 
