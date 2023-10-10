@@ -1,8 +1,8 @@
 [package]
 name = "paho-mqtt-sys"
-version = "0.8.0"
+version = "0.8.1"
 edition = "2021"
-rust-version = "1.63"
+rust-version = "1.63.0"
 authors = ["Frank Pagliughi <fpagliughi@mindspring.com>"]
 homepage = "https://github.com/eclipse/paho.mqtt.rust"
 repository = "https://github.com/eclipse/paho.mqtt.rust"
@@ -31,11 +31,6 @@ vendored-ssl = ["bundled", "ssl", "openssl-sys/vendored"]
 [dependencies]
 openssl-sys = { version = "0.9", optional = true }
 
-# Note, at the time of this release, the `cmake` crate v0.1.46 didn't work on
-# all supported build machines due to the use of the '--parallel' flag which 
-# was introduced in CMake v3.13, or so.
-# For now, we keep fixed to cmake crate v0.1.45.
-
 [build-dependencies]
-bindgen = { version = "0.52", optional = true }
+bindgen = { version = "0.64", optional = true }
 cmake = { version = "0.1.49", optional = true }

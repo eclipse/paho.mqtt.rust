@@ -74,11 +74,11 @@ fn command_handler(msg: mqtt::Message) -> bool {
 // trying indefinitely, with a backoff, or something like that.
 
 fn try_reconnect(cli: &mqtt::Client) -> bool {
-    println!("Connection lost. Waiting to retry connection");
-    for _ in 0..12 {
-        thread::sleep(Duration::from_millis(5000));
+    println!("Connection lost. Attempting to reconnect...");
+    for _ in 0..60 {
+        thread::sleep(Duration::from_secs(1));
         if cli.reconnect().is_ok() {
-            println!("Successfully reconnected");
+            println!("  Successfully reconnected");
             return true;
         }
     }
@@ -102,6 +102,8 @@ fn main() -> mqtt::Result<()> {
     let host = env::args()
         .nth(1)
         .unwrap_or_else(|| "mqtt://localhost:1883".to_string());
+
+    println!("Connecting to the MQTT broker at '{}'...", host);
 
     // Create the client. Use an ID for a persistent session.
     // A real system should try harder to use a unique ID.
@@ -136,12 +138,11 @@ fn main() -> mqtt::Result<()> {
     let handler: Vec<fn(mqtt::Message) -> bool> = vec![data_handler, command_handler];
 
     // Make the connection to the broker
-
     let rsp = cli.connect(conn_opts)?;
 
     // We're connecting with a persistent session. So we check if
-    // the server already knows about us and rembers about out
-    // subscription(s). If not, we subscribe for incoming requests.
+    // the server already knows about us and rembers our subscription(s).
+    // If not, we subscribe for incoming requests.
 
     if let Some(conn_rsp) = rsp.connect_response() {
         println!(
@@ -154,7 +155,7 @@ fn main() -> mqtt::Result<()> {
         }
         else {
             // Register subscriptions on the server, using Subscription ID's.
-            println!("Subscribing to topics...");
+            println!(r#"Subscribing to topics ["data/#", "command"]..."#);
             cli.subscribe_with_options("data/#", 0, None, sub_id(1))?;
             cli.subscribe_with_options("command", 1, None, sub_id(2))?;
         }

@@ -115,7 +115,7 @@ fn main() {
     });
 
     // Define the set of options for the connection
-    let lwt = mqtt::Message::new("test", "Async subscriber lost connection", 1);
+    let lwt = mqtt::Message::new("test/lwt", "[LWT] Async subscriber lost connection", 1);
 
     let conn_opts = mqtt::ConnectOptionsBuilder::new_v3()
         .keep_alive_interval(Duration::from_secs(20))

@@ -41,6 +41,8 @@ fn main() {
         .nth(1)
         .unwrap_or_else(|| "mqtt://localhost:1883".to_string());
 
+    println!("Connecting to the MQTT server at '{}'", host);
+
     // Create the client
     let cli = mqtt::AsyncClient::new(host).unwrap_or_else(|err| {
         println!("Error creating the client: {}", err);
@@ -50,7 +52,6 @@ fn main() {
     if let Err(err) = block_on(async {
         // Connect with default options and wait for it to complete or fail
         // The default is an MQTT v3.x connection.
-        println!("Connecting to the MQTT server");
         cli.connect(None).await?;
 
         // Create a message and publish it

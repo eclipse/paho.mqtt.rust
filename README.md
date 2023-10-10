@@ -38,9 +38,18 @@ To keep up with the latest announcements for this project, follow:
 
 **EMail:** [Eclipse Paho Mailing List](https://accounts.eclipse.org/mailing-list/paho-dev)
 
-**Mattermost:** [Eclipse Mattermost Paho Channel](https://mattermost.eclipse.org/eclipse/channels/paho)
+### What's new in v0.12.2
 
-### What's new in v0.12
+- [#209](https://github.com/eclipse/paho.mqtt.rust/issues/209) Added trace/log statements from the Paho C library to the Rust logs
+- Minor cleanup of subscriber examples.
+
+### What's new in v0.12.1
+
+- [#191](https://github.com/eclipse/paho.mqtt.rust/pull/191) AsyncClient::get_stream() support unbounded channel
+- [#194](https://github.com/eclipse/paho.mqtt.rust/issues/194) Bumped bindgen to latest version, v0.64, in -sys crate
+- [#193](https://github.com/eclipse/paho.mqtt.rust/issues/193) Consmer notification when brokercleanly disconnects
+
+### What's new in v0.12.0
 
 - Updated to Rust Edition 2021 w/ MSRV 1.63.0
 - Upgrade to Paho C v1.3.12
@@ -67,12 +76,6 @@ To keep up with the latest announcements for this project, follow:
 - [#57](https://github.com/eclipse/paho.mqtt.rust/issues/57) Updated this README with more help for musl builds.
 - Fixed clippy warnings
 
-### What's new in v0.11.1
-
-- [#156](https://github.com/eclipse/paho.mqtt.rust/issues/156) Improvements to `TopicMatcher`:
-    - Doesn't require item type to implement `Default` trait
-    - Match iterator returns key/value tuple (not just value).
-- [#154](https://github.com/eclipse/paho.mqtt.rust/pull/154) Add public interface to retrieve `client_id`.
 
 ## Using the Crate
 

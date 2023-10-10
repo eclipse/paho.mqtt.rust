@@ -196,12 +196,12 @@ impl TokenInner {
         })
     }
 
-    // Callback from the C library for when an async operation succeeds.
+    // Callback from the C library for when an MQTT v3.x operation succeeds.
     pub(crate) unsafe extern "C" fn on_success(
         context: *mut c_void,
         rsp: *mut ffi::MQTTAsync_successData,
     ) {
-        debug!("Token success! {:?}, {:?}", context, rsp);
+        debug!("Token success! Token: {:?}, Response: {:?}", context, rsp);
         if context.is_null() {
             return;
         }
@@ -209,21 +209,19 @@ impl TokenInner {
         let tok = Token::from_raw(context);
 
         // TODO: Maybe compare this msgid to the one in the token?
-        let msgid = if !rsp.is_null() {
-            (*rsp).token as u16
-        }
-        else {
-            0
+        let msgid = match rsp.is_null() {
+            true => 0,
+            false => (*rsp).token as u16,
         };
         tok.inner.on_complete(msgid, 0, None, rsp);
     }
 
-    // Callback from the C library when an async operation fails.
+    // Callback from the C library when an MQTT v3.x operation fails.
     pub(crate) unsafe extern "C" fn on_failure(
         context: *mut c_void,
         rsp: *mut ffi::MQTTAsync_failureData,
     ) {
-        debug!("Token failure! {:?}, {:?}", context, rsp);
+        debug!("Token failure! Token: {:?}, Response: {:?}", context, rsp);
         if context.is_null() {
             return;
         }
@@ -254,7 +252,10 @@ impl TokenInner {
         context: *mut c_void,
         rsp: *mut ffi::MQTTAsync_successData5,
     ) {
-        debug!("Token v5 success! {:?}, {:?}", context, rsp);
+        debug!(
+            "Token v5 success! Token: {:?}, Response: {:?}",
+            context, rsp
+        );
         if context.is_null() {
             return;
         }
@@ -262,11 +263,9 @@ impl TokenInner {
         let tok = Token::from_raw(context);
 
         // TODO: Maybe compare this msgid to the one in the token?
-        let msgid = if !rsp.is_null() {
-            (*rsp).token as u16
-        }
-        else {
-            0
+        let msgid = match rsp.is_null() {
+            false => 0,
+            true => (*rsp).token as u16,
         };
         tok.inner.on_complete5(msgid, 0, None, rsp);
     }
@@ -276,7 +275,10 @@ impl TokenInner {
         context: *mut c_void,
         rsp: *mut ffi::MQTTAsync_failureData5,
     ) {
-        debug!("Token v5 failure! {:?}, {:?}", context, rsp);
+        debug!(
+            "Token v5 failure! Token: {:?}, Response: {:?}",
+            context, rsp
+        );
         if context.is_null() {
             return;
         }
@@ -299,13 +301,16 @@ impl TokenInner {
             }
         }
 
-        debug!("Token w ID {} completed with code: {}", msgid, rc);
+        debug!("Token w ID {} failed with code: {}", msgid, rc);
 
         // Fire off any user callbacks
 
         if let Some(ref cli) = tok.inner.cli {
             if let Some(ref cb) = tok.inner.on_failure {
-                trace!("Invoking TokenInner::on_failure callback");
+                trace!(
+                    "Invoking Token failure callback for client handle {:?}",
+                    cli.handle()
+                );
                 cb(cli, msgid, rc);
             }
         }
@@ -336,19 +341,25 @@ impl TokenInner {
         err_msg: Option<String>,
         rsp: *mut ffi::MQTTAsync_successData,
     ) {
-        debug!("Token w ID {} completed with code: {}", msgid, rc);
+        debug!("Completing Token w ID {} and code: {}", msgid, rc);
 
         // Fire off any user callbacks
 
         if let Some(ref cli) = self.cli {
             if rc == 0 {
                 if let Some(ref cb) = self.on_success {
-                    trace!("Invoking TokenInner::on_success callback");
+                    trace!(
+                        "Invoking Token success callback for client handle {:?}",
+                        cli.handle()
+                    );
                     cb(cli, msgid);
                 }
             }
             else if let Some(ref cb) = self.on_failure {
-                trace!("Invoking TokenInner::on_failure callback");
+                trace!(
+                    "Invoking Token failure callback for client handle {:?}",
+                    cli.handle()
+                );
                 cb(cli, msgid, rc);
             }
         }
@@ -397,12 +408,18 @@ impl TokenInner {
         if let Some(ref cli) = self.cli {
             if rc == 0 {
                 if let Some(ref cb) = self.on_success {
-                    trace!("Invoking TokenInner::on_success callback");
+                    trace!(
+                        "Invoking Token success callback for client handle {:?}",
+                        cli.handle()
+                    );
                     cb(cli, msgid);
                 }
             }
             else if let Some(ref cb) = self.on_failure {
-                trace!("Invoking TokenInner::on_failure callback");
+                trace!(
+                    "Invoking Token failure callback for client handle {:?}",
+                    cli.handle()
+                );
                 cb(cli, msgid, rc);
             }
         }
@@ -748,6 +765,8 @@ mod tests {
     #[test]
     fn test_token_clones() {
         let tok1 = Token::new();
+        tok1.inner.lock.lock().unwrap().msg_id = 42;
+
         let tok2 = tok1.clone();
 
         let p1 = Token::into_raw(tok1);
@@ -755,10 +774,10 @@ mod tests {
 
         assert_eq!(p1, p2);
 
-        unsafe {
-            let _ = Token::from_raw(p1);
-            let _ = Token::from_raw(p2);
-        }
+        let (tok1, tok2) = unsafe { (Token::from_raw(p1), Token::from_raw(p2)) };
+
+        assert_eq!(42, tok1.inner.lock.lock().unwrap().msg_id);
+        assert_eq!(42, tok2.inner.lock.lock().unwrap().msg_id);
     }
 
     // Determine that a token can be sent across threads and signaled.

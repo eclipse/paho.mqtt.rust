@@ -9,13 +9,16 @@
 //! The sample demonstrates:
 //!   - An async/await subscriber
 //!   - Connecting to an MQTT server/broker.
-//!   - Subscribing to a topic
+//!   - Subscribing to topics
 //!   - Receiving messages from an async stream.
 //!   - Handling disconnects and attempting manual reconnects.
 //!   - Using a "persistent" (non-clean) session so the broker keeps
 //!     subscriptions and messages through reconnects.
 //!   - Last will and testament
 //!
+//! Note that this example specifically does *not* handle a ^C, so breaking
+//! out of the app will always result in an un-clean disconnect causing the
+//! broker to emit the LWT message.
 
 /*******************************************************************************
  * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
@@ -51,6 +54,8 @@ fn main() {
         .nth(1)
         .unwrap_or_else(|| "mqtt://localhost:1883".to_string());
 
+    println!("Connecting to the MQTT server at '{}'...", host);
+
     // Create the client. Use a Client ID for a persistent session.
     // A real system should try harder to use a unique ID.
     let create_opts = mqtt::CreateOptionsBuilder::new_v3()
@@ -69,7 +74,11 @@ fn main() {
         let mut strm = cli.get_stream(25);
 
         // Define the set of options for the connection
-        let lwt = mqtt::Message::new("test", "Async subscriber lost connection", mqtt::QOS_1);
+        let lwt = mqtt::Message::new(
+            "test/lwt",
+            "[LWT] Async subscriber lost connection",
+            mqtt::QOS_1,
+        );
 
         // Create the connect options, explicitly requesting MQTT v3.x
         let conn_opts = mqtt::ConnectOptionsBuilder::new_v3()
@@ -79,7 +88,6 @@ fn main() {
             .finalize();
 
         // Make the connection to the broker
-        println!("Connecting to the MQTT server...");
         cli.connect(conn_opts).await?;
 
         println!("Subscribing to topics: {:?}", TOPICS);
