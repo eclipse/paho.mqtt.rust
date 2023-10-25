@@ -466,6 +466,9 @@ impl Default for TokenInner {
     }
 }
 
+unsafe impl Send for TokenInner {}
+unsafe impl Sync for TokenInner {}
+
 /////////////////////////////////////////////////////////////////////////////
 // Token
 

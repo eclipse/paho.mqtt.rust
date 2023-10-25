@@ -98,10 +98,7 @@ impl<T> TopicMatcher<T> {
             node = match sym {
                 "+" => node.plus_wild.get_or_insert(Box::<Node<T>>::default()),
                 "#" => node.pound_wild.get_or_insert(Box::<Node<T>>::default()),
-                sym => node
-                    .children
-                    .entry(sym.to_string())
-                    .or_insert_with(Node::<T>::default),
+                sym => node.children.entry(sym.to_string()).or_default(),
             }
         }
         // We've either found or created nodes down to here.

@@ -66,6 +66,7 @@ use crate::{
 use crossbeam_channel as channel;
 use std::{
     ffi::{CStr, CString},
+    mem,
     os::raw::{c_char, c_int, c_void},
     ptr, slice, str,
     sync::{
@@ -103,6 +104,10 @@ pub(crate) struct InnerAsyncClient {
     // Arbitrary, user-supplied data
     user_data: Option<UserData>,
 }
+
+// The client is safe to send or share between threads.
+unsafe impl Send for InnerAsyncClient {}
+unsafe impl Sync for InnerAsyncClient {}
 
 /// User callback type for when the client is connected.
 pub type ConnectedCallback = dyn FnMut(&AsyncClient) + Send + 'static;
@@ -444,7 +449,7 @@ impl AsyncClient {
         let rc = unsafe { ffi::MQTTAsync_connect(self.inner.handle, &lkopts.copts) };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(lkopts.copts.context) };
+            mem::drop(unsafe { Token::from_raw(lkopts.copts.context) });
             return ConnectToken::from_error(rc);
         }
 
@@ -489,7 +494,7 @@ impl AsyncClient {
         let rc = unsafe { ffi::MQTTAsync_connect(self.inner.handle, &lkopts.copts) };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(lkopts.copts.context) };
+            mem::drop(unsafe { Token::from_raw(lkopts.copts.context) });
             return ConnectToken::from_error(rc);
         }
 
@@ -545,7 +550,7 @@ impl AsyncClient {
         let rc = unsafe { ffi::MQTTAsync_disconnect(self.inner.handle, &opts.copts) };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(opts.copts.context) };
+            mem::drop(unsafe { Token::from_raw(opts.copts.context) });
             return Token::from_error(rc);
         }
 
@@ -762,7 +767,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            mem::drop(unsafe { Token::from_raw(rsp_opts.copts.context) });
             let msg: Message = tok.into();
             return Err(Error::Publish(rc, msg));
         }
@@ -806,7 +811,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            mem::drop(unsafe { Token::from_raw(rsp_opts.copts.context) });
             return SubscribeToken::from_error(rc);
         }
 
@@ -852,7 +857,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            mem::drop(unsafe { Token::from_raw(rsp_opts.copts.context) });
             return SubscribeToken::from_error(rc);
         }
 
@@ -891,7 +896,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            mem::drop(unsafe { Token::from_raw(rsp_opts.copts.context) });
             return SubscribeManyToken::from_error(rc);
         }
 
@@ -948,7 +953,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            mem::drop(unsafe { Token::from_raw(rsp_opts.copts.context) });
             return SubscribeManyToken::from_error(rc);
         }
 
@@ -978,7 +983,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            mem::drop(unsafe { Token::from_raw(rsp_opts.copts.context) });
             return Token::from_error(rc);
         }
 
@@ -1014,7 +1019,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            mem::drop(unsafe { Token::from_raw(rsp_opts.copts.context) });
             return Token::from_error(rc);
         }
 
@@ -1051,7 +1056,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            mem::drop(unsafe { Token::from_raw(rsp_opts.copts.context) });
             return Token::from_error(rc);
         }
 
@@ -1093,7 +1098,7 @@ impl AsyncClient {
         };
 
         if rc != 0 {
-            let _ = unsafe { Token::from_raw(rsp_opts.copts.context) };
+            mem::drop(unsafe { Token::from_raw(rsp_opts.copts.context) });
             return Token::from_error(rc);
         }
 
