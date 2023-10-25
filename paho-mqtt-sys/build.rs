@@ -58,7 +58,7 @@ use std::{
 // TODO: Assuming the proper installed version of the library is problematic.
 //      We should check that the version is correct, if possible.
 
-const PAHO_MQTT_C_VERSION: &str = "1.3.12";
+const PAHO_MQTT_C_VERSION: &str = "1.3.13";
 
 fn main() {
     build::main();
@@ -262,7 +262,7 @@ mod build {
         // Mske sure that the Git submodule is checked out
         if !Path::new("paho.mqtt.c/.git").exists() {
             let _ = Command::new("git")
-                        .args(&["submodule", "update", "--init"])
+                        .args(["submodule", "update", "--init"])
                         .status();
         }
 
