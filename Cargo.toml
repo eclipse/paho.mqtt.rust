@@ -1,6 +1,6 @@
 [package]
 name = "paho-mqtt"
-version = "0.12.3-pre.0"
+version = "0.12.3"
 edition = "2021"
 rust-version = "1.63"
 authors = ["Frank Pagliughi <fpagliughi@mindspring.com>"]
