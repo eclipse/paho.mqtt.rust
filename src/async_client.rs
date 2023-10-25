@@ -1188,7 +1188,7 @@ impl AsyncClient {
     pub fn client_id(&self) -> String {
         self.inner.client_id.clone().into_string().unwrap()
     }
- 
+
     /// Returns server URI used for connection
     ///
     /// Server URI is returned as a rust String as set in a
@@ -1393,7 +1393,7 @@ mod tests {
         let retrieved = client.unwrap().client_id();
         assert_eq!(retrieved, c_id.to_string());
     }
- 
+
     #[test]
     fn test_get_server_uri() {
         let server_uri = "tcp://localhost:1883";
