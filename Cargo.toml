@@ -1,6 +1,6 @@
 [package]
 name = "paho-mqtt"
-version = "0.12.2"
+version = "0.12.3-pre.0"
 edition = "2021"
 rust-version = "1.63"
 authors = ["Frank Pagliughi <fpagliughi@mindspring.com>"]
@@ -22,7 +22,7 @@ ssl = ["paho-mqtt-sys/ssl"]
 vendored-ssl = ["paho-mqtt-sys/vendored-ssl"]
 
 [dependencies]
-paho-mqtt-sys = { version = "0.8.0", path = "paho-mqtt-sys", default-features=false }
+paho-mqtt-sys = { version = "0.9", path = "paho-mqtt-sys", default-features=false }
 libc = "0.2"
 futures = "0.3"
 futures-timer = "3.0"
