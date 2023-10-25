@@ -139,7 +139,7 @@ fn main() {
                 let data = cli.user_data().unwrap();
                 if let Some(lock) = data.downcast_ref::<UserTopics>() {
                     let mut topics = lock.write().unwrap();
-                    let new_topic = payload_str.to_owned().to_string();
+                    let new_topic = payload_str.into_owned();
                     println!("Adding topic: {}", new_topic);
                     cli.subscribe(&new_topic, QOS);
                     topics.push(new_topic);

@@ -39,7 +39,8 @@ fn main() {
     let host = args
         .next()
         .unwrap_or_else(|| "ws://localhost:8080".to_string());
-    let proxy = args.next().unwrap_or_else(String::new);
+
+    let proxy = args.next().unwrap_or_default();
 
     // Create the client
     let cli = mqtt::AsyncClient::new(host).unwrap_or_else(|err| {

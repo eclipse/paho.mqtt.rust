@@ -160,7 +160,7 @@ fn handle_request(cli: &mqtt::AsyncClient, msg: mqtt::Message) -> mqtt::Result<(
             .properties(props)
             .finalize();
 
-        let _ = cli.publish(msg);
+        let _ = cli.publish(msg).wait();
     }
     else {
         eprintln!("Unknown command: {}", fname);

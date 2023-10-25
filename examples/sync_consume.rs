@@ -126,9 +126,8 @@ fn main() {
                             rsp.subscribe_many_response()
                                 .ok_or(mqtt::Error::General("Bad response"))
                         })
-                        .and_then(|vqos| {
+                        .map(|vqos| {
                             println!("QoS granted: {:?}", vqos);
-                            Ok(())
                         })
                         .unwrap_or_else(|err| {
                             println!("Error subscribing to topics: {:?}", err);
