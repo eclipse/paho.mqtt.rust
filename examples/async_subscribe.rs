@@ -96,6 +96,8 @@ fn main() {
         // Just loop on incoming messages.
         println!("Waiting for messages...");
 
+        let mut rconn_attempt: usize = 0;
+
         // Note that we're not providing a way to cleanly shut down and
         // disconnect. Therefore, when you kill this app (with a ^C or
         // whatever) the server will get an unexpected drop and then
@@ -107,12 +109,14 @@ fn main() {
             }
             else {
                 // A "None" means we were disconnected. Try to reconnect...
-                println!("Lost connection. Attempting reconnect.");
+                println!("Lost connection. Attempting reconnect...");
                 while let Err(err) = cli.reconnect().await {
-                    println!("Error reconnecting: {}", err);
+                    rconn_attempt += 1;
+                    println!("Error reconnecting #{}: {}", rconn_attempt, err);
                     // For tokio use: tokio::time::delay_for()
-                    async_std::task::sleep(Duration::from_millis(1000)).await;
+                    async_std::task::sleep(Duration::from_secs(1)).await;
                 }
+                println!("Reconnected.");
             }
         }
 
