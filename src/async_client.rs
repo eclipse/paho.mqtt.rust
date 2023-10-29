@@ -400,13 +400,22 @@ impl AsyncClient {
     /// This is the version of the current connection, or the most recent
     /// connection if currently disconnected. Before an initial connection
     /// is made, this will report MQTT_VERSION_DEFAULT (0).
-    pub fn mqtt_version(&self) -> u32 {
+    pub fn mqtt_version(&self) -> MqttVersion {
+        MqttVersion::from(self.mqtt_version_raw())
+    }
+
+    /// The raw, integer value of the MQTT version
+    pub fn mqtt_version_raw(&self) -> u32 {
         self.inner.mqtt_version.load(Ordering::SeqCst)
     }
 
     /// Sets the current MQTT version.
     /// This is set when a connection is requested or established.
-    pub(crate) fn set_mqtt_version(&self, ver: u32) {
+    pub(crate) fn set_mqtt_version<V>(&self, ver: V)
+    where
+        V: Into<MqttVersion>,
+    {
+        let ver = ver.into() as u32;
         trace!("Updating client MQTT version: {}", ver);
         self.inner.mqtt_version.store(ver, Ordering::SeqCst);
     }
@@ -839,7 +848,7 @@ impl AsyncClient {
         T: Into<SubscribeOptions>,
         P: Into<Option<Properties>>,
     {
-        debug_assert!(self.mqtt_version() >= ffi::MQTTVERSION_5);
+        debug_assert!(self.mqtt_version() >= MqttVersion::V5);
 
         let tok = Token::from_request(None, ServerRequest::Subscribe);
         let mut rsp_opts = ResponseOptionsBuilder::new()
@@ -923,7 +932,7 @@ impl AsyncClient {
         T: AsRef<str>,
         P: Into<Option<Properties>>,
     {
-        debug_assert!(self.mqtt_version() >= ffi::MQTTVERSION_5);
+        debug_assert!(self.mqtt_version() >= MqttVersion::V5);
 
         let n = topics.len();
         // TOOD: Make sure topics & qos are same length (or use min)
@@ -1002,7 +1011,7 @@ impl AsyncClient {
     where
         S: Into<String>,
     {
-        debug_assert!(self.mqtt_version() >= ffi::MQTTVERSION_5);
+        debug_assert!(self.mqtt_version() >= MqttVersion::V5);
 
         let tok = Token::from_request(None, ServerRequest::Unsubscribe);
         let mut rsp_opts = ResponseOptionsBuilder::new()
@@ -1075,7 +1084,7 @@ impl AsyncClient {
     where
         T: AsRef<str>,
     {
-        debug_assert!(self.mqtt_version() >= ffi::MQTTVERSION_5);
+        debug_assert!(self.mqtt_version() >= MqttVersion::V5);
 
         let n = topics.len();
         let tok = Token::from_request(None, ServerRequest::UnsubscribeMany(n));

@@ -67,19 +67,20 @@ impl ResponseOptions {
     /// structure to act as the context pointer for the callback. It is
     /// up to the callback (or calling function) to recapture and release
     /// this token.
-    pub(crate) fn new<T>(mqtt_version: u32, tok: T) -> Self
+    pub(crate) fn new<V, T>(ver: V, tok: T) -> Self
     where
+        V: Into<MqttVersion>,
         T: Into<Token>,
     {
-        let mut copts = Self::c_options(mqtt_version);
+        let mut copts = Self::c_options(ver.into());
         copts.context = tok.into().into_raw();
 
         Self::from_data(copts, ResponseOptionsData::default())
     }
 
     // Creates a C response options struct for the specified MQTT version
-    fn c_options(mqtt_version: u32) -> ffi::MQTTAsync_responseOptions {
-        if mqtt_version < 5 {
+    fn c_options(ver: MqttVersion) -> ffi::MQTTAsync_responseOptions {
+        if ver < MqttVersion::V5 {
             ffi::MQTTAsync_responseOptions {
                 onSuccess: Some(TokenInner::on_success),
                 onFailure: Some(TokenInner::on_failure),
@@ -144,7 +145,7 @@ impl ResponseOptionsBuilder {
     /// Creates a new builder starting with default options.
     pub fn new() -> Self {
         Self {
-            copts: ResponseOptions::c_options(MQTT_VERSION_5),
+            copts: ResponseOptions::c_options(MqttVersion::V5),
             data: ResponseOptionsData::default(),
         }
     }
