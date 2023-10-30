@@ -264,6 +264,15 @@ impl From<(i32, &str)> for Error {
     }
 }
 
+impl From<(i32, Option<String>)> for Error {
+    fn from((rc, msg): (i32, Option<String>)) -> Self {
+        match msg {
+            Some(msg) => Self::from((rc, msg.as_str())),
+            None => Self::from(rc),
+        }
+    }
+}
+
 impl From<&'static str> for Error {
     /// Create a general error from a string.
     fn from(descr: &'static str) -> Error {
