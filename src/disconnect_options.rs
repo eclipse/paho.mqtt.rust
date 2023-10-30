@@ -164,7 +164,7 @@ impl DisconnectOptionsBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{properties::PropertyCode, reason_code::NormalDisconnection};
+    use crate::{properties::PropertyCode, reason_code::ReasonCode};
     use std::{os::raw::c_char, thread};
 
     // Identifier fo a C disconnect options struct
@@ -199,7 +199,7 @@ mod tests {
     #[test]
     fn test_reason_code() {
         let opts = DisconnectOptionsBuilder::new().finalize();
-        assert_eq!(opts.reason_code(), NormalDisconnection);
+        assert_eq!(opts.reason_code(), ReasonCode::NormalDisconnection);
 
         let opts = DisconnectOptionsBuilder::new()
             .reason_code(ReasonCode::DisconnectWithWillMessage)

@@ -103,9 +103,7 @@ impl TokenData {
             err_msg: if rc != 0 {
                 // TODO: Get rid of this? It seems to be redundant
                 // and confusing as the error message is just derived
-                // from the i32 error. Having it causes the error to
-                // fail the match to Error::Paho(_)
-                // Or, even better, get rid of Error::PahoDescr()
+                // from the i32 error.
                 Some(String::from(errors::error_message(rc)))
             }
             else {
@@ -600,10 +598,11 @@ impl Future for Token {
             Poll::Ready(Ok(data.srvr_rsp.clone()))
         }
         else if let Some(ref err_msg) = data.err_msg {
-            Poll::Ready(Err(Error::PahoDescr(rc, err_msg.clone())))
+            debug!("Token failure ({}): {}", rc, err_msg);
+            Poll::Ready(Err(Error::from((rc, err_msg.as_str()))))
         }
         else {
-            Poll::Ready(Err(Error::Paho(rc)))
+            Poll::Ready(Err(Error::from(rc)))
         }
     }
 }
@@ -718,10 +717,11 @@ impl Future for DeliveryToken {
             Poll::Ready(Ok(()))
         }
         else if let Some(ref err_msg) = data.err_msg {
-            Poll::Ready(Err(Error::PahoDescr(rc, err_msg.clone())))
+            debug!("DeliveryToken failure ({}): {}", rc, err_msg);
+            Poll::Ready(Err(Error::from((rc, err_msg.as_str()))))
         }
         else {
-            Poll::Ready(Err(Error::Paho(rc)))
+            Poll::Ready(Err(Error::from(rc)))
         }
     }
 }
@@ -801,13 +801,14 @@ mod tests {
 
     #[test]
     fn test_try_wait() {
-        const ERR_CODE: i32 = -42;
+        const ERR_CODE: i32 = ffi::MQTTASYNC_BAD_QOS;
         let mut tok = Token::from_error(ERR_CODE);
 
         match tok.try_wait() {
-            // Some(Err(Error::Paho(ERR_CODE))) => {}
-            Some(Err(Error::PahoDescr(ERR_CODE, _))) => {}
-            Some(Err(_)) | Some(Ok(_)) | None => unreachable!(),
+            Some(Err(Error::BadQos)) => {}
+            Some(Err(err)) => panic!("Wrong error: {}", err),
+            Some(Ok(_)) => panic!("Should be an error"),
+            None => panic!("Should be complete"),
         }
 
         // An unsignaled token
@@ -829,8 +830,7 @@ mod tests {
 
         // Now it should resolve to Some(Err(...))
         match tok.try_wait() {
-            Some(Err(Error::Paho(ERR_CODE))) => (),
-            //Some(Err(Error::PahoDescr(ERR_CODE, _))) => (),
+            Some(Err(Error::BadQos)) => (),
             Some(Err(_)) | Some(Ok(_)) | None => unreachable!(),
         }
     }

@@ -33,9 +33,6 @@ use log::trace;
 use paho_mqtt as mqtt;
 use std::{collections::HashMap, env, process};
 
-// The library's persistence error.
-const PERSISTENCE_ERROR: mqtt::Error = mqtt::Error::Paho(mqtt::PERSISTENCE_ERROR);
-
 // Use a non-zero QOS to exercise the persistence store
 const QOS: i32 = 1;
 
@@ -101,7 +98,7 @@ impl mqtt::ClientPersistence for MemPersistence {
         trace!("Client persistence [{}]: get key '{}'", self.name, key);
         match self.map.get(key) {
             Some(v) => Ok(v.to_vec()),
-            None => Err(PERSISTENCE_ERROR),
+            None => Err(mqtt::Error::PersistenceError),
         }
     }
 
@@ -110,7 +107,7 @@ impl mqtt::ClientPersistence for MemPersistence {
         trace!("Client persistence [{}]: remove key '{}'", self.name, key);
         match self.map.remove(key) {
             Some(_) => Ok(()),
-            None => Err(PERSISTENCE_ERROR),
+            None => Err(mqtt::Error::PersistenceError),
         }
     }
 

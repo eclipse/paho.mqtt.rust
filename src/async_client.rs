@@ -187,7 +187,7 @@ impl AsyncClient {
             PersistenceType::None => (ffi::MQTTCLIENT_PERSISTENCE_NONE, ptr::null_mut()),
             PersistenceType::File => (ffi::MQTTCLIENT_PERSISTENCE_DEFAULT, ptr::null_mut()),
             PersistenceType::FilePath(path) => {
-                let s = path.to_str().ok_or(errors::PersistenceError)?;
+                let s = path.to_str().ok_or(errors::Error::PersistenceError)?;
                 file_path = CString::new(s).unwrap_or_default();
                 let pptr = file_path.as_ptr() as *mut c_void;
                 (ffi::MQTTCLIENT_PERSISTENCE_DEFAULT, pptr)
