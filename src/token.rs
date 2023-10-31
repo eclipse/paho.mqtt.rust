@@ -365,27 +365,27 @@ impl TokenInner {
 
         let mut data = self.lock.lock().unwrap();
         unsafe {
-        data.res = Some(if rc == 0 {
-            // Get the response from the server, if any.
-            debug!("Expecting server response for: {:?}", self.req);
-            let rsp = if let Some(rsp) = rsp.as_ref() {
-                ServerResponse::from_success(self.req, rsp)
+            data.res = Some(if rc == 0 {
+                // Get the response from the server, if any.
+                debug!("Expecting server response for: {:?}", self.req);
+                let rsp = if let Some(rsp) = rsp.as_ref() {
+                    ServerResponse::from_success(self.req, rsp)
+                }
+                else {
+                    ServerResponse::default()
+                };
+                debug!("Got response: {:?}", rsp);
+
+                if let Some(rsp) = rsp.connect_response() {
+                    if let Some(cli) = &self.cli {
+                        cli.set_mqtt_version(rsp.mqtt_version);
+                    }
+                }
+                Ok(rsp)
             }
             else {
-                ServerResponse::default()
-            };
-            debug!("Got response: {:?}", rsp);
-
-            if let Some(rsp) = rsp.connect_response() {
-                if let Some(cli) = &self.cli {
-                    cli.set_mqtt_version(rsp.mqtt_version);
-                }
-            }
-            Ok(rsp)
-        }
-        else {
-            Err(Error::from((rc, err_msg)))
-        });
+                Err(Error::from((rc, err_msg)))
+            });
         }
 
         // If this is none, it means that no one is waiting on
@@ -430,27 +430,27 @@ impl TokenInner {
 
         let mut data = self.lock.lock().unwrap();
         unsafe {
-        data.res = Some(if rc == 0 {
-            // Get the response from the server, if any.
-            debug!("Expecting server response for: {:?}", self.req);
-            let rsp = if let Some(rsp) = rsp.as_ref() {
+            data.res = Some(if rc == 0 {
+                // Get the response from the server, if any.
+                debug!("Expecting server response for: {:?}", self.req);
+                let rsp = if let Some(rsp) = rsp.as_ref() {
                     ServerResponse::from_success5(self.req, rsp)
+                }
+                else {
+                    ServerResponse::default()
+                };
+                debug!("Got response: {:?}", rsp);
+
+                if let Some(rsp) = rsp.connect_response() {
+                    if let Some(cli) = &self.cli {
+                        cli.set_mqtt_version(rsp.mqtt_version);
+                    }
+                }
+                Ok(rsp)
             }
             else {
-                ServerResponse::default()
-            };
-            debug!("Got response: {:?}", rsp);
-
-            if let Some(rsp) = rsp.connect_response() {
-                if let Some(cli) = &self.cli {
-                    cli.set_mqtt_version(rsp.mqtt_version);
-                }
-            }
-            Ok(rsp)
-        }
-        else {
-            Err(Error::from((rc, err_msg)))
-        });
+                Err(Error::from((rc, err_msg)))
+            });
         }
 
         // If this is none, it means that no one is waiting on

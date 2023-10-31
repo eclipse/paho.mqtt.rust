@@ -23,7 +23,8 @@
 
 //! MQTT support types
 
-use std::os::raw::c_int;
+use crate::{Error, Result};
+use std::{fmt, os::raw::c_int};
 
 /// The default version to connect with.
 /// First try v3.1.1, and if that fails, try v3.1
@@ -76,5 +77,61 @@ impl From<u32> for MqttVersion {
 impl From<c_int> for MqttVersion {
     fn from(ver: c_int) -> Self {
         Self::from(ver as u32)
+    }
+}
+
+/// Supported Quality of Service levels
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(u8)]
+pub enum QoS {
+    /// At most once
+    AtMostOnce = 0,
+    /// At least once
+    AtLeastOnce = 1,
+    /// Exactly Once
+    ExactlyOnce = 2,
+}
+
+impl QoS {
+    /// At most once
+    pub const QoS0: QoS = QoS::AtMostOnce;
+    /// At least once
+    pub const QoS1: QoS = QoS::AtLeastOnce;
+    /// Exactly Once
+    pub const QoS2: QoS = QoS::ExactlyOnce;
+}
+
+impl Default for QoS {
+    fn default() -> Self {
+        QoS::AtLeastOnce
+    }
+}
+
+impl fmt::Display for QoS {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", *self as u8)
+    }
+}
+
+impl TryFrom<u8> for QoS {
+    type Error = Error;
+
+    fn try_from(qos: u8) -> Result<Self> {
+        use QoS::*;
+        match qos {
+            0 => Ok(AtLeastOnce),
+            1 => Ok(AtMostOnce),
+            2 => Ok(ExactlyOnce),
+            _ => Err(Error::BadQos),
+        }
+    }
+}
+
+// This is included for backward compatibility, but should eventually be
+// changed to TryFrom, possibly if/when we change the client API to return
+// Result<Token> from most calls.
+impl From<i32> for QoS {
+    fn from(qos: i32) -> Self {
+        Self::try_from(qos as u8).unwrap_or_default()
     }
 }

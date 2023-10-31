@@ -804,14 +804,16 @@ impl AsyncClient {
     /// `topic` The topic name
     /// `qos` The quality of service requested for messages
     ///
-    pub fn subscribe<S>(&self, topic: S, qos: i32) -> SubscribeToken
+    pub fn subscribe<S, Q>(&self, topic: S, qos: Q) -> SubscribeToken
     where
         S: Into<String>,
+        Q: Into<QoS>,
     {
         let ver = self.mqtt_version();
         let tok = Token::from_request(None, ServerRequest::Subscribe);
         let mut rsp_opts = ResponseOptions::new(ver, tok.clone());
         let topic = CString::new(topic.into()).unwrap();
+        let qos = qos.into() as i32;
 
         debug!("Subscribe to '{:?}' @ QOS {}", topic, qos);
 
@@ -836,15 +838,16 @@ impl AsyncClient {
     /// `opts` Options for the subscription
     /// `props` MQTT v5 properties
     ///
-    pub fn subscribe_with_options<S, T, P>(
+    pub fn subscribe_with_options<S, Q, T, P>(
         &self,
         topic: S,
-        qos: i32,
+        qos: Q,
         opts: T,
         props: P,
     ) -> SubscribeToken
     where
         S: Into<String>,
+        Q: Into<QoS>,
         T: Into<SubscribeOptions>,
         P: Into<Option<Properties>>,
     {
@@ -858,6 +861,7 @@ impl AsyncClient {
             .finalize();
 
         let topic = CString::new(topic.into()).unwrap();
+        let qos = qos.into() as i32;
 
         debug!("Subscribe to '{:?}' @ QOS {}", topic, qos);
 
@@ -880,9 +884,10 @@ impl AsyncClient {
     /// `topics` The collection of topic names
     /// `qos` The quality of service requested for messages
     ///
-    pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> SubscribeManyToken
+    pub fn subscribe_many<T, Q>(&self, topics: &[T], qos: &[Q]) -> SubscribeManyToken
     where
         T: AsRef<str>,
+        Q: Into<QoS> + Copy,
     {
         let n = topics.len();
 
@@ -891,6 +896,7 @@ impl AsyncClient {
         let tok = Token::from_request(None, ServerRequest::SubscribeMany(n));
         let mut rsp_opts = ResponseOptions::new(ver, tok.clone());
         let topics = StringCollection::new(topics);
+        let qos: Vec<i32> = qos.iter().map(|q| (*q).into() as i32).collect();
 
         debug!("Subscribe to '{:?}' @ QOS {:?}", topics, qos);
 
@@ -921,15 +927,16 @@ impl AsyncClient {
     /// `opts` Subscribe options (one per topic)
     /// `props` MQTT v5 properties
     ///
-    pub fn subscribe_many_with_options<T, P>(
+    pub fn subscribe_many_with_options<T, Q, P>(
         &self,
         topics: &[T],
-        qos: &[i32],
+        qos: &[Q],
         opts: &[SubscribeOptions],
         props: P,
     ) -> SubscribeManyToken
     where
         T: AsRef<str>,
+        Q: Into<QoS> + Copy,
         P: Into<Option<Properties>>,
     {
         debug_assert!(self.mqtt_version() >= MqttVersion::V5);
@@ -944,6 +951,7 @@ impl AsyncClient {
             .finalize();
 
         let topics = StringCollection::new(topics);
+        let qos: Vec<i32> = qos.iter().map(|q| (*q).into() as i32).collect();
 
         debug!(
             "Subscribe to '{:?}' @ QOS {:?} w/ opts: {:?}",
