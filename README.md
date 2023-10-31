@@ -38,6 +38,12 @@ To keep up with the latest announcements for this project, follow:
 
 **EMail:** [Eclipse Paho Mailing List](https://accounts.eclipse.org/mailing-list/paho-dev)
 
+### Upcoming v0.13
+
+Work has started to revamp multiple aspects of the internal code without seriously disrupting the API. Some of this will be to hide aspects of the Paho C library that leaked into the Rust API and start the march towards a 100% Rust implementation of this library. (That won't happen too soon, but it's time to start.)
+
+One set of breaking changes will be around the library's errors. The Paho C errors will be de-nested and made easier to match. More information will also be extracted from the C library when possible.
+
 ### What's new in v0.12.3
 
 - The -sys crate now wraps Paho C v1.3.13, fixing several issues, including crashes on reconnect callbacks.

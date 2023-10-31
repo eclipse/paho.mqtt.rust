@@ -808,9 +808,8 @@ mod tests {
         let mut tok = Token::new();
 
         // If it's not done, we should get None
-        match tok.try_wait() {
-            None => (),
-            Some(Err(_)) | Some(Ok(_)) => unreachable!(),
+        if tok.try_wait().is_some() {
+            panic!("Should not be complete");
         }
 
         // Complete the token
@@ -822,7 +821,9 @@ mod tests {
         // Now it should resolve to Some(Err(...))
         match tok.try_wait() {
             Some(Err(Error::BadQos)) => (),
-            Some(Err(_)) | Some(Ok(_)) | None => unreachable!(),
+            Some(Err(err)) => panic!("Wrong error: {}", err),
+            Some(Ok(_)) => panic!("Should be an error"),
+            None => panic!("Should be complete"),
         }
     }
 }

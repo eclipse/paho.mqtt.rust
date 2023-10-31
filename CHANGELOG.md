@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.13.0](https://github.com/eclipse/paho.mqtt.rust/compare/v0.12.3..v0.13.0) - 2023-12-23
+
+- Reworked the Error type
+    - Remove `Paho` and `PahoDescr` errors. De-nested them into the top-level.
+    - Parsing the error messages from PahoDescr for new error types.
+    - Removed Paho error constants. Now errors can be matched easily/directly.
+- `Token` simplified to create an `Option<Result<ServerResponse>>` instead of individual components.
+- Created new enumeration types:
+    - `MqttVersion`
+    - `ConnectReturnCode` (for MQTT v3.x)
+    - `QoS`
+
 ## [v0.12.3](https://github.com/eclipse/paho.mqtt.rust/compare/v0.12.2..v0.12.3) - 2023-10-25
 
 - The -sys crate now wraps Paho C v1.3.13, fixing several issues, including crashes on reconnect callbacks.
