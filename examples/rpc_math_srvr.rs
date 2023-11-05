@@ -203,6 +203,7 @@ fn main() -> mqtt::Result<()> {
     let conn_opts = mqtt::ConnectOptionsBuilder::new_v5()
         .clean_start(false)
         .properties(mqtt::properties![mqtt::PropertyCode::SessionExpiryInterval => 60])
+        .no_delay(true)
         .finalize();
 
     // Connect and wait for it to complete or fail

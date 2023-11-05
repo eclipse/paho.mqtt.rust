@@ -36,7 +36,7 @@
 extern crate paho_mqtt as mqtt;
 
 use serde_json::json;
-use std::{env, process};
+use std::{env, process, time::Instant};
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -76,7 +76,9 @@ fn main() -> mqtt::Result<()> {
     let rx = cli.start_consuming();
 
     // Connect with default options for MQTT v5, (clean start)
-    let conn_opts = mqtt::ConnectOptions::new_v5();
+    let conn_opts = mqtt::ConnectOptionsBuilder::new_v5()
+        .no_delay(true)
+        .finalize();
 
     // Connect and wait for it to complete or fail
 
@@ -135,6 +137,7 @@ fn main() -> mqtt::Result<()> {
         .properties(props)
         .finalize();
 
+    let req_tm = Instant::now();
     let tok = cli.publish(msg);
 
     if let Err(e) = tok.wait() {
@@ -147,6 +150,7 @@ fn main() -> mqtt::Result<()> {
     // Since we only sent one request, this should certainly be our reply!
 
     if let Some(msg) = rx.recv().unwrap() {
+        let rep_tm = Instant::now();
         let reply_corr_id = msg
             .properties()
             .get_binary(mqtt::PropertyCode::CorrelationData)
@@ -154,7 +158,7 @@ fn main() -> mqtt::Result<()> {
 
         if reply_corr_id == corr_id {
             let ret: f64 = serde_json::from_str(&msg.payload_str()).unwrap();
-            println!("{}", ret);
+            println!("[{}ms] {}", (rep_tm-req_tm).as_secs_f64() * 1000.0, ret);
         }
         else {
             eprintln!("Unknown response for {:?}", reply_corr_id);

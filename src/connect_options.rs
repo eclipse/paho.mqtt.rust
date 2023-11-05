@@ -625,6 +625,15 @@ impl ConnectOptionsBuilder {
         self
     }
 
+    /// Set the TCP_NODELAY option on the client socket.
+    ///
+    /// This can reduce latency when publishing small messages at the cost
+    /// of increased network traffic.
+    pub fn no_delay(&mut self, on: bool) -> &mut Self {
+        self.copts.nodelay = to_c_bool(on);
+        self
+    }
+
     /// Finalize the builder to create the connect options.
     pub fn finalize(&self) -> ConnectOptions {
         ConnectOptions::from_data(self.copts, self.data.clone())

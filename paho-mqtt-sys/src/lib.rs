@@ -130,6 +130,7 @@ impl Default for MQTTAsync_connectOptions {
             httpHeaders: ptr::null(),
             httpProxy: ptr::null(),
             httpsProxy: ptr::null(),
+            nodelay: 0,
         }
     }
 }

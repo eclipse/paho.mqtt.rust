@@ -373,8 +373,8 @@ mod build {
         // Allow users to specify where to find the C lib.
         if let Ok(lib_dir) = env::var("PAHO_MQTT_C_LIB_DIR") {
             if let Ok(inc_dir) = env::var("PAHO_MQTT_C_INCLUDE_DIR") {
-                println!("debug:inc_dir={}", inc_dir);
-                println!("debug:lib_dir={}", lib_dir);
+                println!("debug:Paho C include dirir={}", inc_dir);
+                println!("debug:Paho C lib dir={}", lib_dir);
 
                 println!("cargo:rustc-link-search={}", lib_dir);
                 Some(inc_dir)
@@ -384,6 +384,7 @@ mod build {
             }
         }
         else if let Ok(dir) = env::var("PAHO_MQTT_C_DIR") {
+            println!("debug:Paho C library: {}", dir);
             if let Some((lib_path, _link_lib)) = find_link_lib(&dir) {
                 println!("cargo:rustc-link-search={}", lib_path.display());
                 Some(format!("{}/include", dir))
