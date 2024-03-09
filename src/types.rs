@@ -119,8 +119,8 @@ impl TryFrom<u8> for QoS {
     fn try_from(qos: u8) -> Result<Self> {
         use QoS::*;
         match qos {
-            0 => Ok(AtLeastOnce),
-            1 => Ok(AtMostOnce),
+            0 => Ok(AtMostOnce),
+            1 => Ok(AtLeastOnce),
             2 => Ok(ExactlyOnce),
             _ => Err(Error::BadQos),
         }
