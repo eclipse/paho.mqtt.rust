@@ -34,8 +34,33 @@
 /// assert!(matches("a/#", "a/b/d"));
 /// ```
 pub fn matches(filter: &str, topic: &str) -> bool {
-    let mut filter = filter.split('/');
-    let mut topic = topic.split('/');
+    matches_iter(filter.split('/'), topic.split('/'))
+}
+
+/// Checks if a (splitted) filter matches a given (splitted) topic.
+///
+/// # Example
+///
+/// ```
+/// use paho_mqtt::topic_matcher::matches_iter;
+///
+/// assert!(matches_iter(["a", "+", "c"], ["a", "b", "c"]));
+/// assert!(matches_iter(["a", "#"], ["a", "b", "d"]));
+/// ```
+pub fn matches_iter<'a>(
+    filter: impl IntoIterator<Item = &'a str>,
+    topic: impl IntoIterator<Item = &'a str>,
+) -> bool {
+    let mut filter = filter.into_iter().peekable();
+    let mut topic = topic.into_iter().peekable();
+
+    // See https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901246
+    if matches!(filter.peek(), Some(&"#" | &"+"))
+        && matches!(topic.peek(), Some(x) if x.starts_with('$'))
+    {
+        return false;
+    }
+
     loop {
         let filter_level = filter.next();
         let topic_level = topic.next();
@@ -77,7 +102,7 @@ pub fn matches(filter: &str, topic: &str) -> bool {
 ///   HashSet::from([("00:00:00:00:00:00/+/+/rpc", "_/device_type/systemid/_")])
 /// );
 /// ```
-pub trait TopicMatcher {
+pub trait TopicMatcherExt {
     /// The key type returned by the iterator.
     type Key;
     /// The value type returned by the iterator.
@@ -94,7 +119,7 @@ pub trait TopicMatcher {
         Self: 'topic;
 }
 
-impl<K, V, C> TopicMatcher for C
+impl<K, V, C> TopicMatcherExt for C
 where
     C: IntoIterator<Item = (K, V)>,
     K: AsRef<str>,
@@ -121,10 +146,12 @@ mod test {
     #[test]
     fn assert_that_no_wildcards_matches() {
         assert!(matches("a/b/c", "a/b/c"));
+        assert!(matches("foo/bar", "foo/bar"));
     }
     #[test]
     fn assert_that_plus_wildcard_matches() {
         assert!(matches("a/+/c", "a/b/c"));
+        assert!(matches("foo/+/baz", "foo/bar/baz"));
     }
     #[test]
     fn assert_that_leading_plus_wildcard_matches() {
@@ -133,6 +160,7 @@ mod test {
     #[test]
     fn assert_that_trailing_plus_wildcard_matches() {
         assert!(matches("a/b/+", "a/b/c"));
+        assert!(matches("foo/+", "foo/bar"));
     }
     #[test]
     fn assert_that_hash_wildcard_matches_none_level() {
@@ -145,5 +173,55 @@ mod test {
     #[test]
     fn assert_that_hash_wildcard_matches_multiple_levels() {
         assert!(matches("a/b/#", "a/b/c/d"));
+    }
+    #[test]
+    fn assert_that_single_hash_matches_all() {
+        assert!(matches("#", "foo/bar/baz"));
+        assert!(matches("#", "/foo/bar"));
+        assert!(matches("/#", "/foo/bar"));
+    }
+    #[test]
+    fn assert_that_plus_and_hash_wildcards_matches() {
+        assert!(matches("foo/+/#", "foo/bar/baz"));
+        assert!(matches("A/B/+/#", "A/B/B/C"));
+    }
+    #[test]
+    fn assert_that_sys_topic_matches() {
+        assert!(matches("$SYS/bar", "$SYS/bar"));
+    }
+    #[test]
+    fn assert_that_non_first_levels_with_dollar_sign_matches_hash_wildcard() {
+        assert!(matches("foo/#", "foo/$bar"));
+    }
+    #[test]
+    fn assert_that_non_first_levels_with_dollar_sign_matches_plus_wildcard() {
+        assert!(matches("foo/+/baz", "foo/$bar/baz"));
+    }
+    #[test]
+    fn assert_that_different_levels_does_not_match() {
+        assert!(!matches("test/6/#", "test/3"));
+        assert!(!matches("foo/+/baz", "foo/bar/bar"));
+        assert!(!matches("foo/+/#", "fo2/bar/baz"));
+        assert!(!matches("$BOB/bar", "$SYS/bar"));
+    }
+    #[test]
+    fn assert_that_longer_topics_does_not_match() {
+        assert!(!matches("foo/bar", "foo"));
+    }
+    #[test]
+    fn assert_that_plus_wildcard_does_not_match_multiple_levels() {
+        assert!(!matches("foo/+", "foo/bar/baz"));
+    }
+    #[test]
+    fn assert_that_leading_slash_with_hash_wildcard_does_not_match_normal_topic() {
+        assert!(!matches("/#", "foo/bar"));
+    }
+    #[test]
+    fn assert_that_hash_wildcard_does_not_match_an_internal_topic() {
+        assert!(!matches("#", "$SYS/bar"));
+    }
+    #[test]
+    fn assert_that_plus_wildcard_does_not_match_an_internal_topic() {
+        assert!(!matches("+/bar", "$SYS/bar"));
     }
 }
