@@ -399,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_from_4_tuple() {
-        let msg = Message::from((TOPIC, PAYLOAD, QOS, RETAINED));
+        let msg = Message::from((TOPIC, PAYLOAD, QOS as i32, RETAINED));
 
         // The topic is only kept in the Rust struct as a CString
         assert_eq!(TOPIC, msg.data.topic.to_str().unwrap());
@@ -542,7 +542,7 @@ mod tests {
         let thr = thread::spawn(move || {
             assert_eq!(TOPIC, msg.data.topic.to_str().unwrap());
             assert_eq!(PAYLOAD, msg.data.payload.as_slice());
-            assert_eq!(QOS as c_int, msg.qos());
+            assert_eq!(QOS, msg.qos());
         });
         let _ = thr.join().unwrap();
     }
