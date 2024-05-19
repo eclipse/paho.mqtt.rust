@@ -147,42 +147,32 @@ where
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Node for TopicMatcher
+// Node (for TopicMatcher)
 
-/// A single node in the topic matcher collection.
+/// A single node in the topic matcher trie collection.
 ///
 /// A terminal (leaf) node has some `content`, whereas intermediate nodes
 /// do not. We also cache the full topic at the leaf. This should allow for
 /// more efficient searches through the collection, so that the iterators
 /// don't have to keep the stack of keys that lead down to the final leaf.
 ///
-/// Note that although we could put the wildcard keys into the `children`
-/// map, we specifically have separate fields for them. That allows us to
-/// have separate mutable references for each, allowing for a mutable
-/// iterator.
 #[derive(Debug)]
 struct Node<T> {
     /// The value that matches the topic at this node, if any.
-    /// This includes a ached value of the filter.
+    /// This includes a cached value of the filter to this node.
     value: Option<(String, T)>,
-    /// The explicit, non-wildcard child nodes mapped by the next field of
-    /// the topic.
+    /// The explicit, non-wildcard child nodes mapped by the next field
+    /// of the topic.
     children: HashMap<Box<str>, Node<T>>,
 }
 
 impl<T> Node<T> {
     /// Determines if the node does not contain a value.
-    ///
-    /// This is a relatively simplistic implementation indicating that the
-    /// node's content and children are empty. Technically, the node could
-    /// contain a collection of children that are empty, which might be
-    /// considered an "empty" state. But not here.
     fn is_empty(&self) -> bool {
         self.value.is_none() && self.children.is_empty()
     }
 
     /// Gets an iterator for the node and all its children.
-    //fn iter<'a>(&'a self) -> NodeIter<'a, T> {
     fn iter(&self) -> NodeIter<T> {
         Box::new(
             self.value
@@ -201,10 +191,34 @@ impl<T> Node<T> {
                 .chain(self.children.values_mut().flat_map(|n| n.iter_mut())),
         )
     }
+
+    /// Removes empty child nodes.
+    fn prune(&mut self) {
+        // Recursively prune children
+        for node in &mut self.children.values_mut() {
+            node.shrink_to_fit();
+        }
+
+        // Remove empty children and shrink the has hmaps
+        self.children.retain(|_, node| !node.is_empty());
+    }
+
+    /// Removes empty child nodes and shrinks the capacity of the
+    /// collection as much as possible.
+    fn shrink_to_fit(&mut self) {
+        // Recursively shrink children
+        for node in self.children.values_mut() {
+            node.shrink_to_fit();
+        }
+
+        // Remove empty children and shrink the has hmaps
+        self.children.retain(|_, node| !node.is_empty());
+        self.children.shrink_to_fit();
+    }
 }
 
-// We manually implement Default, otherwise the derived one would
-// require T: Default.
+// We manually implement Default, otherwise the derived one
+// would require T: Default.
 
 impl<T> Default for Node<T> {
     /// Creates a default, empty node.
@@ -216,24 +230,23 @@ impl<T> Default for Node<T> {
     }
 }
 
-/// An iterator to visit all values in a node and its children.
+/// An iterator type to visit all values in a node and its children.
 type NodeIter<'a, T> = Box<dyn Iterator<Item = (&'a str, &'a T)> + 'a>;
 
-/// A mutable iterator to visit all values in a node and its children.
+/// A mutable iterator type to visit all values in a node and its children.
 type NodeIterMut<'a, T> = Box<dyn Iterator<Item = (&'a str, &'a mut T)> + 'a>;
 
 /////////////////////////////////////////////////////////////////////////////
 // TopicMatcher
 
-/// A collection of topic filters to arbitrary objects.
+/// A trie collection of topic filters to arbitrary objects.
 ///
 /// This can be used to get an iterator to all items that have a filter that
 /// matches a topic. To test against a single filter, see
-/// [`TopicFilter`](crate::TopicFilter). This collection is more commonly used
-/// when there are a nuber of filters and each needs to be associated with a
-/// particular action or piece of data. Note, though, that a single incoming
-/// topic could match against several items in the collection. For example,
-/// the topic:
+/// [`TopicFilter`](crate::TopicFilter). This collection is more commonly
+/// used when there are a nuber of filters and each needs to be associated
+/// with a particular action or piece of data. A single incoming topic could
+/// match against several items in the collection. For example, the topic:
 ///     data/temperature/engine
 ///
 /// Could match against the filters:
@@ -244,27 +257,18 @@ type NodeIterMut<'a, T> = Box<dyn Iterator<Item = (&'a str, &'a mut T)> + 'a>;
 /// Thus, the collection gives an iterator for the items matching a topic.
 ///
 /// A common use for this would be to store callbacks to proces incoming
-/// messages based on topics.
+/// messages based on topics, but note that there might be an issue with
+/// overlapped subscriptions where callbacks are invoked multiple times for
+/// a message that matches more than one subscription.
 ///
 /// This code was adapted from the Eclipse Python `MQTTMatcher` class:
 /// <https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/matcher.py>
 ///
 /// which use a prefix tree (trie) to store the values.
 ///
-
-/// A collection of topic filters that can compare against a topic to
-/// produce an iterator of all matched items.
-///
-/// This is particularly useful at creating a lookup table of callbacks or
-/// individual channels for subscriptions, especially when the subscriptions
-/// contain wildcards.
-///
-/// Note, however that there might be an issue with overlapped subscriptions
-/// where callbacks are invoked multiple times for a message that matches
-/// more than one subscription.
 ///
 /// When using MQTT v5, subscription identifiers would be more efficient
-/// and solve the problem of multiple overlapped callbacks. See:
+/// and also solve the problem of multiple overlapped callbacks. See:
 /// <https://github.com/eclipse/paho.mqtt.rust/blob/master/examples/sync_consume_v5.rs>
 ///
 #[derive(Debug)]
@@ -302,7 +306,7 @@ impl<T> TopicMatcher<T> {
         curr.value = Some((filter, val));
     }
 
-    /// Gets a reference to a value from the collection using an exact
+    /// Returns a reference to a value from the collection using an exact
     /// filter match.
     pub fn get(&self, topic: &str) -> Option<&T> {
         let mut curr = &self.root;
@@ -330,6 +334,35 @@ impl<T> TopicMatcher<T> {
         curr.value.as_mut().map(|(_, v)| v)
     }
 
+    /// Removes the entry, returning the value for it, if found.
+    ///
+    /// This removes the value from the internal node, but leaves the node
+    /// even if it's empty. To remove empty nodes, use [`prune`](Self::prune)
+    /// or [`shrink_to_fit`](Self::shrink_to_fit).
+    ///
+    pub fn remove(&mut self, topic: &str) -> Option<T> {
+        let mut curr = &mut self.root;
+
+        for field in topic.split('/') {
+            curr = match curr.children.get_mut(field) {
+                Some(node) => node,
+                None => return None,
+            };
+        }
+        curr.value.take().map(|(_, v)| v)
+    }
+
+    /// Removes empty nodes in the collection.
+    pub fn prune(&mut self) {
+        self.root.prune()
+    }
+
+    /// Removes ampty nodes and shrinks the capacity of the collection
+    /// as much as possible.
+    pub fn shrink_to_fit(&mut self) {
+        self.root.shrink_to_fit()
+    }
+
     /// Gets an iterator over all the items in the collection.
     pub fn iter(&self) -> NodeIter<T> {
         self.root.iter()
@@ -351,8 +384,8 @@ impl<T> TopicMatcher<T> {
     }
 }
 
-// We manually implement Default, otherwise the derived one would
-// require T: Default.
+// We manually implement Default, otherwise the derived one
+// would require T: Default.
 
 impl<T> Default for TopicMatcher<T> {
     /// Create an empty TopicMatcher collection.
