@@ -418,9 +418,16 @@ impl<'a, 'b, T> Iterator for MatchIter<'a, 'b, T> {
             None => return None,
         };
 
+
         let field = match fields.next() {
             Some(field) => field,
-            None => return node.value.as_ref().map(|(k, v)| (k.as_str(), v)),
+            None => {
+                return node
+                    .value
+                    .as_ref()
+                    .map(|(k, v)| (k.as_str(), v))
+                    .or_else(|| self.next())
+            }
         };
 
         if let Some(child) = node.children.get(field) {
