@@ -19,7 +19,7 @@
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
  * Contributors:
- *    Frank Pagliughi - initial TopicFilter trie collection
+ *    Frank Pagliughi - TopicFilter trie collection
  *    Altair Bueno - TopicFilterExt trait and topic matches functions
  *******************************************************************************/
 
@@ -35,8 +35,7 @@ use std::{collections::HashMap, str::Split};
 /// # Example
 ///
 /// ```
-/// use paho_mqtt::topic_matcher::topic_matches;
-///
+/// # use paho_mqtt::topic_matcher::topic_matches;
 /// assert!(topic_matches("a/+/c", "a/b/c"));
 /// assert!(topic_matches("a/#", "a/b/d"));
 /// ```
@@ -44,13 +43,12 @@ pub fn topic_matches(filter: &str, topic: &str) -> bool {
     topic_matches_iter(filter.split('/'), topic.split('/'))
 }
 
-/// Checks if a (splitted) filter matches a given (splitted) topic.
+/// Checks if a split filter matches a given split topic.
 ///
 /// # Example
 ///
 /// ```
-/// use paho_mqtt::topic_matcher::topic_matches_iter;
-///
+/// # use paho_mqtt::topic_matcher::topic_matches_iter;
 /// assert!(topic_matches_iter(["a", "+", "c"], ["a", "b", "c"]));
 /// assert!(topic_matches_iter(["a", "#"], ["a", "b", "d"]));
 /// ```
@@ -93,8 +91,8 @@ pub fn topic_matches_iter<'a>(
 /// # Example
 ///
 /// ```
-/// use std::collections::{HashMap, HashSet};
-/// use paho_mqtt::topic_matcher::TopicMatcherExt as _;
+/// # use std::collections::{HashMap, HashSet};
+/// # use paho_mqtt::topic_matcher::TopicMatcherExt as _;
 ///
 /// let mut matcher = HashMap::<&str, &str>::new();
 /// matcher.insert("00:00:00:00:00:00/+/+/rpc", "_/device_type/systemid/_");
@@ -246,13 +244,19 @@ type NodeIterMut<'a, T> = Box<dyn Iterator<Item = (&'a str, &'a mut T)> + 'a>;
 /// [`TopicFilter`](crate::TopicFilter). This collection is more commonly
 /// used when there are a nuber of filters and each needs to be associated
 /// with a particular action or piece of data. A single incoming topic could
-/// match against several items in the collection. For example, the topic:
-///     data/temperature/engine
+/// match against several items in the collection.
 ///
+/// For example, the topic:
+/// ```text
+/// data/temperature/engine
+/// ```
+
 /// Could match against the filters:
-///     data/temperature/engine
-///     data/temperature/#
-///     data/+/engine
+/// ```text
+/// data/temperature/engine
+/// data/temperature/#
+/// data/+/engine
+/// ```
 ///
 /// Thus, the collection gives an iterator for the items matching a topic.
 ///
@@ -417,6 +421,7 @@ impl<'a, T: 'a> IntoIterator for &'a mut TopicMatcher<T> {
 /////////////////////////////////////////////////////////////////////////////
 
 /// Iterator for the topic matcher collection.
+///
 /// This is created from a specific topic string and will find the contents
 /// of all the matching filters in the collection.
 /// Lifetimes:
@@ -451,7 +456,6 @@ impl<'a, 'b, T> Iterator for MatchIter<'a, 'b, T> {
             None => return None,
         };
 
-
         let field = match fields.next() {
             Some(field) => field,
             None => {
@@ -485,7 +489,7 @@ impl<'a, 'b, T> Iterator for MatchIter<'a, 'b, T> {
     }
 }
 
-/// Macro to create a `TopicMatcher` collection.
+/// Macro to create a [`TopicMatcher`] collection.
 #[macro_export]
 macro_rules! topic_matcher {
     { $($filter:expr => $val:expr),+ } => {
@@ -510,32 +514,41 @@ mod tests {
 
     #[test]
     fn test_basic_topic_matcher() {
-        let mut matcher: TopicMatcher<i32> = TopicMatcher::new();
-        matcher.insert("some/test/topic", 19);
+        let tm: TopicMatcher<i32> = topic_matcher! {
+            "some/test/#" => 99,
+            "some/test/topic" => 19,
+            "some/+/topic" => 42,
+            "some/prod/topic" => 155
+        };
 
-        assert_eq!(matcher.get("some/test/topic"), Some(&19));
-        assert_eq!(matcher.get("some/test/bubba"), None);
+        assert_eq!(tm.get("some/test/topic"), Some(&19));
+        assert_eq!(tm.get("some/test/bubba"), None);
 
-        matcher.insert("some/+/topic", 42);
-        matcher.insert("some/test/#", 99);
-        matcher.insert("some/prod/topic", 155);
-
-        assert!(matcher.has_match("some/random/topic"));
-        assert!(!matcher.has_match("some/other/thing"));
+        assert!(tm.has_match("some/random/topic"));
+        assert!(!tm.has_match("some/other/thing"));
 
         // Test the iterator
 
-        let mut set = HashSet::new();
-        set.insert(19);
-        set.insert(42);
-        set.insert(99);
+        let set = HashSet::from([19, 42, 99]);
 
         let mut match_set = HashSet::new();
-        for (_k, v) in matcher.matches("some/test/topic") {
+        for (_k, v) in tm.matches("some/test/topic") {
             match_set.insert(*v);
         }
 
         assert_eq!(set, match_set);
+
+        // Weird corner case
+
+        let tm = topic_matcher! {
+            "hello/#" => 99,
+            "hi/there" => 13,
+            "hello/world" => 42,
+            "hello/there/bubba" => 96,
+            "hello/+/bubba" => 27
+        };
+
+        assert_eq!(2, tm.matches("hello/world").count());
     }
 
     #[test]
