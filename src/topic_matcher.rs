@@ -25,10 +25,7 @@
 
 //! Code to match MQTT topics to filters that may contain wildcards.
 
-use std::{
-    collections::HashMap,
-    str::Split,
-};
+use std::{collections::HashMap, str::Split};
 
 /////////////////////////////////////////////////////////////////////////////
 // Utility functions
@@ -190,7 +187,8 @@ impl<T> Node<T> {
         Box::new(
             self.value
                 .iter()
-                .chain(self.children.values().map(|n| n.iter()).flatten()),
+                .map(|(k, v)| (k.as_str(), v))
+                .chain(self.children.values().flat_map(|n| n.iter())),
         )
     }
 
@@ -199,7 +197,8 @@ impl<T> Node<T> {
         Box::new(
             self.value
                 .iter_mut()
-                .chain(self.children.values_mut().map(|n| n.iter_mut()).flatten()),
+                .map(|(k, v)| (k.as_str(), v))
+                .chain(self.children.values_mut().flat_map(|n| n.iter_mut())),
         )
     }
 }
@@ -218,10 +217,10 @@ impl<T> Default for Node<T> {
 }
 
 /// An iterator to visit all values in a node and its children.
-type NodeIter<'a, T> = Box<dyn Iterator<Item = &'a (String, T)> + 'a>;
+type NodeIter<'a, T> = Box<dyn Iterator<Item = (&'a str, &'a T)> + 'a>;
 
 /// A mutable iterator to visit all values in a node and its children.
-type NodeIterMut<'a, T> = Box<dyn Iterator<Item = &'a mut (String, T)> + 'a>;
+type NodeIterMut<'a, T> = Box<dyn Iterator<Item = (&'a str, &'a mut T)> + 'a>;
 
 /////////////////////////////////////////////////////////////////////////////
 // TopicMatcher
@@ -365,7 +364,7 @@ impl<T> Default for TopicMatcher<T> {
 }
 
 impl<'a, T: 'a> IntoIterator for &'a TopicMatcher<T> {
-    type Item = &'a (String, T);
+    type Item = (&'a str, &'a T);
     type IntoIter = NodeIter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -374,7 +373,7 @@ impl<'a, T: 'a> IntoIterator for &'a TopicMatcher<T> {
 }
 
 impl<'a, T: 'a> IntoIterator for &'a mut TopicMatcher<T> {
-    type Item = &'a mut (String, T);
+    type Item = (&'a str, &'a mut T);
     type IntoIter = NodeIterMut<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -410,7 +409,7 @@ impl<'a, 'b, T> MatchIter<'a, 'b, T> {
 }
 
 impl<'a, 'b, T> Iterator for MatchIter<'a, 'b, T> {
-    type Item = &'a (String, T);
+    type Item = (&'a str, &'a T);
 
     /// Gets the next value that matches the iterator's topic.
     fn next(&mut self) -> Option<Self::Item> {
@@ -421,7 +420,7 @@ impl<'a, 'b, T> Iterator for MatchIter<'a, 'b, T> {
 
         let field = match fields.next() {
             Some(field) => field,
-            None => return node.value.as_ref()
+            None => return node.value.as_ref().map(|(k, v)| (k.as_str(), v)),
         };
 
         if let Some(child) = node.children.get(field) {
@@ -438,7 +437,7 @@ impl<'a, 'b, T> Iterator for MatchIter<'a, 'b, T> {
 
             if let Some(child) = node.children.get("#") {
                 // By protocol definition, a '#' must be a terminating leaf.
-                return child.value.as_ref();
+                return child.value.as_ref().map(|(k, v)| (k.as_str(), v));
             }
         }
 
@@ -451,7 +450,7 @@ impl<'a, 'b, T> Iterator for MatchIter<'a, 'b, T> {
 macro_rules! topic_matcher {
     { $($filter:expr => $val:expr),+ } => {
         {
-            let mut tm = crate::topic_matcher::TopicMatcher::new();
+            let mut tm = $crate::topic_matcher::TopicMatcher::new();
             $(
                 tm.insert($filter, $val);
             )+
@@ -505,29 +504,29 @@ mod tests {
 
         // Should match
 
-        assert!(tm!{"foo/bar" => ()}.has_match("foo/bar"));
-        assert!(tm!{"foo/+" => ()}.has_match("foo/bar"));
-        assert!(tm!{"foo/+/baz" => ()}.has_match("foo/bar/baz"));
-        assert!(tm!{"foo/+/#"=> ()}.has_match("foo/bar/baz"));
-        assert!(tm!{"A/B/+/#"=> ()}.has_match("A/B/B/C"));
-        assert!(tm!{"#"=> ()}.has_match("foo/bar/baz"));
-        assert!(tm!{"#"=> ()}.has_match("/foo/bar"));
-        assert!(tm!{"/#"=> ()}.has_match("/foo/bar"));
-        assert!(tm!{"$SYS/bar"=> ()}.has_match("$SYS/bar"));
-        assert!(tm!{"foo/#"=> ()}.has_match("foo/$bar"));
-        assert!(tm!{"foo/+/baz"=> ()}.has_match("foo/$bar/baz"));
+        assert!(tm! {"foo/bar" => ()}.has_match("foo/bar"));
+        assert!(tm! {"foo/+" => ()}.has_match("foo/bar"));
+        assert!(tm! {"foo/+/baz" => ()}.has_match("foo/bar/baz"));
+        assert!(tm! {"foo/+/#"=> ()}.has_match("foo/bar/baz"));
+        assert!(tm! {"A/B/+/#"=> ()}.has_match("A/B/B/C"));
+        assert!(tm! {"#"=> ()}.has_match("foo/bar/baz"));
+        assert!(tm! {"#"=> ()}.has_match("/foo/bar"));
+        assert!(tm! {"/#"=> ()}.has_match("/foo/bar"));
+        assert!(tm! {"$SYS/bar"=> ()}.has_match("$SYS/bar"));
+        assert!(tm! {"foo/#"=> ()}.has_match("foo/$bar"));
+        assert!(tm! {"foo/+/baz"=> ()}.has_match("foo/$bar/baz"));
 
         // Should not match
 
-        assert!(!tm!{"test/6/#"=> ()}.has_match("test/3"));
-        assert!(!tm!{"foo/bar"=> ()}.has_match("foo"));
-        assert!(!tm!{"foo/+"=> ()}.has_match("foo/bar/baz"));
-        assert!(!tm!{"foo/+/baz"=> ()}.has_match("foo/bar/bar"));
-        assert!(!tm!{"foo/+/#"=> ()}.has_match("fo2/bar/baz"));
-        assert!(!tm!{"/#"=> ()}.has_match("foo/bar"));
-        assert!(!tm!{"#"=> ()}.has_match("$SYS/bar"));
-        assert!(!tm!{"$BOB/bar"=> ()}.has_match("$SYS/bar"));
-        assert!(!tm!{"+/bar"=> ()}.has_match("$SYS/bar"));
+        assert!(!tm! {"test/6/#"=> ()}.has_match("test/3"));
+        assert!(!tm! {"foo/bar"=> ()}.has_match("foo"));
+        assert!(!tm! {"foo/+"=> ()}.has_match("foo/bar/baz"));
+        assert!(!tm! {"foo/+/baz"=> ()}.has_match("foo/bar/bar"));
+        assert!(!tm! {"foo/+/#"=> ()}.has_match("fo2/bar/baz"));
+        assert!(!tm! {"/#"=> ()}.has_match("foo/bar"));
+        assert!(!tm! {"#"=> ()}.has_match("$SYS/bar"));
+        assert!(!tm! {"$BOB/bar"=> ()}.has_match("$SYS/bar"));
+        assert!(!tm! {"+/bar"=> ()}.has_match("$SYS/bar"));
     }
 
     #[test]
