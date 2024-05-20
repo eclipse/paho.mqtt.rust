@@ -6,7 +6,8 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2021-2022 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2021-2024 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2024 Altair Bueno <altair@uma.es>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,16 +19,152 @@
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
  * Contributors:
- *    Frank Pagliughi - initial implementation and documentation
+ *    Frank Pagliughi - TopicFilter trie collection & iterators
+ *    Altair Bueno - TopicFilterExt trait and topic matches functions
  *******************************************************************************/
-
-// TODO: Remove for production
-#![allow(dead_code)]
 
 //! Code to match MQTT topics to filters that may contain wildcards.
 //!
 
-use std::collections::HashMap;
+use std::{collections::HashMap, str::Split};
+
+////////////////////////////////////////////////////////////////////////////
+// Utility functions
+
+/// Checks if a filter matches a given topic.
+pub fn topic_matches(filter: &str, topic: &str) -> bool {
+    topic_matches_iter(filter.split('/'), topic.split('/'))
+}
+
+/// Checks if a split filter matches a given split topic.
+pub fn topic_matches_iter<'a, 'b, F, T>(filter: F, topic: T) -> bool
+where
+    F: IntoIterator<Item = &'a str>,
+    T: IntoIterator<Item = &'b str>,
+{
+    let mut filter = filter.into_iter().peekable();
+    let mut topic = topic.into_iter().peekable();
+
+    // Topics starting with '$' don't match a wildcard in the first field.
+    // See https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901246
+    if matches!(filter.peek(), Some(&"#" | &"+"))
+        && matches!(topic.peek(), Some(x) if x.starts_with('$'))
+    {
+        return false;
+    }
+
+    loop {
+        match (filter.next(), topic.next()) {
+            // Exhausted both filter and topic
+            (None, None) => return true,
+            // Wildcard on filter
+            (Some("#"), _) => return true,
+            // Single level wildcard on filter
+            (Some("+"), Some(_)) => (),
+            // Equal levels
+            (Some(filter), Some(topic)) if filter == topic => (),
+            // Otherwise, no match
+            _ => return false,
+        }
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Node (for TopicMatcher)
+
+/// A single node in the topic matcher collection.
+///
+/// A terminal (leaf) node has some `content`, whereas intermediate nodes
+/// do not. We also cache the full topic at the leaf. This should allow for
+/// more efficient searches through the collection, so that the iterators
+/// don't have to keep the stack of keys that lead down to the final leaf.
+///
+/// Note that although we could put the wildcard keys into the `children`
+/// map, we specifically have separate fields for them. That allows us to
+/// have separate mutable references for each, allowing for a mutable
+/// iterator.
+#[derive(Debug)]
+struct Node<T> {
+    /// The value that matches the topic at this node, if any.
+    /// This includes a ached value of the filter.
+    value: Option<(String, T)>,
+    /// The explicit, non-wildcard child nodes mapped by the next field of
+    /// the topic.
+    children: HashMap<Box<str>, Node<T>>,
+}
+
+impl<T> Node<T> {
+    /// Determines if the node does not contain a value.
+    fn is_empty(&self) -> bool {
+        self.value.is_none() && self.children.is_empty()
+    }
+
+    /// Gets an iterator for the node and _all_ of its children.
+    fn iter(&self) -> NodeIter<T> {
+        Box::new(
+            self.value
+                .iter()
+                .map(|(k, v)| (k.as_str(), v))
+                .chain(self.children.values().flat_map(|n| n.iter())),
+        )
+    }
+
+    /// Gets a mutable iterator for the node and _all_ of its children.
+    fn iter_mut(&mut self) -> NodeIterMut<T> {
+        Box::new(
+            self.value
+                .iter_mut()
+                .map(|(k, v)| (k.as_str(), v))
+                .chain(self.children.values_mut().flat_map(|n| n.iter_mut())),
+        )
+    }
+
+    /// Removes empty child nodes.
+    fn prune(&mut self) {
+        // Recursively prune children
+        for node in &mut self.children.values_mut() {
+            node.shrink_to_fit();
+        }
+
+        // Remove empty children and shrink the has hmaps
+        self.children.retain(|_, node| !node.is_empty());
+    }
+
+    /// Removes empty child nodes and shrinks the capacity of the collection
+    /// as much as possible.
+    fn shrink_to_fit(&mut self) {
+        // Recursively shrink children
+        for node in self.children.values_mut() {
+            node.shrink_to_fit();
+        }
+
+        // Remove empty children and shrink the has hmaps
+        self.children.retain(|_, node| !node.is_empty());
+        self.children.shrink_to_fit();
+    }
+}
+
+// We manually implement Default, otherwise the derived one would
+// require T: Default.
+
+impl<T> Default for Node<T> {
+    /// Creates a default, empty node.
+    fn default() -> Self {
+        Node {
+            value: None,
+            children: HashMap::new(),
+        }
+    }
+}
+
+/// An iterator to visit all values in a node and its children.
+type NodeIter<'a, T> = Box<dyn Iterator<Item = (&'a str, &'a T)> + 'a>;
+
+/// A mutable iterator to visit all values in a node and its children.
+type NodeIterMut<'a, T> = Box<dyn Iterator<Item = (&'a str, &'a mut T)> + 'a>;
+
+/////////////////////////////////////////////////////////////////////////////
+// TopicMatcher
 
 /// A collection of topic filters to arbitrary objects.
 ///
@@ -71,6 +208,7 @@ use std::collections::HashMap;
 /// and solve the problem of multiple overlapped callbacks. See:
 /// <https://github.com/eclipse/paho.mqtt.rust/blob/master/examples/sync_consume_v5.rs>
 ///
+#[derive(Debug)]
 pub struct TopicMatcher<T> {
     root: Node<T>,
 }
@@ -86,88 +224,100 @@ impl<T> TopicMatcher<T> {
         self.root.is_empty()
     }
 
-    /// Inserts a new topic filter into the collection.
-    pub fn insert<S>(&mut self, key: S, val: T)
+    /// Removes all the entries in the collection.
+    pub fn clear(&mut self) {
+        self.root = Node::default();
+    }
+
+    /// Inserts a new topic filter and value into the collection.
+    pub fn insert<S>(&mut self, filter: S, val: T)
     where
         S: Into<String>,
     {
-        let key = key.into();
-        let mut node = &mut self.root;
+        let filter = filter.into();
+        let mut curr = &mut self.root;
 
-        for sym in key.split('/') {
-            node = match sym {
-                "+" => node.plus_wild.get_or_insert(Box::<Node<T>>::default()),
-                "#" => node.pound_wild.get_or_insert(Box::<Node<T>>::default()),
-                sym => node.children.entry(sym.to_string()).or_default(),
-            }
+        for field in filter.split('/') {
+            curr = curr.children.entry(field.into()).or_default()
         }
-        // We've either found or created nodes down to here.
-        node.content = Some((key, val));
-    }
-
-    /// Removes the entry, returning the value for it, if found.
-    pub fn remove(&mut self, key: &str) -> Option<T> {
-        // TODO: If the node is empty after removing the item, we should
-        //   remove the node and all empty nodes above it.
-        let mut node = &mut self.root;
-        for sym in key.split('/') {
-            let node_opt = match sym {
-                "+" => node.plus_wild.as_deref_mut(),
-                "#" => node.pound_wild.as_deref_mut(),
-                sym => node.children.get_mut(sym),
-            };
-            node = match node_opt {
-                Some(node) => node,
-                None => return None,
-            };
-        }
-        node.content.take().map(|(_, v)| v)
+        curr.value = Some((filter, val));
     }
 
     /// Gets a reference to a value from the collection using an exact
     /// filter match.
-    pub fn get(&self, key: &str) -> Option<&T> {
-        let mut node = &self.root;
-        for sym in key.split('/') {
-            let node_opt = match sym {
-                "+" => node.plus_wild.as_deref(),
-                "#" => node.pound_wild.as_deref(),
-                sym => node.children.get(sym),
-            };
-            node = match node_opt {
+    pub fn get(&self, topic: &str) -> Option<&T> {
+        self.get_key_value(topic).map(|(_, v)| v)
+    }
+
+    /// Gets a reference to a value from the collection using an exact
+    /// filter match.
+    pub fn get_key_value(&self, topic: &str) -> Option<(&str, &T)> {
+        let mut curr = &self.root;
+
+        for field in topic.split('/') {
+            curr = match curr.children.get(field) {
                 Some(node) => node,
                 None => return None,
             };
         }
-        node.content.as_ref().map(|(_, v)| v)
+        curr.value.as_ref().map(|(k, v)| (k.as_str(), v))
     }
 
     /// Gets a mutable mutable reference to a value from the collection
     /// using an exact filter match.
-    pub fn get_mut(&mut self, key: &str) -> Option<&mut T> {
-        let mut node = &mut self.root;
-        for sym in key.split('/') {
-            let node_opt = match sym {
-                "+" => node.plus_wild.as_deref_mut(),
-                "#" => node.pound_wild.as_deref_mut(),
-                sym => node.children.get_mut(sym),
-            };
-            node = match node_opt {
+    pub fn get_mut(&mut self, topic: &str) -> Option<&mut T> {
+        let mut curr = &mut self.root;
+
+        for field in topic.split('/') {
+            curr = match curr.children.get_mut(field) {
                 Some(node) => node,
                 None => return None,
             };
         }
-        node.content.as_mut().map(|(_, v)| v)
+        curr.value.as_mut().map(|(_, v)| v)
     }
 
-    /// Gets an iterator for all the matches to the specified topic
+    /// Removes the entry, returning the value for it, if found.
+    ///
+    /// This removes the value from the internal node, but leaves the node,
+    /// even if it is empty. To remove empty nodes, see [`prune`](Self::prune)
+    /// or [`shrink_to_fit`](Self::shrink_to_fit).
+    pub fn remove(&mut self, topic: &str) -> Option<T> {
+        let mut curr = &mut self.root;
+
+        for field in topic.split('/') {
+            curr = match curr.children.get_mut(field) {
+                Some(node) => node,
+                None => return None,
+            };
+        }
+        curr.value.take().map(|(_, v)| v)
+    }
+
+    /// Removes empty nodes in the collection.
+    pub fn prune(&mut self) {
+        self.root.prune()
+    }
+
+    /// Removes ampty nodes and shrinks the capacity of the collection as
+    /// much as possible.
+    pub fn shrink_to_fit(&mut self) {
+        self.root.shrink_to_fit()
+    }
+
+    /// Gets an iterator over all the items in the collection.
+    pub fn iter(&self) -> NodeIter<T> {
+        self.root.iter()
+    }
+
+    /// Gets a muable iterator over all the items in the collection.
+    pub fn iter_mut(&mut self) -> NodeIterMut<T> {
+        self.root.iter_mut()
+    }
+
+    /// Gets an iterator for all the matches to the specified topic.
     pub fn matches<'a, 'b>(&'a self, topic: &'b str) -> MatchIter<'a, 'b, T> {
         MatchIter::new(&self.root, topic)
-    }
-
-    /// Gets a mutable iterator for all the matches to the specified topic
-    pub fn matches_mut<'a, 'b>(&'a mut self, topic: &'b str) -> MatchIterMut<'a, 'b, T> {
-        MatchIterMut::new(&mut self.root, topic)
     }
 
     /// Determines if the topic matches any of the filters in the collection.
@@ -188,168 +338,110 @@ impl<T> Default for TopicMatcher<T> {
     }
 }
 
-/// A single node in the topic matcher collection.
-///
-/// A terminal (leaf) node has some `content`, whereas intermediate nodes
-/// do not. We also cache the full topic at the leaf. This should allow for
-/// more efficient searches through the collection, so that the iterators
-/// don't have to keep the stack of keys that lead down to the final leaf.
-///
-/// Note that although we could put the wildcard keys into the `children`
-/// map, we specifically have separate fields for them. That allows us to
-/// have separate mutable references for each, allowing for a mutable
-/// iterator.
-struct Node<T> {
-    /// The value that matches the topic at this node, if any.
-    content: Option<(String, T)>,
-    /// The explicit, non-wildcardchild nodes mapped by the next field of
-    /// the topic.
-    children: HashMap<String, Node<T>>,
-    /// Matches against the '+' wildcard
-    plus_wild: Option<Box<Node<T>>>,
-    /// Matches against the (terminating) '#' wildcard
-    /// TODO: This is a terminating leaf. We can insert just a value,
-    ///   instad of a Node.
-    pound_wild: Option<Box<Node<T>>>,
-}
+impl<'a, T: 'a> IntoIterator for &'a TopicMatcher<T> {
+    type Item = (&'a str, &'a T);
+    type IntoIter = NodeIter<'a, T>;
 
-impl<T> Node<T> {
-    /// Determines if the node does not contain a value.
-    ///
-    /// This is a relatively simplistic implementation indicating that the
-    /// node's content and children are empty. Technically, the node could
-    /// contain a collection of children that are empty, which might be
-    /// considered an "empty" state. But not here.
-    fn is_empty(&self) -> bool {
-        self.content.is_none()
-            && self.children.is_empty()
-            && self.plus_wild.is_none()
-            && self.pound_wild.is_none()
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
-// We manually implement Default, otherwise the derived one would
-// require T: Default.
+impl<'a, T: 'a> IntoIterator for &'a mut TopicMatcher<T> {
+    type Item = (&'a str, &'a mut T);
+    type IntoIter = NodeIterMut<'a, T>;
 
-impl<T> Default for Node<T> {
-    /// Creates a default, empty node.
-    fn default() -> Self {
-        Node {
-            content: None,
-            children: HashMap::new(),
-            plus_wild: None,
-            pound_wild: None,
-        }
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
+
+/////////////////////////////////////////////////////////////////////////////
 
 /// Iterator for the topic matcher collection.
 /// This is created from a specific topic string and will find the contents
 /// of all the matching filters in the collection.
+///
 /// Lifetimes:
-///      'a - The matcher collection
-///      'b - The original topic string
+/// ```text
+/// 'a - The TopicMatcher collection
+/// 'b - The topic string
+/// ```
 ///
 /// We keep a stack of nodes that still need to be searched. For each node,
-/// there is also a stack of keys for that node to search. The keys are kept
-/// in reverse order, where the next ket to be searched can be popped off the
-/// back of the vector.
+/// there is also an iterator stack of fields for that node to search.
+#[derive(Debug)]
 pub struct MatchIter<'a, 'b, T> {
-    // The nodes still to be processed
-    nodes: Vec<(&'a Node<T>, Vec<&'b str>)>,
+    // The nodes still to be processed.
+    // The tuple is (current node, remaining topic fields, is first node)
+    remaining: Vec<(&'a Node<T>, Split<'b, char>, bool)>,
 }
 
 impl<'a, 'b, T> MatchIter<'a, 'b, T> {
     fn new(node: &'a Node<T>, topic: &'b str) -> Self {
-        let syms: Vec<_> = topic.rsplit('/').collect();
+        let fields = topic.split('/');
         Self {
-            nodes: vec![(node, syms)],
+            remaining: vec![(node, fields, true)],
         }
     }
 }
 
 impl<'a, 'b, T> Iterator for MatchIter<'a, 'b, T> {
-    type Item = &'a (String, T);
+    type Item = (&'a str, &'a T);
 
-    /// Gets the next value from a key filter that matches the iterator's topic.
+    /// Gets the next value that matches the iterator's topic.
     fn next(&mut self) -> Option<Self::Item> {
-        let (node, mut syms) = match self.nodes.pop() {
+        // If no more nodes to search, we're done
+        let (node, mut fields, first) = match self.remaining.pop() {
             Some(val) => val,
             None => return None,
         };
 
-        let sym = match syms.pop() {
-            Some(sym) => sym,
-            None => return node.content.as_ref(),
+        let field = match fields.next() {
+            Some(field) => field,
+            None => {
+                return node
+                    .value
+                    .as_ref()
+                    .map(|(k, v)| (k.as_str(), v))
+                    .or_else(|| self.next())
+            }
         };
 
-        if let Some(child) = node.children.get(sym) {
-            self.nodes.push((child, syms.clone()));
+        if let Some(child) = node.children.get(field) {
+            self.remaining.push((child, fields.clone(), false));
         }
 
-        if let Some(child) = node.plus_wild.as_ref() {
-            self.nodes.push((child, syms))
-        }
+        // Topics starting with '$' don't match wildcards in the first field
+        // https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901246
 
-        if let Some(child) = node.pound_wild.as_ref() {
-            // By protocol definition, a '#' must be a terminating leaf.
-            return child.content.as_ref();
+        if !first || !field.starts_with('$') {
+            if let Some(child) = node.children.get("+") {
+                self.remaining.push((child, fields, false))
+            }
+
+            if let Some(child) = node.children.get("#") {
+                // By protocol definition, a '#' must be a terminating leaf.
+                return child.value.as_ref().map(|(k, v)| (k.as_str(), v));
+            }
         }
 
         self.next()
     }
 }
 
-/// Mutable iterator for the topic matcher collection.
-/// This is created from a specific topic string and will find the contents
-/// of all the matching filters in the collection.
-/// Lifetimes:
-///      'a - The matcher collection
-///      'b - The original topic string
-pub struct MatchIterMut<'a, 'b, T> {
-    // The nodes still to be processed
-    nodes: Vec<(&'a mut Node<T>, Vec<&'b str>)>,
-}
-
-impl<'a, 'b, T> MatchIterMut<'a, 'b, T> {
-    fn new(node: &'a mut Node<T>, topic: &'b str) -> Self {
-        let syms: Vec<_> = topic.rsplit('/').collect();
-        Self {
-            nodes: vec![(node, syms)],
+/// Macro to create a `TopicMatcher` collection.
+#[macro_export]
+macro_rules! topic_matcher {
+    { $($filter:expr => $val:expr),+ } => {
+        {
+            let mut tm = $crate::topic_matcher::TopicMatcher::new();
+            $(
+                tm.insert($filter, $val);
+            )+
+            tm
         }
-    }
-}
-
-impl<'a, 'b, T> Iterator for MatchIterMut<'a, 'b, T> {
-    type Item = (&'a String, &'a mut T);
-
-    /// Gets the next value from a key filter that matches the iterator's topic.
-    fn next(&mut self) -> Option<Self::Item> {
-        let (node, mut syms) = match self.nodes.pop() {
-            Some(val) => val,
-            None => return None,
-        };
-
-        let sym = match syms.pop() {
-            Some(sym) => sym,
-            None => return node.content.as_mut().map(|(k, v)| (&*k, v)),
-        };
-
-        if let Some(child) = node.children.get_mut(sym) {
-            self.nodes.push((child, syms.clone()));
-        }
-
-        if let Some(child) = node.plus_wild.as_mut() {
-            self.nodes.push((child, syms))
-        }
-
-        if let Some(child) = node.pound_wild.as_mut() {
-            // By protocol definition, a '#' must be a terminating leaf.
-            return child.content.as_mut().map(|(k, v)| (&*k, v));
-        }
-
-        self.next()
-    }
+     };
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -362,21 +454,23 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
-    fn test_topic_matcher() {
-        let mut matcher: TopicMatcher<i32> = TopicMatcher::new();
-        matcher.insert("some/test/topic", 19);
+    fn test_basic_topic_matcher() {
+        let tm: TopicMatcher<i32> = topic_matcher! {
+            "some/test/#" => 99,
+            "some/test/topic" => 19,
+            "some/+/topic" => 42,
+            "some/prod/topic" => 155
+        };
 
-        assert_eq!(matcher.get("some/test/topic"), Some(&19));
-        assert_eq!(matcher.get("some/test/bubba"), None);
+        assert_eq!(tm.get("some/test/topic"), Some(&19));
+        assert_eq!(tm.get("some/test/bubba"), None);
 
-        matcher.insert("some/+/topic", 42);
-        matcher.insert("some/test/#", 99);
-        matcher.insert("some/prod/topic", 155);
-
-        assert!(matcher.has_match("some/random/topic"));
-        assert!(!matcher.has_match("some/other/thing"));
+        assert!(tm.has_match("some/random/topic"));
+        assert!(!tm.has_match("some/other/thing"));
 
         // Test the iterator
+
+        assert_eq!(3, tm.matches("some/test/topic").count());
 
         let mut set = HashSet::new();
         set.insert(19);
@@ -384,11 +478,81 @@ mod tests {
         set.insert(99);
 
         let mut match_set = HashSet::new();
-        for (_k, v) in matcher.matches("some/test/topic") {
+        for (_k, v) in tm.matches("some/test/topic") {
             match_set.insert(*v);
         }
 
         assert_eq!(set, match_set);
+
+        let tm = topic_matcher! {
+            "hello/#" => 99,
+            "hi/there" => 13,
+            "hello/world" => 42,
+            "hello/there/bubba" => 96,
+            "hello/+/bubba" => 27
+        };
+
+        assert_eq!(2, tm.matches("hello/world").count());
+    }
+
+    #[test]
+    fn test_topic_matcher() {
+        use crate::topic_matcher as tm;
+
+        // Should match
+
+        assert!(tm! {"foo/bar" => ()}.has_match("foo/bar"));
+        assert!(tm! {"foo/+" => ()}.has_match("foo/bar"));
+        assert!(tm! {"foo/+/baz" => ()}.has_match("foo/bar/baz"));
+        assert!(tm! {"foo/+/#"=> ()}.has_match("foo/bar/baz"));
+        assert!(tm! {"A/B/+/#"=> ()}.has_match("A/B/B/C"));
+        assert!(tm! {"#"=> ()}.has_match("foo/bar/baz"));
+        assert!(tm! {"#"=> ()}.has_match("/foo/bar"));
+        assert!(tm! {"/#"=> ()}.has_match("/foo/bar"));
+        assert!(tm! {"$SYS/bar"=> ()}.has_match("$SYS/bar"));
+        assert!(tm! {"foo/#"=> ()}.has_match("foo/$bar"));
+        assert!(tm! {"foo/+/baz"=> ()}.has_match("foo/$bar/baz"));
+
+        // Should not match
+
+        assert!(!tm! {"test/6/#"=> ()}.has_match("test/3"));
+        assert!(!tm! {"foo/bar"=> ()}.has_match("foo"));
+        assert!(!tm! {"foo/+"=> ()}.has_match("foo/bar/baz"));
+        assert!(!tm! {"foo/+/baz"=> ()}.has_match("foo/bar/bar"));
+        assert!(!tm! {"foo/+/#"=> ()}.has_match("fo2/bar/baz"));
+        assert!(!tm! {"/#"=> ()}.has_match("foo/bar"));
+        assert!(!tm! {"#"=> ()}.has_match("$SYS/bar"));
+        assert!(!tm! {"$BOB/bar"=> ()}.has_match("$SYS/bar"));
+        assert!(!tm! {"+/bar"=> ()}.has_match("$SYS/bar"));
+    }
+
+    #[test]
+    fn test_topic_matcher_fn() {
+        // Should match
+
+        assert!(topic_matches("foo/bar", "foo/bar"));
+        assert!(topic_matches("foo/+", "foo/bar"));
+        assert!(topic_matches("foo/+/baz", "foo/bar/baz"));
+        assert!(topic_matches("foo/+/#", "foo/bar/baz"));
+        assert!(topic_matches("A/B/+/#", "A/B/B/C"));
+        assert!(topic_matches("#", "foo/bar/baz"));
+        assert!(topic_matches("#", "/foo/bar"));
+        assert!(topic_matches("/#", "/foo/bar"));
+        assert!(topic_matches("$SYS/bar", "$SYS/bar"));
+        assert!(topic_matches("foo/#", "foo/$bar"));
+        assert!(topic_matches("foo/+/baz", "foo/$bar/baz"));
+
+        // Should not match
+
+        assert!(!topic_matches("test/6/#", "test/3"));
+        assert!(!topic_matches("foo/bar", "foo"));
+        assert!(!topic_matches("foo/+", "foo/bar/baz"));
+        assert!(!topic_matches("foo/+/baz", "foo/bar/bar"));
+        assert!(!topic_matches("foo/+/#", "fo2/bar/baz"));
+        assert!(!topic_matches("/#", "foo/bar"));
+        assert!(!topic_matches("#", "$SYS/bar"));
+        assert!(!topic_matches("$BOB/bar", "$SYS/bar"));
+        assert!(!topic_matches("+/bar", "$SYS/bar"));
     }
 
     #[test]
