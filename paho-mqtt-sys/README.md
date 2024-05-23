@@ -9,7 +9,7 @@ This package can build the recommended version of Paho C automatically. This is 
 
 When not using the _bundled_ build, it will attept to link to a pre-installed version of the library. It is fairly sensitive to the C version.
 
-The current recommended Paho C version is: v1.3.12
+The current recommended Paho C version is: v1.3.13
 
 ## Configurable Features
 
@@ -41,5 +41,3 @@ In particular:
 - If all else fails, you may need to set the specific location of the library with an environment variable. For example, on Windows, you may need to do something like this:
 
     set OPENSSL_DIR=C:\OpenSSL-Win64
-
-

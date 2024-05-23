@@ -7,11 +7,11 @@
  * Copyright (c) 2017-2020 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -116,10 +116,10 @@ impl DisconnectOptionsBuilder {
     /// # Arguments
     ///
     /// `timeout` The time interval to allow the disconnect to
-    ///           complete. This has a resolution of seconds.
+    ///           complete. This has a resolution of milliseconds.
     pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
-        let secs = timeout.as_secs();
-        self.copts.timeout = if secs == 0 { 1 } else { secs as i32 };
+        let millis = timeout.as_millis();
+        self.copts.timeout = if millis == 0 { 1 } else { millis as i32 };
         self
     }
 
@@ -164,7 +164,7 @@ impl DisconnectOptionsBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{properties::PropertyCode, reason_code::NormalDisconnection};
+    use crate::{properties::PropertyCode, reason_code::ReasonCode};
     use std::{os::raw::c_char, thread};
 
     // Identifier fo a C disconnect options struct
@@ -199,7 +199,7 @@ mod tests {
     #[test]
     fn test_reason_code() {
         let opts = DisconnectOptionsBuilder::new().finalize();
-        assert_eq!(opts.reason_code(), NormalDisconnection);
+        assert_eq!(opts.reason_code(), ReasonCode::NormalDisconnection);
 
         let opts = DisconnectOptionsBuilder::new()
             .reason_code(ReasonCode::DisconnectWithWillMessage)

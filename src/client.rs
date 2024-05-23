@@ -7,11 +7,11 @@
  * Copyright (c) 2017-2020 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -32,7 +32,7 @@ use crate::{
     async_client::AsyncClient, connect_options::ConnectOptions, create_options::CreateOptions,
     disconnect_options::DisconnectOptions, errors::Result, message::Message,
     properties::Properties, server_response::ServerResponse, subscribe_options::SubscribeOptions,
-    Receiver,
+    QoS, Receiver,
 };
 use std::time::Duration;
 
@@ -144,7 +144,10 @@ impl Client {
     /// `topic` The topic name
     /// `qos` The quality of service requested for messages
     ///
-    pub fn subscribe(&self, topic: &str, qos: i32) -> Result<ServerResponse> {
+    pub fn subscribe<Q>(&self, topic: &str, qos: Q) -> Result<ServerResponse>
+    where
+        Q: Into<QoS>,
+    {
         self.cli.subscribe(topic, qos).wait_for(self.timeout)
     }
 
@@ -157,15 +160,16 @@ impl Client {
     /// `opts` Options for the subscription
     /// `props` MQTT v5 properties
     ///
-    pub fn subscribe_with_options<S, T, P>(
+    pub fn subscribe_with_options<S, Q, T, P>(
         &self,
         topic: S,
-        qos: i32,
+        qos: Q,
         opts: T,
         props: P,
     ) -> Result<ServerResponse>
     where
         S: Into<String>,
+        Q: Into<QoS>,
         T: Into<SubscribeOptions>,
         P: Into<Option<Properties>>,
     {
@@ -181,9 +185,10 @@ impl Client {
     /// `topic` The topic name
     /// `qos` The quality of service requested for messages
     ///
-    pub fn subscribe_many<T>(&self, topics: &[T], qos: &[i32]) -> Result<ServerResponse>
+    pub fn subscribe_many<T, Q>(&self, topics: &[T], qos: &[Q]) -> Result<ServerResponse>
     where
         T: AsRef<str>,
+        Q: Into<QoS> + Copy,
     {
         self.cli.subscribe_many(topics, qos).wait_for(self.timeout)
     }
@@ -197,15 +202,16 @@ impl Client {
     /// `opts` Subscribe options (one per topic)
     /// `props` MQTT v5 properties
     ///
-    pub fn subscribe_many_with_options<T, P>(
+    pub fn subscribe_many_with_options<T, Q, P>(
         &self,
         topics: &[T],
-        qos: &[i32],
+        qos: &[Q],
         opts: &[SubscribeOptions],
         props: P,
     ) -> Result<ServerResponse>
     where
         T: AsRef<str>,
+        Q: Into<QoS> + Copy,
         P: Into<Option<Properties>>,
     {
         self.cli

@@ -28,7 +28,7 @@ The initial version of this crate is a wrapper for the Paho C library, and inclu
     - Traditional asynchronous (token/wait) API
     - Synchronous/blocking  API
 
-Requires Paho C v1.3.12, or possibly later.
+Requires Paho C v1.3.13, or possibly later.
 
 ## Latest News
 
@@ -38,43 +38,24 @@ To keep up with the latest announcements for this project, follow:
 
 **EMail:** [Eclipse Paho Mailing List](https://accounts.eclipse.org/mailing-list/paho-dev)
 
+### Upcoming v0.13
+
+Work has started to revamp multiple aspects of the internal code without seriously disrupting the API. Some of this will be to hide aspects of the Paho C library that leaked into the Rust API and start the march towards a 100% Rust implementation of this library. (That won't happen too soon, but it's time to start.)
+
+One set of breaking changes will be around the library's errors. The Paho C errors will be de-nested and made easier to match. More information will also be extracted from the C library when possible.
+
+### What's new in v0.12.3
+
+- The -sys crate now wraps Paho C v1.3.13, fixing several issues, including crashes on reconnect callbacks.
+- Made the C logs less verbose
+- [#203](https://github.com/eclipse/paho.mqtt.rust/pull/203) `AsyncClient::server_uri()` getter.
+- [#202](https://github.com/eclipse/paho.mqtt.rust/pull/202) Fix disconnect timeout (from sec to ms)
+
+
 ### What's new in v0.12.2
 
 - [#209](https://github.com/eclipse/paho.mqtt.rust/issues/209) Added trace/log statements from the Paho C library to the Rust logs
 - Minor cleanup of subscriber examples.
-
-### What's new in v0.12.1
-
-- [#191](https://github.com/eclipse/paho.mqtt.rust/pull/191) AsyncClient::get_stream() support unbounded channel
-- [#194](https://github.com/eclipse/paho.mqtt.rust/issues/194) Bumped bindgen to latest version, v0.64, in -sys crate
-- [#193](https://github.com/eclipse/paho.mqtt.rust/issues/193) Consmer notification when brokercleanly disconnects
-
-### What's new in v0.12.0
-
-- Updated to Rust Edition 2021 w/ MSRV 1.63.0
-- Upgrade to Paho C v1.3.12
-    - Fixes a performance issue, particularily for receiving messages.
-    - New URI protocol schemes: "mqtt://" for TCP and "mqtts://" for encrypted SSL/TLS.
-- [**Breaking**] Updated `CreateOptions` and `ConnectOptions` behavior:
-    - The `CreateOptions` default is for a "universal" client that can connect using v3.x or v5. (This was previously specified as the v5 option).
-        - Can use `CreateOptions::new_v3()` for a client that can only connect using v3.x
-    - The v3.x vs v5 devision is made when connecting.
-    - `ConnectOptions::new()` still defaults to v3.x
-    - New constructors for specific protocol version, `ConnectOptions::new_v5()`, `new_ws()`, and `new_ws_v5()`, for v5, websocket,  and v5 over websockets, respectively.
-    - Connect options default to clean session/state, as appropriate for the constructed protocol version.
-    - You select the MQTT protocol version with one of the new constructors, and can not change it after creation. (No longer a set `mqtt_version()` function).
-- `AsyncClient::mqtt_version()` now returns the version for the current connection - or the most recent successful connection. Removed `AsyncClient::current_mqtt_version()`.
-- Updated `SubscribeOptions` to be more usable.
-- Created a new [example](https://github.com/eclipse/paho.mqtt.rust/blob/develop/examples/async_subscribe_v5.rs) for MQTT v5 subscriptions with subscribe options.
-- [#182](https://github.com/eclipse/paho.mqtt.rust/issues/182) Callback must now be `Send` since they will be called from another thread.
-- [#172](https://github.com/eclipse/paho.mqtt.rust/issues/172) Linking to `User32` library on Windows to try to avoid build problems.
-- [#170](https://github.com/eclipse/paho.mqtt.rust/issues/170) Updated the cmake crate dependency in -sys to 0.1.49 to support both older CMake (pre v3.12) and newer systems like VS 2022.
-- [#156](https://github.com/eclipse/paho.mqtt.rust/issues/156) (continued) Added a mutable iterator to TopicMatcher, with functions `remove()`, `get_mut()`, and `matches_mut()`
-- [#170](https://github.com/eclipse/paho.mqtt.rust/issues/170) Upgraded cmake crate to v0.1.48 to support building with Visual Studio 2022.
-- [#166](https://github.com/eclipse/paho.mqtt.rust/issues/166) Fix topic matches with single-level wildcard.
-- [#151](https://github.com/eclipse/paho.mqtt.rust/issues/151) Fixed wrong documentation of QoS 1
-- [#57](https://github.com/eclipse/paho.mqtt.rust/issues/57) Updated this README with more help for musl builds.
-- Fixed clippy warnings
 
 
 ## Using the Crate
@@ -211,7 +192,7 @@ Generates reference documentation.
 
 ###  The Paho C Library and _paho-mqtt-sys_
 
-The Paho Rust crate is a wrapper around the Paho C library. This version is **specifically matched to Paho C v 1.3.x**, and is currently using version 1.3.12. It will generally not build against newer versions of the C library, as the C lib expands functionality by extending structures, thus breaking the Rust build.
+The Paho Rust crate is a wrapper around the Paho C library. This version is **specifically matched to Paho C v 1.3.x**, and is currently using version 1.3.13. It will generally not build against newer versions of the C library, as the C lib expands functionality by extending structures, thus breaking the Rust build.
 
 The project includes a Rust _-sys_ crate, called _paho-mqtt-sys_, which provides unsafe bindings to the C library.  The repository contains a Git submodule pointing to the specific version of the C library that the Rust crate requires, and by default, it will automatically build and link to that library, using pre-generated C bindings that are also included in the repo.
 
@@ -315,25 +296,25 @@ The crate comes with a number of pre-built bindings for several popular targets 
 
 Some of these include:
 
-    bindings_paho_mqtt_c_1.3.12-x86_64-unknown-linux-gnu.rs
-    bindings_paho_mqtt_c_1.3.12-x86_64-pc-windows-msvc.rs
-    bindings_paho_mqtt_c_1.3.12-aarch64-unknown-linux-gnu.rs
-    bindings_paho_mqtt_c_1.3.12-armv7-unknown-linux-gnueabihf.rs
-    bindings_paho_mqtt_c_1.3.12-x86_64-apple-darwin.rs
-    bindings_paho_mqtt_c_1.3.12-default-32.rs
-    bindings_paho_mqtt_c_1.3.12-default-64.rs
+    bindings_paho_mqtt_c_1.3.13-x86_64-unknown-linux-gnu.rs
+    bindings_paho_mqtt_c_1.3.13-x86_64-pc-windows-msvc.rs
+    bindings_paho_mqtt_c_1.3.13-aarch64-unknown-linux-gnu.rs
+    bindings_paho_mqtt_c_1.3.13-armv7-unknown-linux-gnueabihf.rs
+    bindings_paho_mqtt_c_1.3.13-x86_64-apple-darwin.rs
+    bindings_paho_mqtt_c_1.3.13-default-32.rs
+    bindings_paho_mqtt_c_1.3.13-default-64.rs
 
 Bindings can be created for new versions of the Paho C library or for different target platforms using the command-line _bindgen_ tool. For example on an x86 version of Windows using MSVC, you can re-generate the bindings like this:
 
 ```
 $ cd paho-mqtt-sys
-$ bindgen wrapper.h -o bindings/bindings_paho_mqtt_c_1.3.12-x86_64-pc-windows-msvc.rs -- -Ipaho.mqtt.c/src
+$ bindgen wrapper.h -o bindings/bindings_paho_mqtt_c_1.3.13-x86_64-pc-windows-msvc.rs -- -Ipaho.mqtt.c/src
 ```
 
 To create bindings for a different target, use the _TARGET_ environment variable. For example, to build the 32-bit MSVC bindings for Windows on a 64-bit host, use the _i686-pc-windows-msvc_ target:
 
 ```
-$ TARGET=i686-pc-windows-msvc bindgen wrapper.h -o bindings/bindings_paho_mqtt_c_1.3.12-i686-pc-windows-msvc.rs -- -Ipaho.mqtt.c/src
+$ TARGET=i686-pc-windows-msvc bindgen wrapper.h -o bindings/bindings_paho_mqtt_c_1.3.13-i686-pc-windows-msvc.rs -- -Ipaho.mqtt.c/src
 ```
 
 ##### Bindgen linker issue

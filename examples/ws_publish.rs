@@ -12,11 +12,11 @@
  * Copyright (c) 2017-20123 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -39,7 +39,8 @@ fn main() {
     let host = args
         .next()
         .unwrap_or_else(|| "ws://localhost:8080".to_string());
-    let proxy = args.next().unwrap_or_else(String::new);
+
+    let proxy = args.next().unwrap_or_default();
 
     // Create the client
     let cli = mqtt::AsyncClient::new(host).unwrap_or_else(|err| {

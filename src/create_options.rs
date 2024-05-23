@@ -8,11 +8,11 @@
  * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -27,8 +27,8 @@ use std::{
 };
 
 use crate::{
-    async_client::AsyncClient, client_persistence::ClientPersistence, ffi, to_c_bool, Result,
-    UserData,
+    async_client::AsyncClient, client_persistence::ClientPersistence, ffi, to_c_bool, MqttVersion,
+    Result, UserData,
 };
 
 /*
@@ -160,7 +160,12 @@ impl CreateOptions {
     /// It can be overridden in the connect options to request a different
     /// version, but typically this is the highest version that can be used
     /// by the client.
-    pub fn mqtt_version(&self) -> u32 {
+    pub fn mqtt_version(&self) -> MqttVersion {
+        MqttVersion::from(self.copts.MQTTVersion)
+    }
+
+    /// Gets the raw, integer value of the MQTT version.
+    pub fn mqtt_version_raw(&self) -> u32 {
         self.copts.MQTTVersion as u32
     }
 }
@@ -383,8 +388,11 @@ impl CreateOptionsBuilder {
     ///       * (4) only try v3.1.1
     ///       * (5) only try v5
     ///
-    pub fn mqtt_version(mut self, ver: u32) -> Self {
-        self.copts.MQTTVersion = ver as c_int;
+    pub fn mqtt_version<V>(mut self, ver: V) -> Self
+    where
+        V: Into<MqttVersion>,
+    {
+        self.copts.MQTTVersion = ver.into() as c_int;
         self
     }
 

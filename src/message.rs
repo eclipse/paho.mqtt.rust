@@ -4,14 +4,14 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2022 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -19,9 +19,17 @@
  *    Frank Pagliughi - initial implementation and documentation
  *******************************************************************************/
 
-use std::{borrow::Cow, convert::From, ffi::CString, fmt, os::raw::c_void, pin::Pin, slice};
+use std::{
+    borrow::Cow,
+    convert::From,
+    ffi::CString,
+    fmt,
+    os::raw::{c_int, c_void},
+    pin::Pin,
+    slice,
+};
 
-use crate::{ffi, properties::Properties, to_c_bool};
+use crate::{ffi, properties::Properties, to_c_bool, QoS};
 
 /// A `Message` represents all the information passed in an MQTT PUBLISH
 /// packet.
@@ -63,13 +71,14 @@ impl Message {
     /// * `topic` The topic on which the message is published.
     /// * `payload` The binary payload of the message
     /// * `qos` The quality of service for message delivery (0, 1, or 2)
-    pub fn new<S, V>(topic: S, payload: V, qos: i32) -> Self
+    pub fn new<S, V, Q>(topic: S, payload: V, qos: Q) -> Self
     where
         S: Into<String>,
         V: Into<Vec<u8>>,
+        Q: Into<QoS>,
     {
         let cmsg = ffi::MQTTAsync_message {
-            qos,
+            qos: qos.into() as c_int,
             ..ffi::MQTTAsync_message::default()
         };
         let data = MessageData::new(topic, payload);
@@ -85,13 +94,14 @@ impl Message {
     /// * `payload` The binary payload of the message
     /// * `qos` The quality of service for message delivery (0, 1, or 2)
     ///
-    pub fn new_retained<S, V>(topic: S, payload: V, qos: i32) -> Self
+    pub fn new_retained<S, V, Q>(topic: S, payload: V, qos: Q) -> Self
     where
         S: Into<String>,
         V: Into<Vec<u8>>,
+        Q: Into<QoS>,
     {
         let cmsg = ffi::MQTTAsync_message {
-            qos,
+            qos: qos.into() as c_int,
             retained: 1,
             ..ffi::MQTTAsync_message::default()
         };
@@ -162,8 +172,8 @@ impl Message {
     }
 
     /// Returns the Quality of Service (QOS) for the message.
-    pub fn qos(&self) -> i32 {
-        self.cmsg.qos
+    pub fn qos(&self) -> QoS {
+        QoS::from(self.cmsg.qos)
     }
 
     /// Gets the 'retain' flag for the message.
@@ -233,7 +243,7 @@ impl fmt::Display for Message {
 pub struct MessageBuilder {
     topic: String,
     payload: Vec<u8>,
-    qos: i32,
+    qos: QoS,
     retained: bool,
     props: Properties,
 }
@@ -244,7 +254,7 @@ impl MessageBuilder {
         Self {
             topic: String::new(),
             payload: Vec::new(),
-            qos: 0,
+            qos: QoS::default(),
             retained: false,
             props: Properties::default(),
         }
@@ -281,8 +291,8 @@ impl MessageBuilder {
     /// # Arguments
     ///
     /// `qos` The quality of service for the message.
-    pub fn qos(mut self, qos: i32) -> Self {
-        self.qos = qos;
+    pub fn qos<Q: Into<QoS>>(mut self, qos: Q) -> Self {
+        self.qos = qos.into();
         self
     }
 
@@ -311,7 +321,7 @@ impl MessageBuilder {
     /// Finalize the builder to create the message.
     pub fn finalize(self) -> Message {
         let cmsg = ffi::MQTTAsync_message {
-            qos: self.qos,
+            qos: self.qos as c_int,
             retained: to_c_bool(self.retained),
             ..ffi::MQTTAsync_message::default()
         };
@@ -351,7 +361,7 @@ mod tests {
     // These should differ from defaults
     const TOPIC: &str = "test";
     const PAYLOAD: &[u8] = b"Hello world";
-    const QOS: i32 = 2;
+    const QOS: QoS = QoS::ExactlyOnce;
     const RETAINED: bool = true;
 
     // By convention our defaults should match the defaults of the C library
@@ -371,7 +381,7 @@ mod tests {
         assert_eq!(msg.data.payload.len() as i32, msg.cmsg.payloadlen);
         assert_eq!(msg.data.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
 
-        assert_eq!(QOS, msg.cmsg.qos);
+        assert_eq!(QOS as c_int, msg.cmsg.qos);
         assert!(msg.cmsg.retained == 0);
     }
 
@@ -398,7 +408,7 @@ mod tests {
         assert_eq!(msg.data.payload.len() as i32, msg.cmsg.payloadlen);
         assert_eq!(msg.data.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
 
-        assert_eq!(QOS, msg.cmsg.qos);
+        assert_eq!(QOS as c_int, msg.cmsg.qos);
         assert!(msg.cmsg.retained != 0);
     }
 
@@ -444,12 +454,16 @@ mod tests {
 
     #[test]
     fn test_builder_qos() {
-        const QOS: i32 = 2;
-
         let msg = MessageBuilder::new().qos(QOS).finalize();
 
-        assert_eq!(QOS, msg.cmsg.qos);
+        assert_eq!(QOS as c_int, msg.cmsg.qos);
         assert_eq!(QOS, msg.qos());
+
+        let qos = 1;
+        let msg = MessageBuilder::new().qos(qos).finalize();
+
+        assert_eq!(qos, msg.cmsg.qos);
+        assert_eq!(QoS::from(qos), msg.qos());
     }
 
     #[test]
@@ -483,7 +497,7 @@ mod tests {
         assert_eq!(msg.data.payload.len() as i32, msg.cmsg.payloadlen);
         assert_eq!(msg.data.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
 
-        assert_eq!(QOS, msg.cmsg.qos);
+        assert_eq!(QOS as c_int, msg.cmsg.qos);
         assert!(msg.cmsg.retained != 0);
     }
 
@@ -494,7 +508,7 @@ mod tests {
     fn test_clone() {
         const TOPIC: &str = "test";
         const PAYLOAD: &[u8] = b"Hello world";
-        const QOS: i32 = 2;
+        const QOS: QoS = QoS::ExactlyOnce;
         const RETAINED: bool = true;
 
         let msg = {
@@ -514,7 +528,7 @@ mod tests {
         assert_eq!(msg.data.payload.len() as i32, msg.cmsg.payloadlen);
         assert_eq!(msg.data.payload.as_ptr() as *mut c_void, msg.cmsg.payload);
 
-        assert_eq!(QOS, msg.cmsg.qos);
+        assert_eq!(QOS as c_int, msg.cmsg.qos);
         assert!(msg.cmsg.retained != 0);
     }
 
@@ -528,7 +542,7 @@ mod tests {
         let thr = thread::spawn(move || {
             assert_eq!(TOPIC, msg.data.topic.to_str().unwrap());
             assert_eq!(PAYLOAD, msg.data.payload.as_slice());
-            assert_eq!(QOS, msg.qos());
+            assert_eq!(QOS as c_int, msg.qos());
         });
         let _ = thr.join().unwrap();
     }

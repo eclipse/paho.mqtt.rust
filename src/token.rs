@@ -7,11 +7,11 @@
  * Copyright (c) 2018-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -34,7 +34,7 @@
 use {
     crate::{
         async_client::AsyncClient,
-        errors::{self, Error, Result},
+        errors::{Error, Result},
         ffi,
         message::Message,
         server_response::{ServerRequest, ServerResponse},
@@ -72,16 +72,11 @@ pub type FailureCallback = dyn Fn(&AsyncClient, u16, i32) + 'static;
 /// the C library callback when the asynchronous operation completes.
 #[derive(Debug, Default)]
 pub(crate) struct TokenData {
-    /// Whether the async action has completed
-    complete: bool,
     /// The MQTT Message ID
     msg_id: i16,
-    /// The return/error code for the action (zero is success)
-    ret_code: i32,
-    /// Additional detail error message (if any)
-    err_msg: Option<String>,
-    /// The server response (dependent on the request type)
-    srvr_rsp: ServerResponse,
+    /// When Some, the result of the operation, response or error.
+    /// None means not complete yet.
+    res: Option<Result<ServerResponse>>,
     /// To wake the future on completion
     waker: Option<Waker>,
 }
@@ -95,22 +90,20 @@ impl TokenData {
         }
     }
 
-    /// Creates a new token that is already signaled with a code.
+    /// Creates a new token that is already signaled with an error.
     pub fn from_error(rc: i32) -> TokenData {
         TokenData {
-            complete: true,
-            ret_code: rc,
-            err_msg: if rc != 0 {
-                // TODO: Get rid of this? It seems to be redundant
-                // and confusing as the error message is just derived
-                // from the i32 error. Having it causes the error to
-                // fail the match to Error::Paho(_)
-                // Or, even better, get rid of Error::PahoDescr()
-                Some(String::from(errors::error_message(rc)))
-            }
-            else {
-                None
-            },
+            res: Some(Err(Error::from(rc))),
+            ..TokenData::default()
+        }
+    }
+
+    /// Creates a new token that is already signaled with an error.
+    // TODO: Use this!
+    #[allow(dead_code)]
+    pub fn from_error_descr(rc: i32, descr: &str) -> TokenData {
+        TokenData {
+            res: Some(Err(Error::from((rc, descr)))),
             ..TokenData::default()
         }
     }
@@ -318,13 +311,17 @@ impl TokenInner {
         // Signal completion of the token
 
         let mut data = tok.inner.lock.lock().unwrap();
-        data.complete = true;
-        data.ret_code = rc;
-        data.err_msg = err_msg;
-
-        if let Some(rsp) = rsp.as_ref() {
-            data.srvr_rsp = ServerResponse::from_failure5(rsp);
+        data.res = Some(if rc == 0 {
+            if let Some(rsp) = rsp.as_ref() {
+                Ok(ServerResponse::from_failure5(rsp))
+            }
+            else {
+                Ok(ServerResponse::default())
+            }
         }
+        else {
+            Err(Error::from((rc, err_msg)))
+        });
 
         // If this is none, it means that no one is waiting on
         // the future yet, so we don't need to wake it.
@@ -367,23 +364,28 @@ impl TokenInner {
         // Signal completion of the token
 
         let mut data = self.lock.lock().unwrap();
-        data.complete = true;
-        data.ret_code = rc;
-        data.err_msg = err_msg;
-
-        // Get the response from the server, if any.
-        debug!("Expecting server response for: {:?}", self.req);
         unsafe {
-            if let Some(rsp) = rsp.as_ref() {
-                data.srvr_rsp = ServerResponse::from_success(self.req, rsp);
-            }
-        }
-        debug!("Got response: {:?}", data.srvr_rsp);
+            data.res = Some(if rc == 0 {
+                // Get the response from the server, if any.
+                debug!("Expecting server response for: {:?}", self.req);
+                let rsp = if let Some(rsp) = rsp.as_ref() {
+                    ServerResponse::from_success(self.req, rsp)
+                }
+                else {
+                    ServerResponse::default()
+                };
+                debug!("Got response: {:?}", rsp);
 
-        if let Some(rsp) = data.srvr_rsp.connect_response() {
-            if let Some(cli) = &self.cli {
-                cli.set_mqtt_version(rsp.mqtt_version);
+                if let Some(rsp) = rsp.connect_response() {
+                    if let Some(cli) = &self.cli {
+                        cli.set_mqtt_version(rsp.mqtt_version);
+                    }
+                }
+                Ok(rsp)
             }
+            else {
+                Err(Error::from((rc, err_msg)))
+            });
         }
 
         // If this is none, it means that no one is waiting on
@@ -427,23 +429,28 @@ impl TokenInner {
         // Signal completion of the token
 
         let mut data = self.lock.lock().unwrap();
-        data.complete = true;
-        data.ret_code = rc;
-        data.err_msg = err_msg;
-
-        // Get the response from the server, if any.
-        debug!("Expecting server response for: {:?}", self.req);
         unsafe {
-            if let Some(rsp) = rsp.as_ref() {
-                data.srvr_rsp = ServerResponse::from_success5(self.req, rsp);
-            }
-        }
-        debug!("Got response: {:?}", data.srvr_rsp);
+            data.res = Some(if rc == 0 {
+                // Get the response from the server, if any.
+                debug!("Expecting server response for: {:?}", self.req);
+                let rsp = if let Some(rsp) = rsp.as_ref() {
+                    ServerResponse::from_success5(self.req, rsp)
+                }
+                else {
+                    ServerResponse::default()
+                };
+                debug!("Got response: {:?}", rsp);
 
-        if let Some(rsp) = data.srvr_rsp.connect_response() {
-            if let Some(cli) = &self.cli {
-                cli.set_mqtt_version(rsp.mqtt_version);
+                if let Some(rsp) = rsp.connect_response() {
+                    if let Some(cli) = &self.cli {
+                        cli.set_mqtt_version(rsp.mqtt_version);
+                    }
+                }
+                Ok(rsp)
             }
+            else {
+                Err(Error::from((rc, err_msg)))
+            });
         }
 
         // If this is none, it means that no one is waiting on
@@ -465,6 +472,9 @@ impl Default for TokenInner {
         }
     }
 }
+
+unsafe impl Send for TokenInner {}
+unsafe impl Sync for TokenInner {}
 
 /////////////////////////////////////////////////////////////////////////////
 // Token
@@ -585,22 +595,15 @@ impl Future for Token {
     /// Poll the token to see if the request has completed yet.
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut data = self.inner.lock.lock().unwrap();
-        let rc = data.ret_code;
 
-        if !data.complete {
-            // Set waker so that the C callback can wake up the current task
-            // when the operation has completed.
-            data.waker = Some(cx.waker().clone());
-            Poll::Pending
-        }
-        else if rc == 0 {
-            Poll::Ready(Ok(data.srvr_rsp.clone()))
-        }
-        else if let Some(ref err_msg) = data.err_msg {
-            Poll::Ready(Err(Error::PahoDescr(rc, err_msg.clone())))
-        }
-        else {
-            Poll::Ready(Err(Error::Paho(rc)))
+        match data.res.take() {
+            Some(res) => Poll::Ready(res),
+            None => {
+                // Set waker so that the C callback can wake up the current task
+                // when the operation has completed.
+                data.waker = Some(cx.waker().clone());
+                Poll::Pending
+            }
         }
     }
 }
@@ -703,22 +706,15 @@ impl Future for DeliveryToken {
     /// Poll the token to see if the request has completed yet.
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut data = self.inner.lock.lock().unwrap();
-        let rc = data.ret_code;
 
-        if !data.complete {
-            // Set waker so that the C callback can wake up the current task
-            // when the operation has completed.
-            data.waker = Some(cx.waker().clone());
-            Poll::Pending
-        }
-        else if rc == 0 {
-            Poll::Ready(Ok(()))
-        }
-        else if let Some(ref err_msg) = data.err_msg {
-            Poll::Ready(Err(Error::PahoDescr(rc, err_msg.clone())))
-        }
-        else {
-            Poll::Ready(Err(Error::Paho(rc)))
+        match data.res.take() {
+            Some(res) => Poll::Ready(res.map(|_| ())),
+            None => {
+                // Set waker so that the C callback can wake up the current task
+                // when the operation has completed.
+                data.waker = Some(cx.waker().clone());
+                Poll::Pending
+            }
         }
     }
 }
@@ -734,7 +730,7 @@ mod tests {
     fn test_new() {
         let tok = Token::new();
         let data = tok.inner.lock.lock().unwrap();
-        assert!(!data.complete);
+        assert!(data.res.is_none());
     }
 
     #[test]
@@ -745,20 +741,20 @@ mod tests {
 
         let tok = DeliveryToken::new(msg);
         let data = tok.inner.lock.lock().unwrap();
-        assert!(!data.complete);
+        assert!(data.res.is_none());
         assert_eq!(MSG_ID, data.msg_id);
     }
 
     // Created from an error code, should be complete with the right return code.
     #[test]
     fn test_from_error() {
-        const ERR_CODE: i32 = -42;
+        const ERR_CODE: i32 = ffi::MQTTASYNC_BAD_QOS;
 
         let tok = Token::from_error(ERR_CODE);
         let data = tok.inner.lock.lock().unwrap();
 
-        assert!(data.complete);
-        assert_eq!(ERR_CODE, data.ret_code);
+        assert!(data.res.is_some());
+        assert!(matches!(data.res, Some(Err(Error::BadQos))));
     }
 
     // Cloned tokens should have the same (inner) raw address.
@@ -798,37 +794,36 @@ mod tests {
 
     #[test]
     fn test_try_wait() {
-        const ERR_CODE: i32 = -42;
+        const ERR_CODE: i32 = ffi::MQTTASYNC_BAD_QOS;
         let mut tok = Token::from_error(ERR_CODE);
 
         match tok.try_wait() {
-            // Some(Err(Error::Paho(ERR_CODE))) => {}
-            Some(Err(Error::PahoDescr(ERR_CODE, _))) => {}
-            Some(Err(_)) | Some(Ok(_)) | None => unreachable!(),
+            Some(Err(Error::BadQos)) => {}
+            Some(Err(err)) => panic!("Wrong error: {}", err),
+            Some(Ok(_)) => panic!("Should be an error"),
+            None => panic!("Should be complete"),
         }
 
         // An unsignaled token
         let mut tok = Token::new();
 
         // If it's not done, we should get None
-        match tok.try_wait() {
-            None => (),
-            Some(Err(_)) | Some(Ok(_)) => unreachable!(),
+        if tok.try_wait().is_some() {
+            panic!("Should not be complete");
         }
 
         // Complete the token
         {
             let mut data = tok.inner.lock.lock().unwrap();
-            data.complete = true;
-            data.ret_code = ERR_CODE;
-            //data.err_msg = err_msg;
+            data.res = Some(Err(Error::BadQos));
         }
 
         // Now it should resolve to Some(Err(...))
         match tok.try_wait() {
-            Some(Err(Error::Paho(ERR_CODE))) => (),
-            //Some(Err(Error::PahoDescr(ERR_CODE, _))) => (),
-            Some(Err(_)) | Some(Ok(_)) | None => unreachable!(),
+            Some(Err(Error::BadQos)) => (),
+            Some(Err(err)) => panic!("Wrong error: {}", err),
+            Some(Ok(_)) => panic!("Should be an error"),
+            None => panic!("Should be complete"),
         }
     }
 }

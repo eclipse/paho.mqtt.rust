@@ -17,11 +17,11 @@
  * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -32,9 +32,6 @@
 use log::trace;
 use paho_mqtt as mqtt;
 use std::{collections::HashMap, env, process};
-
-// The library's persistence error.
-const PERSISTENCE_ERROR: mqtt::Error = mqtt::Error::Paho(mqtt::PERSISTENCE_ERROR);
 
 // Use a non-zero QOS to exercise the persistence store
 const QOS: i32 = 1;
@@ -101,7 +98,7 @@ impl mqtt::ClientPersistence for MemPersistence {
         trace!("Client persistence [{}]: get key '{}'", self.name, key);
         match self.map.get(key) {
             Some(v) => Ok(v.to_vec()),
-            None => Err(PERSISTENCE_ERROR),
+            None => Err(mqtt::Error::PersistenceError),
         }
     }
 
@@ -110,7 +107,7 @@ impl mqtt::ClientPersistence for MemPersistence {
         trace!("Client persistence [{}]: remove key '{}'", self.name, key);
         match self.map.remove(key) {
             Some(_) => Ok(()),
-            None => Err(PERSISTENCE_ERROR),
+            None => Err(mqtt::Error::PersistenceError),
         }
     }
 

@@ -15,17 +15,18 @@
 //!   - Using a "clean session" and manually re-subscribing to topics on
 //!     reconnect.
 //!   - Last will and testament
+//!   - Automatic reconnects
 //!
 
 /*******************************************************************************
  * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -41,29 +42,31 @@ use std::{env, process, thread, time::Duration};
 const TOPICS: &[&str] = &["test", "hello"];
 const QOS: &[i32] = &[1, 1];
 
+// Min & max reconnect backoff times (2x each time till max).
+const MIN_RECONNECT: Duration = Duration::from_secs(1);
+const MAX_RECONNECT: Duration = Duration::from_secs(30);
+
 /////////////////////////////////////////////////////////////////////////////
 
-// Callback for a successful connection to the broker.
+// Callback for a successful initial connect to the broker.
+// This is the callback given to the connect() function, so is only called
+// once after the initial connect succeeds (not after reconnects).
 // We subscribe to the topic(s) we want here.
 fn on_connect_success(cli: &mqtt::AsyncClient, _msgid: u16) {
-    println!("Connection succeeded");
+    println!(
+        "Initial connection succeeded. Subscribing to topics: {:?}",
+        TOPICS
+    );
     // Subscribe to the desired topic(s).
     cli.subscribe_many(TOPICS, QOS);
-    println!("Subscribing to topics: {:?}", TOPICS);
     // TODO: This doesn't yet handle a failed subscription.
 }
 
-// Callback for a failed attempt to connect to the server.
-// We simply sleep and then try again.
-//
-// Note that normally we don't want to do a blocking operation or sleep
-// from  within a callback. But in this case, we know that the client is
-// *not* conected, and thus not doing anything important. So we don't worry
-// too much about stopping its callback thread.
-fn on_connect_failure(cli: &mqtt::AsyncClient, _msgid: u16, rc: i32) {
-    println!("Connection attempt failed with error code {}.\n", rc);
-    thread::sleep(Duration::from_millis(2500));
-    cli.reconnect_with_callbacks(on_connect_success, on_connect_failure);
+// Callback for a failed initialattempt to connect to the server.
+// We report the failure and exit.
+fn on_connect_failure(_cli: &mqtt::AsyncClient, _msgid: u16, rc: i32) {
+    println!("Connection attempt failed with error code {}.", rc);
+    process::exit(1);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -91,17 +94,17 @@ fn main() {
     });
 
     // Set a closure to be called whenever the client connection is established.
-    cli.set_connected_callback(|_cli: &mqtt::AsyncClient| {
+    // This is called after the initial connection and also after successful
+    // reconnections.
+    cli.set_connected_callback(|_| {
         println!("Connected.");
     });
 
     // Set a closure to be called whenever the client loses the connection.
-    // It will attempt to reconnect, and set up function callbacks to keep
-    // retrying until the connection is re-established.
-    cli.set_connection_lost_callback(|cli: &mqtt::AsyncClient| {
-        println!("Connection lost. Attempting reconnect.");
-        thread::sleep(Duration::from_millis(2500));
-        cli.reconnect_with_callbacks(on_connect_success, on_connect_failure);
+    // It just reports the state to the user, and lets the library try to
+    // reconnect.
+    cli.set_connection_lost_callback(|_| {
+        println!("Connection lost. Attempting reconnect...");
     });
 
     // Attach a closure to the client to receive callback
@@ -120,6 +123,7 @@ fn main() {
     let conn_opts = mqtt::ConnectOptionsBuilder::new_v3()
         .keep_alive_interval(Duration::from_secs(20))
         .clean_session(false)
+        .automatic_reconnect(MIN_RECONNECT, MAX_RECONNECT)
         .will_message(lwt)
         .finalize();
 

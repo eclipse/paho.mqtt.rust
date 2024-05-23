@@ -7,11 +7,11 @@
  * Copyright (c) 2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -56,12 +56,11 @@ pub fn log_from_c_trace_level(level: ffi::MQTTASYNC_TRACE_LEVELS) -> log::Level 
 
         ffi::MQTTASYNC_TRACE_LEVELS_MQTTASYNC_TRACE_ERROR => log::Level::Warn,
 
-        ffi::MQTTASYNC_TRACE_LEVELS_MQTTASYNC_TRACE_PROTOCOL => log::Level::Info,
-
-        ffi::MQTTASYNC_TRACE_LEVELS_MQTTASYNC_TRACE_MINIMUM
+        ffi::MQTTASYNC_TRACE_LEVELS_MQTTASYNC_TRACE_PROTOCOL
+        | ffi::MQTTASYNC_TRACE_LEVELS_MQTTASYNC_TRACE_MINIMUM
         | ffi::MQTTASYNC_TRACE_LEVELS_MQTTASYNC_TRACE_MEDIUM => log::Level::Debug,
 
-        ffi::MQTTASYNC_TRACE_LEVELS_MQTTASYNC_TRACE_MAXIMUM | _ => log::Level::Trace,
+        _ => log::Level::Trace,
     }
 }
 
@@ -72,8 +71,7 @@ pub fn log_into_c_trace_level(level: log::Level) -> ffi::MQTTASYNC_TRACE_LEVELS 
     match level {
         Error => ffi::MQTTASYNC_TRACE_LEVELS_MQTTASYNC_TRACE_SEVERE,
         Warn => ffi::MQTTASYNC_TRACE_LEVELS_MQTTASYNC_TRACE_ERROR,
-        Info => ffi::MQTTASYNC_TRACE_LEVELS_MQTTASYNC_TRACE_PROTOCOL,
-        Debug => ffi::MQTTASYNC_TRACE_LEVELS_MQTTASYNC_TRACE_MEDIUM,
+        Info | Debug => ffi::MQTTASYNC_TRACE_LEVELS_MQTTASYNC_TRACE_MEDIUM,
         Trace => ffi::MQTTASYNC_TRACE_LEVELS_MQTTASYNC_TRACE_MAXIMUM,
     }
 }

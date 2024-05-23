@@ -9,11 +9,11 @@
  * Copyright (c) 2021-2022 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -98,10 +98,7 @@ impl<T> TopicMatcher<T> {
             node = match sym {
                 "+" => node.plus_wild.get_or_insert(Box::<Node<T>>::default()),
                 "#" => node.pound_wild.get_or_insert(Box::<Node<T>>::default()),
-                sym => node
-                    .children
-                    .entry(sym.to_string())
-                    .or_insert_with(Node::<T>::default),
+                sym => node.children.entry(sym.to_string()).or_default(),
             }
         }
         // We've either found or created nodes down to here.

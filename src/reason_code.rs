@@ -7,11 +7,11 @@
  * Copyright (c) 2019-2022 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -76,12 +76,15 @@ pub enum ReasonCode {
 }
 
 // Some aliased ReasonCode values
+impl ReasonCode {
+    /// Reason code for a normal disconnect
+    #[allow(non_upper_case_globals)]
+    pub const NormalDisconnection: ReasonCode = ReasonCode::Success;
 
-/// Reason code for a normal disconnect
-pub const NormalDisconnection: ReasonCode = ReasonCode::Success;
-
-/// Reason code for QoS 0 granted
-pub const GrantedQos0: ReasonCode = ReasonCode::Success;
+    /// Reason code for QoS 0 granted
+    #[allow(non_upper_case_globals)]
+    pub const GrantedQos0: ReasonCode = ReasonCode::Success;
+}
 
 impl ReasonCode {
     /// Reason codes less than 0x80 indicate a successful operation.
@@ -103,52 +106,53 @@ impl Default for ReasonCode {
 
 impl From<ffi::MQTTReasonCodes> for ReasonCode {
     fn from(code: ffi::MQTTReasonCodes) -> Self {
+        use ReasonCode::*;
         match code {
-            0 => ReasonCode::Success, // also: NormalDisconnection & GrantedQos0
-            1 => ReasonCode::GrantedQos1,
-            2 => ReasonCode::GrantedQos2,
-            4 => ReasonCode::DisconnectWithWillMessage,
-            16 => ReasonCode::NoMatchingSubscribers,
-            17 => ReasonCode::NoSubscriptionFound,
-            24 => ReasonCode::ContinueAuthentication,
-            25 => ReasonCode::ReAuthenticate,
+            0 => Success, // also: NormalDisconnection & GrantedQos0
+            1 => GrantedQos1,
+            2 => GrantedQos2,
+            4 => DisconnectWithWillMessage,
+            16 => NoMatchingSubscribers,
+            17 => NoSubscriptionFound,
+            24 => ContinueAuthentication,
+            25 => ReAuthenticate,
 
-            128 => ReasonCode::UnspecifiedError,
-            129 => ReasonCode::MalformedPacket,
-            130 => ReasonCode::ProtocolError,
-            131 => ReasonCode::ImplementationSpecificError,
-            132 => ReasonCode::UnsupportedProtocolVersion,
-            133 => ReasonCode::ClientIdentifierNotValid,
-            134 => ReasonCode::BadUserNameOrPassword,
-            135 => ReasonCode::NotAuthorized,
-            136 => ReasonCode::ServerUnavailable,
-            137 => ReasonCode::ServerBusy,
-            138 => ReasonCode::Banned,
-            139 => ReasonCode::ServerShuttingDown,
-            140 => ReasonCode::BadAuthenticationMethod,
-            141 => ReasonCode::KeepAliveTimeout,
-            142 => ReasonCode::SessionTakenOver,
-            143 => ReasonCode::TopicFilterInvalid,
-            144 => ReasonCode::TopicNameInvalid,
-            145 => ReasonCode::PacketIdentifierInUse,
-            146 => ReasonCode::PacketIdentifierNotFound,
-            147 => ReasonCode::ReceiveMaximumExceeded,
-            148 => ReasonCode::TopicAliasInvalid,
-            149 => ReasonCode::PacketTooLarge,
-            150 => ReasonCode::MessageRateTooHigh,
-            151 => ReasonCode::QuotaExceeded,
-            152 => ReasonCode::AdministrativeAction,
-            153 => ReasonCode::PayloadFormatInvalid,
-            154 => ReasonCode::RetainNotSupported,
-            155 => ReasonCode::QosNotSupported,
-            156 => ReasonCode::UseAnotherServer,
-            157 => ReasonCode::ServerMoved,
-            158 => ReasonCode::SharedSubscriptionsNotSupported,
-            159 => ReasonCode::ConnectionRateExceeded,
-            160 => ReasonCode::MaximumConnectTime,
-            161 => ReasonCode::SubscriptionIdentifiersNotSupported,
-            162 => ReasonCode::WildcardSubscriptionsNotSupported,
-            _ => ReasonCode::MqttppV3Code, // This is not a protocol code; used internally by the library
+            128 => UnspecifiedError,
+            129 => MalformedPacket,
+            130 => ProtocolError,
+            131 => ImplementationSpecificError,
+            132 => UnsupportedProtocolVersion,
+            133 => ClientIdentifierNotValid,
+            134 => BadUserNameOrPassword,
+            135 => NotAuthorized,
+            136 => ServerUnavailable,
+            137 => ServerBusy,
+            138 => Banned,
+            139 => ServerShuttingDown,
+            140 => BadAuthenticationMethod,
+            141 => KeepAliveTimeout,
+            142 => SessionTakenOver,
+            143 => TopicFilterInvalid,
+            144 => TopicNameInvalid,
+            145 => PacketIdentifierInUse,
+            146 => PacketIdentifierNotFound,
+            147 => ReceiveMaximumExceeded,
+            148 => TopicAliasInvalid,
+            149 => PacketTooLarge,
+            150 => MessageRateTooHigh,
+            151 => QuotaExceeded,
+            152 => AdministrativeAction,
+            153 => PayloadFormatInvalid,
+            154 => RetainNotSupported,
+            155 => QosNotSupported,
+            156 => UseAnotherServer,
+            157 => ServerMoved,
+            158 => SharedSubscriptionsNotSupported,
+            159 => ConnectionRateExceeded,
+            160 => MaximumConnectTime,
+            161 => SubscriptionIdentifiersNotSupported,
+            162 => WildcardSubscriptionsNotSupported,
+            _ => MqttppV3Code, // This is not a protocol code; used internally by the library
         }
     }
 }

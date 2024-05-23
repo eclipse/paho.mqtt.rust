@@ -8,11 +8,11 @@
  * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -109,8 +109,12 @@ impl ConnectOptions {
     /// Note that this will return the options with the requested version,
     /// even if it's not currently known. The server will likely reject a
     /// request with a bad protocol version, however.
-    pub fn with_mqtt_version(ver: u32) -> Self {
-        let mut opts = if ver < MQTT_VERSION_5 {
+    pub fn with_mqtt_version<V>(ver: V) -> Self
+    where
+        V: Into<MqttVersion>,
+    {
+        let ver = ver.into();
+        let mut opts = if ver < MqttVersion::V5 {
             Self::new()
         }
         else {
@@ -216,7 +220,12 @@ impl ConnectOptions {
 
     /// Gets the MQTT protocol version that should be used for the
     /// connection.
-    pub fn mqtt_version(&self) -> u32 {
+    pub fn mqtt_version(&self) -> MqttVersion {
+        MqttVersion::from(self.copts.MQTTVersion)
+    }
+
+    /// Gets the MQTT protocol version as a raw integer.
+    pub fn mqtt_version_raw(&self) -> u32 {
         self.copts.MQTTVersion as u32
     }
 
@@ -349,8 +358,12 @@ impl ConnectOptionsBuilder {
     /// Note that this will initialize the options with the requested version,
     /// even if it's not currently known. The server will likely reject a
     /// request with a bad protocol version, however.
-    pub fn with_mqtt_version(ver: u32) -> Self {
-        let mut copts = if ver < MQTT_VERSION_5 {
+    pub fn with_mqtt_version<V>(ver: V) -> Self
+    where
+        V: Into<MqttVersion>,
+    {
+        let ver = ver.into();
+        let mut copts = if ver < MqttVersion::V5 {
             ffi::MQTTAsync_connectOptions::new_v3()
         }
         else {
@@ -671,13 +684,13 @@ mod tests {
     fn test_new_versions() {
         // v3 defaults to clean session, but no clean start
         let opts = ConnectOptions::new();
-        assert_eq!(MQTT_VERSION_DEFAULT, opts.mqtt_version());
+        assert_eq!(MqttVersion::Default, opts.mqtt_version());
         assert!(opts.clean_session());
         assert!(!opts.clean_start());
 
         // v5 defaults to clean start, but no clean session
         let opts = ConnectOptions::new_v5();
-        assert_eq!(MQTT_VERSION_5, opts.mqtt_version());
+        assert_eq!(MqttVersion::V5, opts.mqtt_version());
         assert!(!opts.clean_session());
         assert!(opts.clean_start());
     }

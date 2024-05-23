@@ -4,14 +4,14 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2021 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -30,7 +30,7 @@ use crate::{
     properties::{Properties, PropertyCode},
     subscribe_options::SubscribeOptions,
     token::{DeliveryToken, Token},
-    ServerResponse,
+    QoS, ServerResponse,
 };
 use std::fmt;
 
@@ -48,7 +48,7 @@ pub struct Topic<'a> {
     /// The topic on which to publish the messages.
     topic: String,
     /// The QoS level to publish the messages.
-    qos: i32,
+    qos: QoS,
     /// Whether the last message should be retained by the broker.
     retained: bool,
     /// The topic alias.
@@ -65,14 +65,15 @@ impl<'a> Topic<'a> {
     /// `topic` The topic on which to publish the messages
     /// `qos` The quality of service for messages
     ///
-    pub fn new<T>(cli: &'a AsyncClient, topic: T, qos: i32) -> Self
+    pub fn new<T, Q>(cli: &'a AsyncClient, topic: T, qos: Q) -> Self
     where
         T: Into<String>,
+        Q: Into<QoS>,
     {
         Topic {
             cli,
             topic: topic.into(),
-            qos,
+            qos: qos.into(),
             retained: false,
             alias: 0,
         }
@@ -86,14 +87,15 @@ impl<'a> Topic<'a> {
     /// `topic` The topic on which to publish the messages
     /// `qos` The quality of service for messages
     ///
-    pub fn new_retained<T>(cli: &'a AsyncClient, topic: T, qos: i32) -> Self
+    pub fn new_retained<T, Q>(cli: &'a AsyncClient, topic: T, qos: Q) -> Self
     where
         T: Into<String>,
+        Q: Into<QoS>,
     {
         Topic {
             cli,
             topic: topic.into(),
-            qos,
+            qos: qos.into(),
             retained: true,
             alias: 0,
         }
@@ -284,9 +286,10 @@ impl<'a> SyncTopic<'a> {
     /// `topic` The topic on which to publish the messages
     /// `qos` The quality of service for messages
     ///
-    pub fn new<T>(cli: &'a Client, topic: T, qos: i32) -> Self
+    pub fn new<T, Q>(cli: &'a Client, topic: T, qos: Q) -> Self
     where
         T: Into<String>,
+        Q: Into<QoS>,
     {
         Self {
             cli,
@@ -302,9 +305,10 @@ impl<'a> SyncTopic<'a> {
     /// `topic` The topic on which to publish the messages
     /// `qos` The quality of service for messages
     ///
-    pub fn new_retained<T: Into<String>>(cli: &'a Client, topic: T, qos: i32) -> Self
+    pub fn new_retained<T, Q>(cli: &'a Client, topic: T, qos: Q) -> Self
     where
         T: Into<String>,
+        Q: Into<QoS>,
     {
         Self {
             cli,
