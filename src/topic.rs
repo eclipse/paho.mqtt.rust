@@ -461,32 +461,38 @@ impl TopicFilter {
         Ok(v)
     }
 
+    /// Creates a new topic filter from the string without checking it.
+    pub fn new_unchecked<S>(filter: S) -> Self
+    where
+        S: Into<String>,
+    {
+        let filter = filter.into();
+
+        if filter.contains('+') || filter.ends_with('#') {
+            Self::Fields(filter.split('/').map(|s| s.to_string()).collect())
+        }
+        else {
+            Self::Topic(filter)
+        }
+    }
+
     /// Determines if the topic matches the filter.
-    pub fn is_match(&self, topic: &str) -> bool {
+    ///
+    /// This is the same as [`is_match`](Self::is_match), but uses a more
+    /// consistent function name with other topic matchers.
+    pub fn matches(&self, topic: &str) -> bool {
+        use crate::topic_matcher::topic_matches_iter;
         match self {
             Self::Topic(filter) => topic == filter,
             Self::Fields(fields) => {
-                let n = fields.len();
-                let top_fields: Vec<_> = topic.split('/').collect();
-
-                if n > top_fields.len() {
-                    false
-                }
-                else {
-                    let mut saw_wc = false;
-                    for i in 0..n {
-                        if fields[i] == "#" {
-                            saw_wc = true;
-                            break;
-                        }
-                        if fields[i] != "+" && fields[i] != top_fields[i] {
-                            return false;
-                        }
-                    }
-                    saw_wc || n == top_fields.len()
-                }
+                topic_matches_iter(fields.iter().map(|s| s.as_str()), topic.split('/'))
             }
         }
+    }
+
+    /// Determines if the topic matches the filter.
+    pub fn is_match(&self, topic: &str) -> bool {
+        self.matches(topic)
     }
 }
 
@@ -494,7 +500,6 @@ impl fmt::Display for TopicFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Topic(filter) => write!(f, "{}", filter),
-            // OPTIIMIZE: Do the individual writes, not join
             Self::Fields(fields) => write!(f, "{}", fields.join("/")),
         }
     }
@@ -520,7 +525,7 @@ mod tests {
     }
 
     #[test]
-    fn test_topic_filter() {
+    fn test_basic_topic_filter() {
         const FILTER1: &str = "some/topic/#";
 
         let filter = TopicFilter::new(FILTER1).unwrap();
@@ -541,5 +546,34 @@ mod tests {
         let filter = TopicFilter::new(FILTER3).unwrap();
         assert!(filter.is_match("some/thing"));
         assert!(!filter.is_match("some/thing/plus"));
+    }
+
+    #[test]
+    fn test_topic_filter() {
+        // Should match
+
+        assert!(TopicFilter::new_unchecked("foo/bar").matches("foo/bar"));
+        assert!(TopicFilter::new_unchecked("foo/+").matches("foo/bar"));
+        assert!(TopicFilter::new_unchecked("foo/+/baz").matches("foo/bar/baz"));
+        assert!(TopicFilter::new_unchecked("foo/+/#").matches("foo/bar/baz"));
+        assert!(TopicFilter::new_unchecked("A/B/+/#").matches("A/B/B/C"));
+        assert!(TopicFilter::new_unchecked("#").matches("foo/bar/baz"));
+        assert!(TopicFilter::new_unchecked("#").matches("/foo/bar"));
+        assert!(TopicFilter::new_unchecked("/#").matches("/foo/bar"));
+        assert!(TopicFilter::new_unchecked("$SYS/bar").matches("$SYS/bar"));
+        assert!(TopicFilter::new_unchecked("foo/#").matches("foo/$bar"));
+        assert!(TopicFilter::new_unchecked("foo/+/baz").matches("foo/$bar/baz"));
+
+        // Should not match
+
+        assert!(!TopicFilter::new_unchecked("test/6/#").matches("test/3"));
+        assert!(!TopicFilter::new_unchecked("foo/bar").matches("foo"));
+        assert!(!TopicFilter::new_unchecked("foo/+").matches("foo/bar/baz"));
+        assert!(!TopicFilter::new_unchecked("foo/+/baz").matches("foo/bar/bar"));
+        assert!(!TopicFilter::new_unchecked("foo/+/#").matches("fo2/bar/baz"));
+        assert!(!TopicFilter::new_unchecked("/#").matches("foo/bar"));
+        assert!(!TopicFilter::new_unchecked("#").matches("$SYS/bar"));
+        assert!(!TopicFilter::new_unchecked("$BOB/bar").matches("$SYS/bar"));
+        assert!(!TopicFilter::new_unchecked("+/bar").matches("$SYS/bar"));
     }
 }
