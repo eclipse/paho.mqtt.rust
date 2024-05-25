@@ -4,7 +4,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2019-2022 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2019-2024 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -25,9 +25,10 @@ use std::{ffi::CStr, fmt};
 
 /// MQTT v5 single-byte reason codes.
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[allow(missing_docs)]
 pub enum ReasonCode {
+    #[default]
     Success = 0, // also: NormalDisconnection & GrantedQos0
     GrantedQos1 = 1,
     GrantedQos2 = 2,
@@ -95,12 +96,6 @@ impl ReasonCode {
     /// Reason codes of 0x80 or greater indicate failure.
     pub fn is_err(&self) -> bool {
         (*self as u32) >= 0x80
-    }
-}
-
-impl Default for ReasonCode {
-    fn default() -> Self {
-        ReasonCode::Success
     }
 }
 

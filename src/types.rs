@@ -49,10 +49,11 @@ pub const QOS_1: i32 = 1;
 pub const QOS_2: i32 = 2;
 
 /// Supported MQTT protocol versions
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u32)]
 pub enum MqttVersion {
     /// The default v3.1.1 or v3.1
+    #[default]
     Default = MQTT_VERSION_DEFAULT,
     /// Version 3.1 (byte 3)
     V3_1 = MQTT_VERSION_3_1,
@@ -81,12 +82,13 @@ impl From<c_int> for MqttVersion {
 }
 
 /// Supported Quality of Service levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
 pub enum QoS {
     /// At most once
     AtMostOnce = 0,
     /// At least once
+    #[default]
     AtLeastOnce = 1,
     /// Exactly Once
     ExactlyOnce = 2,
@@ -99,12 +101,6 @@ impl QoS {
     pub const QoS1: QoS = QoS::AtLeastOnce;
     /// Exactly Once
     pub const QoS2: QoS = QoS::ExactlyOnce;
-}
-
-impl Default for QoS {
-    fn default() -> Self {
-        QoS::AtLeastOnce
-    }
 }
 
 impl fmt::Display for QoS {

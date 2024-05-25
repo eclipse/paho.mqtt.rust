@@ -4,7 +4,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2018-2022 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2018-2024 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -40,9 +40,10 @@ use std::ffi::CStr;
 /// The server requests that expect a response.
 /// This is required because the `alt` union of the MQTTAsync_successData
 /// struct from C library doesn't indicate which field is valid.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum ServerRequest {
     /// No response expected from the server
+    #[default]
     None,
     /// Connecting to the server
     Connect,
@@ -56,20 +57,15 @@ pub enum ServerRequest {
     UnsubscribeMany(usize),
 }
 
-impl Default for ServerRequest {
-    fn default() -> Self {
-        ServerRequest::None
-    }
-}
-
 /////////////////////////////////////////////////////////////////////////////
 // RequestResponse
 
 /// The possible responses that may come back from the server, depending on
 /// the type of request.
-#[derive(Clone, Debug)]
+#[derive(Debug, Default, Clone)]
 pub enum RequestResponse {
     /// No response from the server
+    #[default]
     None,
     /// The server URI, MQTT version, and whether the session is present
     Connect(ConnectResponse),
@@ -81,12 +77,6 @@ pub enum RequestResponse {
     Unsubscribe(i32),
     /// The granted QoS of all the subscriptions
     UnsubscribeMany(Vec<i32>),
-}
-
-impl Default for RequestResponse {
-    fn default() -> Self {
-        RequestResponse::None
-    }
 }
 
 /// The response from the server on a connect request.

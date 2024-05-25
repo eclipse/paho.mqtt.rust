@@ -5,7 +5,7 @@
 //
 
 /*******************************************************************************
- * Copyright (c) 2017-2023 Frank Pagliughi <fpagliughi@mindspring.com>
+ * Copyright (c) 2017-2024 Frank Pagliughi <fpagliughi@mindspring.com>
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -52,12 +52,14 @@ use crate::{
 /// file persistence to that directory. If a directory with that name can't
 /// be found or created by the library, then a persistence error is returned
 /// when attempting to create the MQTT client object.
+#[derive(Default)]
 pub enum PersistenceType {
     /// Messages are persisted to files in a local directory (default).
     File,
     /// Messages are persisted to files under the specified directory.
     FilePath(PathBuf),
     /// No persistence is used.
+    #[default]
     None,
     /// A user-defined persistence provided by the application.
     User(Box<Box<dyn ClientPersistence + Send>>),
@@ -72,12 +74,6 @@ impl fmt::Debug for PersistenceType {
             None => write!(f, "None"),
             User(_) => write!(f, "User"),
         }
-    }
-}
-
-impl Default for PersistenceType {
-    fn default() -> Self {
-        PersistenceType::None
     }
 }
 
