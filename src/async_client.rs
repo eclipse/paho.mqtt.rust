@@ -891,8 +891,12 @@ impl AsyncClient {
     {
         let n = topics.len();
 
+        // The length of the slices must match
+        if n != qos.len() {
+            return SubscribeManyToken::from_error(-1);
+        }
+
         let ver = self.mqtt_version();
-        // TOOD: Make sure topics & qos are same length (or use min)
         let tok = Token::from_request(None, ServerRequest::SubscribeMany(n));
         let mut rsp_opts = ResponseOptions::new(ver, tok.clone());
         let topics = StringCollection::new(topics);
@@ -916,6 +920,22 @@ impl AsyncClient {
         }
 
         tok
+    }
+
+    /// Subscribes to multiple topics simultaneously using the same QoS
+    /// for all of them.
+    ///
+    /// # Arguments
+    ///
+    /// `topics` The collection of topic names
+    /// `qos` The quality of service requested for all messages
+    ///
+    pub fn subscribe_many_same_qos<T>(&self, topics: &[T], qos: i32) -> SubscribeManyToken
+    where
+        T: AsRef<str>,
+    {
+        let qos = vec![qos; topics.len()];
+        self.subscribe_many(topics, &qos)
     }
 
     /// Subscribes to multiple topics simultaneously with options.

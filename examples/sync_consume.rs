@@ -97,7 +97,7 @@ fn main() {
         .finalize();
 
     let subscriptions = ["test", "hello"];
-    let qos = [1, 1];
+    let qos = 1;
 
     // Make the connection to the broker
     match cli.connect(conn_opts) {
@@ -121,7 +121,7 @@ fn main() {
                         subscriptions, qos
                     );
 
-                    cli.subscribe_many(&subscriptions, &qos)
+                    cli.subscribe_many_same_qos(&subscriptions, qos)
                         .and_then(|rsp| {
                             rsp.subscribe_many_response()
                                 .ok_or(mqtt::Error::General("Bad response"))
