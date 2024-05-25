@@ -193,6 +193,23 @@ impl Client {
         self.cli.subscribe_many(topics, qos).wait_for(self.timeout)
     }
 
+    /// Subscribes to multiple topics simultaneously using the same QoS
+    /// for all of them.
+    ///
+    /// # Arguments
+    ///
+    /// `topics` The collection of topic names
+    /// `qos` The quality of service requested for all messages
+    ///
+    pub fn subscribe_many_same_qos<T>(&self, topics: &[T], qos: i32) -> Result<ServerResponse>
+    where
+        T: AsRef<str>,
+    {
+        self.cli
+            .subscribe_many_same_qos(topics, qos)
+            .wait_for(self.timeout)
+    }
+
     /// Subscribes to multiple topics simultaneously with options.
     ///
     /// # Arguments

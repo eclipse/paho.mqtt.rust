@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.13.0](https://github.com/eclipse/paho.mqtt.rust/compare/v0.12.4..v0.13.0) - (Unreleased)
+## [v0.13.0](https://github.com/eclipse/paho.mqtt.rust/compare/v0.12.5..v0.13.0) - (Unreleased)
 
 - Reworked the Error type
     - Remove `Paho` and `PahoDescr` errors. De-nested them into the top-level.
@@ -16,6 +16,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
     - `MqttVersion`
     - `ConnectReturnCode` (for MQTT v3.x)
     - `QoS`
+
+
+## [v0.12.5](https://github.com/eclipse/paho.mqtt.rust/compare/v0.12.4..v0.12.5) - (2024-05-25)
+
+- Updated the License to EPL-v2.0
+- Added some missing Eclipse Paho legal documents.
+- Added `TopicMatcher::insert_many()`
+- [#216](https://github.com/eclipse/paho.mqtt.rust/issues/216) Deref QoS pointers for SubscribeMany and UnsubscribeMany in server response
+- [#215](https://github.com/eclipse/paho.mqtt.rust/issues/215) Now `subscribe_many()` returns an error if slices not the same length. Also added `subscribe_many_same_qos()` to the clients. 
 
 
 ## [v0.12.4](https://github.com/eclipse/paho.mqtt.rust/compare/v0.12.3..v0.12.4) - 2024-05-19
