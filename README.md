@@ -134,6 +134,25 @@ Point it to wherever you installed the library. Alternately, you can tell Cargo 
     # Build OpenSSL with the project
     paho-mqtt = { version = "0.12", features=["vendored-ssl"] }
 
+### macOS Universal Binaries
+
+To be able to build the library on macOS as Universal Binary, which is working for both architectures Apple Silicon and Intel x86_64 alike, you need to run at least Rust 1.66 as it requires this PR from Rust compiler team: https://github.com/rust-lang/rust/pull/98736.
+
+To set up your build system please update your Rust compiler toolchain and add both macOS targets as follows:
+
+    $ rustup update stable
+    $ rustup +stable add target x86_64-apple-darwin
+    $ rustup +stable add target aarch64-apple-darwin
+
+You can build the library for both architectures now by running:
+
+    $ cargo build --target x86_64-apple-darwin
+    $ cargo build --target aarch64-apple-darwin
+
+To combine the two separate libraries into one universal binary please use the lipo command-line tool provided with the Xcode command-line programs:
+
+    $ lipo -create -arch arm64 <path-to-aarch64-apple-darwin-binary> -arch x86_64 <path-to-x86_64-apple-darwin-binary> -o <path-to-universal-binary>
+
 ### Fully Static Builds with MUSL
 
 Using _musl_ would allow you to create fully-static applications that do not rely on any shared libraries... at all. You would need a _musl_ target for your Rust compiler, and the _musl_ build tools for your target ar well. 
